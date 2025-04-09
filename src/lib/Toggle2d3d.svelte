@@ -5,35 +5,23 @@
 	import X from 'phosphor-svelte/lib/X';
 	import { button } from '$lib';
 	import { page } from '$app/state';
+	import { Renderer } from './renderer/renderer';
 
-	/**
-	 * Stato attuale della visualizzazione (2D o 3D)
-	 * @default La preferenza dalle impostazioni dell'app
-	 */
 	export let is3d: boolean = page.data.settings.allow3d;
 </script>
 
 <div class="main">
 	{#if page.data.settings.allow3d}
-		<input 
-			type="checkbox" 
-			id="toggle" 
-			class="toggleCheckbox" 
-			bind:checked={is3d} 
-			aria-label="Cambia modalità da 2D a 3D"
-		/>
+		<input type="checkbox" id="toggle" class="toggleCheckbox" bind:checked={is3d} />
 		<label for="toggle" class="toggleContainer border border-[#e8e8e8]">
 			<div><span>2D</span></div>
 			<div><span>3D</span></div>
 		</label>
 	{/if}
 
-	<!-- Dialog per l'aiuto -->
+	<!-- Help popup -->
 	<Dialog.Root>
-		<Dialog.Trigger 
-			class={button({ size: 'square', class: 'font-bold' })}
-			aria-label="Visualizza aiuto"
-		>
+		<Dialog.Trigger class={button({ size: 'square', class: 'font-bold' })}>
 			<span class="text-xl">?</span>
 		</Dialog.Trigger>
 
@@ -75,11 +63,10 @@
 
 				<Dialog.Close
 					class="absolute right-5 top-5 rounded-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-98"
-					aria-label="Chiudi aiuto"
 				>
 					<div>
 						<X class="size-5 text-foreground" />
-						<span class="sr-only">Chiudi</span>
+						<span class="sr-only">Close</span>
 					</div>
 				</Dialog.Close>
 			</Dialog.Content>
@@ -94,13 +81,18 @@
 		gap: 1rem;
 		grid-row: span 2;
 		width: 50px;
+
 		user-select: none;
 	}
 
 	.toggleContainer {
 		grid-row: span 2;
+
 		background: #e8e8e8;
+		color: hsl(var(--primary));
+
 		color: rgba(0, 0, 0, 127);
+
 		position: relative;
 		display: grid;
 		grid-template-rows: repeat(2, 1fr);
@@ -108,10 +100,10 @@
 		border-radius: 10px;
 		font-weight: bold;
 		cursor: pointer;
+
 		font-size: 25px;
-		font-family: 'Acumin Pro', sans-serif;
+		font-family: 'Acumin Pro';
 	}
-	
 	.toggleContainer::before {
 		content: '';
 		position: absolute;
@@ -122,11 +114,9 @@
 		background: white;
 		transition: all 0.3s;
 	}
-	
 	.toggleCheckbox:checked + .toggleContainer::before {
 		top: 50%;
 	}
-	
 	.toggleContainer div {
 		padding: 2px;
 		text-align: center;
@@ -135,30 +125,24 @@
 		justify-content: center;
 		align-items: center;
 	}
-	
 	.toggleContainer div * {
 		transform: translateY(0.1em);
 	}
-	
 	.toggleCheckbox {
 		display: none;
 	}
-	
 	.toggleCheckbox:checked + .toggleContainer div:first-child {
 		color: rgba(0, 0, 0, 127);
 		transition: color 0.2s;
 	}
-	
 	.toggleCheckbox:checked + .toggleContainer div:last-child {
 		color: hsl(var(--primary));
 		transition: color 0.2s;
 	}
-	
 	.toggleCheckbox + .toggleContainer div:first-child {
 		color: hsl(var(--primary));
 		transition: color 0.2s;
 	}
-	
 	.toggleCheckbox + .toggleContainer div:last-child {
 		color: rgba(0, 0, 0, 127);
 		transition: color 0.2s;

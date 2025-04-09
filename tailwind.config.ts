@@ -2,9 +2,8 @@ import { fontFamily } from 'tailwindcss/defaultTheme';
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
-	darkMode: ['class'],
 	content: ['./src/**/*.{html,js,svelte,ts}'],
-	safelist: ['dark'],
+	darkMode: ['class'],
 	theme: {
 		container: {
 			center: true,
@@ -40,14 +39,6 @@ const config: Config = {
 					DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
 					foreground: 'hsl(var(--accent-foreground) / <alpha-value>)',
 				},
-				popover: {
-					DEFAULT: 'hsl(var(--popover) / <alpha-value>)',
-					foreground: 'hsl(var(--popover-foreground) / <alpha-value>)',
-				},
-				card: {
-					DEFAULT: 'hsl(var(--card) / <alpha-value>)',
-					foreground: 'hsl(var(--card-foreground) / <alpha-value>)',
-				},
 				box: '#ededed',
 				box2: '#e8e8e8',
 				box3: '#e0e0e0',
@@ -55,25 +46,19 @@ const config: Config = {
 			borderRadius: {
 				DEFAULT: '0.85rem',
 			},
-			scale: {
-				98: '.98',
-			},
 			boxShadow: {
 				btn: '4px 4px 15px 0px #00000020',
 				'btn-active': 'inset 4px 4px 15px 0px #00000010',
 			},
-			borderColor: {
-				secondary: '#00000020',
-			},
 			fontFamily: {
 				sans: [...fontFamily.sans],
 			},
-			fontSize: {
-				base: '0.5rem',
+			gridTemplateColumns: { 
+				layout: '250px 1fr min-content' 
 			},
-
-			gridTemplateColumns: { layout: '250px 1fr min-content' },
-			gridTemplateRows: { layout: 'min-content 1fr min-content' },
+			gridTemplateRows: { 
+				layout: 'min-content 1fr min-content' 
+			},
 		},
 	},
 };
