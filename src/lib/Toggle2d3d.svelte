@@ -1,13 +1,30 @@
 <script lang="ts">
 	import { Dialog, Separator } from 'bits-ui';
-	import { fade } from 'svelte/transition';
-	import { flyAndScale } from '$shad/utils';
+	import { fade, fly, scale } from 'svelte/transition';
 	import X from 'phosphor-svelte/lib/X';
 	import { button } from '$lib';
 	import { page } from '$app/state';
-	import { Renderer } from './renderer/renderer';
-
-	export let is3d: boolean = page.data.settings.allow3d;
+	import type { TransitionConfig } from 'svelte/transition';
+	
+	// Use proper runes syntax for props
+	let { is3d = page.data.settings.allow3d }: { is3d?: boolean } = $props();
+	
+	// Combined transition function to replace the missing flyAndScale
+	function combinedTransition(node: Element, options: { duration?: number } = {}): TransitionConfig {
+		const flyTransition = fly(node, { y: -20, duration: options.duration });
+		const scaleTransition = scale(node, { start: 0.95, duration: options.duration });
+		
+		return {
+			delay: flyTransition.delay,
+			duration: flyTransition.duration,
+			easing: flyTransition.easing,
+			css: (t: number, u: number) => {
+				const flyCSS = flyTransition.css?.(t, u) || '';
+				const scaleCSS = scaleTransition.css?.(t, u) || '';
+				return flyCSS + scaleCSS;
+			}
+		};
+	}
 </script>
 
 <div class="main">
@@ -32,7 +49,8 @@
 				class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
 			/>
 			<Dialog.Content
-				transition={flyAndScale}
+				transition={combinedTransition}
+				transitionConfig={{ duration: 150 }}
 				class="fixed left-[50%] top-[50%] z-50 w-full max-w-[94%] translate-x-[-50%] translate-y-[-50%] rounded bg-background p-5 shadow-popover outline-none lg:w-3/5"
 			>
 				<Dialog.Title class="flex w-full items-center text-left text-2xl font-bold">
@@ -81,18 +99,14 @@
 		gap: 1rem;
 		grid-row: span 2;
 		width: 50px;
-
 		user-select: none;
 	}
 
 	.toggleContainer {
 		grid-row: span 2;
-
 		background: #e8e8e8;
 		color: hsl(var(--primary));
-
 		color: rgba(0, 0, 0, 127);
-
 		position: relative;
 		display: grid;
 		grid-template-rows: repeat(2, 1fr);
@@ -100,10 +114,10 @@
 		border-radius: 10px;
 		font-weight: bold;
 		cursor: pointer;
-
 		font-size: 25px;
-		font-family: 'Acumin Pro';
+		font-family: 'Acumin Pro', sans-serif;
 	}
+	
 	.toggleContainer::before {
 		content: '';
 		position: absolute;
@@ -114,9 +128,11 @@
 		background: white;
 		transition: all 0.3s;
 	}
+	
 	.toggleCheckbox:checked + .toggleContainer::before {
 		top: 50%;
 	}
+	
 	.toggleContainer div {
 		padding: 2px;
 		text-align: center;
@@ -125,24 +141,30 @@
 		justify-content: center;
 		align-items: center;
 	}
+	
 	.toggleContainer div * {
 		transform: translateY(0.1em);
 	}
+	
 	.toggleCheckbox {
 		display: none;
 	}
+	
 	.toggleCheckbox:checked + .toggleContainer div:first-child {
 		color: rgba(0, 0, 0, 127);
 		transition: color 0.2s;
 	}
+	
 	.toggleCheckbox:checked + .toggleContainer div:last-child {
 		color: hsl(var(--primary));
 		transition: color 0.2s;
 	}
+	
 	.toggleCheckbox + .toggleContainer div:first-child {
 		color: hsl(var(--primary));
 		transition: color 0.2s;
 	}
+	
 	.toggleCheckbox + .toggleContainer div:last-child {
 		color: rgba(0, 0, 0, 127);
 		transition: color 0.2s;

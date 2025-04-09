@@ -6,32 +6,28 @@
 	 * Se false, il logo sarà posizionato in fondo alla pagina.
 	 * @default true
 	 */
-	export let top: boolean = true;
+	let { 
+		top = true,
+		customUrl = null,
+		maxHeight = 50 
+	}: { 
+		top?: boolean; 
+		customUrl?: string | null;
+		maxHeight?: number;
+	} = $props();
 	
-	/**
-	 * URL alternativo per il logo (opzionale)
-	 * Se non specificato, verrà utilizzato il logo del tenant corrente
-	 */
-	export let customUrl: string | null = null;
-	
-	/**
-	 * Altezza massima del logo in pixel
-	 * @default 50
-	 */
-	export let maxHeight: number = 50;
-
 	// Ottieni l'URL del logo dal tenant corrente o utilizza l'URL personalizzato
-	$: logoUrl = customUrl || page.data.supabase.storage
+	const logoUrl = $derived(customUrl || page.data.supabase.storage
 		.from(page.data.tenant)
-		.getPublicUrl(`${page.data.tenant}.png`).data.publicUrl;
+		.getPublicUrl(`${page.data.tenant}.png`).data.publicUrl);
 		
-	$: altText = `Logo ${page.data.tenant}`;
+	const altText = $derived(`Logo ${page.data.tenant}`);
 	
 	// Gestione dello stile in base alla posizione
-	$: position = top ? 'top: 20px' : 'bottom: 20px';
+	const position = $derived(top ? 'top: 20px' : 'bottom: 20px');
 	
 	// Flag per tracciare se c'è stato un errore di caricamento
-	let imageError = false;
+	let imageError = $state(false);
 	
 	// Gestione dell'errore di caricamento dell'immagine
 	function handleImageError(event: Event) {
@@ -53,7 +49,7 @@
 			style="max-height: {maxHeight}px;" 
 			alt={altText} 
 			loading="lazy"
-			on:error={handleImageError}
+			onerror={handleImageError}
 		/>
 	{:else if imageError}
 		<img 

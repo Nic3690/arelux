@@ -1,17 +1,27 @@
 <script lang="ts">
 	import { Slider } from 'bits-ui';
 
-	export let min: number;
-	export let max: number;
-	export let step: number;
-	export let defaultValue: number = 4000;
-	export let onChange: ((value: number) => void) | undefined = undefined;
+	let {
+		min,
+		max,
+		step,
+		defaultValue = 4000,
+		onChange = undefined
+	}: {
+		min: number;
+		max: number;
+		step: number;
+		defaultValue?: number;
+		onChange?: ((value: number) => void) | undefined;
+	} = $props();
 
-	let value = [defaultValue];
+	let value = $state([defaultValue]);
 
-	$: if (onChange && value[0]) {
-		onChange(value[0]);
-	}
+	$effect(() => {
+		if (onChange && value[0]) {
+			onChange(value[0]);
+		}
+	});
 </script>
 
 <div class="flex w-full items-center justify-center rounded bg-box px-5 py-3 md:max-w-[280px]">

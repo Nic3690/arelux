@@ -1,17 +1,23 @@
 <script lang="ts">
-	import { cn } from '$shad/utils';
 	import _ from 'lodash';
 	import type { Family } from '../../app';
-
-	type Props = {
-		family: Family;
-		value?: string;
-		onsubmit?: (value: string, length: number) => void;
-	};
+	
+	// Implementazione locale della funzione cn (classNames) per evitare dipendenze
+	function cn(...classes: (string | boolean | undefined | null)[]): string {
+		return classes.filter(Boolean).join(' ');
+	}
 
 	type LengthItem = { code: string; len: number };
 
-	let { family, value = $bindable(), onsubmit }: Props = $props();
+	let { 
+		family,
+		value = $bindable(),
+		onsubmit
+	}: {
+		family: Family;
+		value?: string;
+		onsubmit?: (value: string, length: number) => void;
+	} = $props();
 
 	let valueInvalid = $state(false);
 	let valueLen = $state(0);
@@ -20,7 +26,7 @@
 	// Estrae e ordina le lunghezze uniche dalla famiglia
 	$effect(() => {
 		// Estrai items con codice e lunghezza
-		const extractedItems = family.items.map(i => ({ code: i.code, len: i.len }));
+		const extractedItems = family.items.map(i => ({ code: i.code, len: i.len ?? 0 }));
 		
 		// Ordina per lunghezza
 		const sortedItems = extractedItems.toSorted((a, b) => a.len - b.len);
@@ -39,7 +45,7 @@
 		if (value === undefined || !family.items.map(i => i.code).includes(value)) {
 			if (family.items.length > 0) {
 				value = family.items[0].code;
-				valueLen = family.items[0].len;
+				valueLen = family.items[0].len ?? 0;
 			}
 		}
 	});
@@ -49,7 +55,7 @@
 		if (value) {
 			const item = family.items.find(i => i.code === value);
 			if (item) {
-				valueLen = item.len;
+				valueLen = item.len ?? 0;
 			}
 		}
 	});
