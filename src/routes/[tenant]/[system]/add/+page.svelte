@@ -20,6 +20,7 @@
 	import ArrowsClockwise from 'phosphor-svelte/lib/ArrowsClockwise';
 	import { SvelteSet } from 'svelte/reactivity';
 	import type { RendererObject } from '$lib/renderer/objects';
+	import ConfigLengthSelector from '$lib/config/ConfigLengthSelector.svelte';
 
 	let { data }: { data: PageData } = $props();
 	let canvas: HTMLCanvasElement;
@@ -291,99 +292,115 @@
 
 	<div bind:this={controlsEl}></div>
 
-	<!-- Bottom configuration -->
-	<div class="absolute bottom-5 left-80 right-80 flex justify-center gap-3">
-		{#if page.state.chosenFamily !== undefined}
-			{@const family = data.families[page.state.chosenFamily]}
-			{#if family.needsCurveConfig}
-				<ConfigCurveShape
-					{family}
-					onSubmit={(familyEntry, chosenPoint) => {
-						configShape = chosenPoint;
-						replaceState('', {
-							chosenItem: familyEntry.code,
-							chosenFamily: page.state.chosenFamily,
-							reference: page.state.reference,
-						});
-					}}
-				/>
-			{/if}
-
-			{#if family.needsColorConfig}
-				<ConfigColor
-					items={family.items.map((i) => i.color)}
-					disabled={(family.needsCurveConfig && configShape === undefined) ||
-						(family.needsLengthConfig && configLength === undefined)}
-					onsubmit={(color) => {
-						const { angle, radius } = configShape ?? { angle: -1, radius: -1 };
-						const { needsCurveConfig, needsLengthConfig } = family;
-						const items = family.items
-							.filter((i) => (needsCurveConfig ? i.deg === angle && i.radius === radius : true))
-							.filter((i) => (needsLengthConfig ? i.len === configLength : true))
-							.filter((i) => i.color === color);
-						if (items.length === 0) throw new Error('what?');
-						replaceState('', {
-							chosenItem: items[0].code,
-							chosenFamily: page.state.chosenFamily,
-							reference: page.state.reference,
-						});
-					}}
-				/>
-			{/if}
-
-			{#if family.needsLengthConfig && !family.arbitraryLength}
-				<ConfigLength
-					{family}
-					onsubmit={(objectCode, length) => {
-						configLength = length;
-						replaceState('', {
-							chosenItem: objectCode,
-							chosenFamily: page.state.chosenFamily,
-							reference: page.state.reference,
-						});
-					}}
-				/>
-			{:else if family.needsLengthConfig && family.arbitraryLength}
-				<ConfigLengthArbitrary
-					value={arbitraryLength}
-					onsubmit={(length) => {
-						replaceState('', {
-							chosenItem: page.state.chosenItem,
-							chosenFamily: page.state.chosenFamily,
-							reference: page.state.reference,
-							length,
-						});
-					}}
-				/>
-			{/if}
-
-			{#if family.needsLedConfig}
-				{@const chosenItem = family.items.find((i) => i.code === page.state.chosenItem)}
-				<ConfigLed
-					family={data.families[family.ledFamily ?? '']}
-					length={family.arbitraryLength ? page.state.length : chosenItem?.len}
-					tenant={data.tenant}
-					supabase={data.supabase}
-					onsubmit={(led, length) => {
-						replaceState('', {
-							chosenItem: page.state.chosenItem,
-							chosenFamily: page.state.chosenFamily,
-							reference: page.state.reference,
-							led,
-							length,
-						});
-						arbitraryLength = length;
-					}}
-				/>
-			{/if}
-
-			{#if data.catalog[page.state.chosenItem].juncts.length > 1 && $objects.length > 0}
-				<button class={button({ class: 'flex items-center' })} onclick={() => temporary?.rotate()}>
-					<ArrowsClockwise class="mr-1 size-7 text-foreground" />
-					Ruota
-				</button>
-			{/if}
-		{/if}
-	</div>
+<!-- Bottom configuration -->
+<div class="absolute bottom-5 left-80 right-80 flex justify-center gap-3">
+	{#if page.state.chosenFamily !== undefined}
+	  {@const family = data.families[page.state.chosenFamily]}
+	  
+	  {#if family.needsCurveConfig}
+		<ConfigCurveShape
+		  {family}
+		  onSubmit={(familyEntry, chosenPoint) => {
+			configShape = chosenPoint;
+			replaceState('', {
+			  chosenItem: familyEntry.code,
+			  chosenFamily: page.state.chosenFamily,
+			  reference: page.state.reference,
+			});
+		  }}
+		/>
+	  {/if}
+  
+	  {#if family.needsColorConfig}
+		<ConfigColor
+		  items={family.items.map((i) => i.color)}
+		  disabled={(family.needsCurveConfig && configShape === undefined) ||
+			(family.needsLengthConfig && configLength === undefined)}
+		  onsubmit={(color) => {
+			const { angle, radius } = configShape ?? { angle: -1, radius: -1 };
+			const { needsCurveConfig, needsLengthConfig } = family;
+			const items = family.items
+			  .filter((i) => (needsCurveConfig ? i.deg === angle && i.radius === radius : true))
+			  .filter((i) => (needsLengthConfig ? i.len === configLength : true))
+			  .filter((i) => i.color === color);
+			if (items.length === 0) throw new Error('what?');
+			replaceState('', {
+			  chosenItem: items[0].code,
+			  chosenFamily: page.state.chosenFamily,
+			  reference: page.state.reference,
+			});
+		  }}
+		/>
+	  {/if}
+  
+	  <!-- Selettore di lunghezza integrato qui -->
+	  {#if family.system === "XNet"}
+		<ConfigLengthSelector
+		  standardLength={1000}
+		  value={arbitraryLength}
+		  onsubmit={(length) => {
+			arbitraryLength = length;
+			replaceState('', {
+			  chosenItem: page.state.chosenItem,
+			  chosenFamily: page.state.chosenFamily,
+			  reference: page.state.reference,
+			  length,
+			});
+		  }}
+		/>
+	  {:else if family.needsLengthConfig && !family.arbitraryLength}
+		<ConfigLength
+		  {family}
+		  onsubmit={(objectCode, length) => {
+			configLength = length;
+			replaceState('', {
+			  chosenItem: objectCode,
+			  chosenFamily: page.state.chosenFamily,
+			  reference: page.state.reference,
+			});
+		  }}
+		/>
+	  {:else if family.needsLengthConfig && family.arbitraryLength}
+		<ConfigLengthArbitrary
+		  value={arbitraryLength}
+		  onsubmit={(length) => {
+			replaceState('', {
+			  chosenItem: page.state.chosenItem,
+			  chosenFamily: page.state.chosenFamily,
+			  reference: page.state.reference,
+			  length,
+			});
+		  }}
+		/>
+	  {/if}
+  
+	  {#if family.needsLedConfig}
+		{@const chosenItem = family.items.find((i) => i.code === page.state.chosenItem)}
+		<ConfigLed
+		  family={data.families[family.ledFamily ?? '']}
+		  length={family.arbitraryLength ? page.state.length : chosenItem?.len}
+		  tenant={data.tenant}
+		  supabase={data.supabase}
+		  onsubmit={(led, length) => {
+			replaceState('', {
+			  chosenItem: page.state.chosenItem,
+			  chosenFamily: page.state.chosenFamily,
+			  reference: page.state.reference,
+			  led,
+			  length,
+			});
+			arbitraryLength = length;
+		  }}
+		/>
+	  {/if}
+  
+	  {#if data.catalog[page.state.chosenItem].juncts.length > 1 && $objects.length > 0}
+		<button class={button({ class: 'flex items-center' })} onclick={() => temporary?.rotate()}>
+		  <ArrowsClockwise class="mr-1 size-7 text-foreground" />
+		  Ruota
+		</button>
+	  {/if}
+	{/if}
+  </div>
 </main>
 <canvas class="absolute inset-0 -z-10 h-dvh w-full" bind:this={canvas}></canvas>
