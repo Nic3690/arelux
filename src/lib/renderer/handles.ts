@@ -87,9 +87,9 @@ export class HandleManager {
 		const thisCatalog = this.#state.catalog[selectedCode];
 
 		for (const other of this.#state.getObjects()) {
-			other
+			Array.from(other
 				.getJunctions()
-				.entries()
+				.entries())
 				.filter(([_, withObj]) => withObj === null)
 				.map(([i, _]) => [junctionCompatible(thisCatalog, other.getCatalogEntry(), i), i])
 				.forEach(([thisJunctId, otherJunctId]) => {
@@ -102,9 +102,9 @@ export class HandleManager {
 					}
 				});
 
-			other
+			Array.from(other
 				.getLineJunctions()
-				.entries()
+				.entries())
 				.map(([i, _]) => [lineJunctionCompatible(thisCatalog, other.getCatalogEntry(), i), i])
 				.forEach(([thisJunctId, otherJunctId]) => {
 					if (thisJunctId !== -1 && otherJunctId !== -1) {

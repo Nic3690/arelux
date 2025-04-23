@@ -13,6 +13,7 @@ import { storable } from './storable';
 import Handlebars from 'handlebars';
 import type { Vector3Like } from 'three';
 import type { RendererObject } from './renderer/objects';
+import _ from 'lodash';
 
 export let objects: Writable<SavedObject[]> = writable([]);
 
@@ -120,19 +121,19 @@ export async function finishEdit(
 			length: state.length ? state.length - led.radius : undefined,
 		});
 	}
-	objects.update((objs) =>
-		objs.concat({
-			code: state.chosenItem,
-			desc1: item.desc1,
-			desc2: item.desc2,
-			subobjects,
-			length: state.length,
-            // Aggiungiamo un'indicazione che è una lunghezza personalizzata
-			customLength: state.isCustomLength === true,
-			object: obj,
-		}),
-	);
-	lastAdded.set(obj.id);
+			objects.update((objs) =>
+				objs.concat({
+					code: state.chosenItem,
+					desc1: item?.desc1 ?? '',
+					desc2: item?.desc2 ?? '',
+					subobjects,
+					length: state.length,
+		            // Aggiungiamo un'indicazione che è una lunghezza personalizzata
+					customLength: state.isCustomLength === true,
+					object: obj,
+				}),
+			);
+			lastAdded.set(obj.id);
 	goto(`/${page.data.tenant}/${page.data.system}`);
 }
 

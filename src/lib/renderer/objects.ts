@@ -15,6 +15,7 @@ import {
 	SphereGeometry,
 	Vector3,
 	Box3,
+	Quaternion,
 	type Object3DEventMap,
 	type Vector3Like,
 } from 'three';
@@ -52,11 +53,9 @@ export class TemporaryObject {
 	}
 
 	private nullJunctions(): number[] {
-		return this.#junctions
-			.entries()
+		return Array.from(this.#junctions.entries())
 			.filter(([_, withObj]) => withObj === null)
-			.map(([i, _]) => i)
-			.toArray();
+			.map(([i, _]) => i);
 	}
 
 	dispose(scene: Scene) {
@@ -231,33 +230,26 @@ export class TemporaryObject {
 		return j1.group;
 	}
 
-	/**
-	 * Attach another object to one of this object's line junctions
-	 * @param other The object that should be moved to attach to this object.
-	 * @param pos The position to place this object at.
-	 * @returns The group of the junction that was joined
-	 */
 	attachLine(other: TemporaryObject, pos: Vector3Like): string {
 		if (!this.mesh || !other.mesh)
 			throw new Error('Can only attach if both objects have a mesh attached');
 		if (other.#junctions.concat(other.#lineJunctions).some((j) => j !== null))
 			throw new Error('Can only attach if not already attached to something');
-
+	
 		const thisJunctId = 0;
 		const otherJunctId = other.#junctions.indexOf(null);
 		this.#lineJunctions[thisJunctId] = other;
 		other.#junctions[otherJunctId] = this;
-
+	
 		const j1 = this.#catalogEntry.line_juncts[thisJunctId];
 		const j2 = other.#catalogEntry.juncts[otherJunctId];
-
-		const lampDir = this.#state.angleHelper(j2.angle);
+	
 		const curve = new QuadraticBezierCurve3(
 			this.mesh.localToWorld(new Vector3().copy(j1.point1)),
 			this.mesh.localToWorld(new Vector3().copy(j1.pointC)),
 			this.mesh.localToWorld(new Vector3().copy(j1.point2)),
 		);
-
+	
 		// Find point on the curve that is closest to `pos`
 		let minI = 0;
 		let minDist = 9001;
@@ -268,28 +260,53 @@ export class TemporaryObject {
 				minI = i;
 			}
 		}
+		
+		// Get tangent to the curve at the attachment point
 		const tan = curve.getTangentAt(minI / 100);
+		
+		// Check if this is a light fixture
+		const isLight = other.getCatalogEntry().code.includes('XNRS') || 
+					   other.getCatalogEntry().code.includes('SP');
+		
+		// Get attachment point on the curve
+		const attachPoint = curve.getPointAt(minI / 100);
+		
+		if (isLight) {
+			other.mesh.rotation.set(0, 0, 0);
+			
+			const worldUp = new Vector3(0, 1, 0);
+			
+			const perpVector = new Vector3().crossVectors(tan, worldUp).normalize();
+			
+			// For debugging
+			console.log("Profile direction:", tan);
+			console.log("Perpendicular direction:", perpVector);
+			
+			const targetQuaternion = new Quaternion().setFromUnitVectors(
+				new Vector3(0, 0, 1), // Light's forward direction
+				perpVector           // Desired direction
+			);
 
-		other.mesh.rotateY(tan.angleTo(lampDir));
+			other.mesh.quaternion.copy(targetQuaternion);
+
+			const eulerRotation = other.mesh.rotation.clone();
+			eulerRotation.x = 0;
+			eulerRotation.z = 0;
+			other.mesh.rotation.copy(eulerRotation);
+		} else {
+			const lampDir = this.#state.angleHelper(j2.angle);
+			other.mesh.rotateY(tan.angleTo(lampDir));
+		}
 
 		const pos2 = other.mesh.localToWorld(new Vector3().copy(j2));
 		other.mesh.position.copy({
-			x: other.mesh.position.x + pos.x - pos2.x,
-			y: other.mesh.position.y + pos.y - pos2.y,
-			z: other.mesh.position.z + pos.z - pos2.z,
+			x: other.mesh.position.x + attachPoint.x - pos2.x,
+			y: other.mesh.position.y + attachPoint.y - pos2.y,
+			z: other.mesh.position.z + attachPoint.z - pos2.z,
 		});
-
+	
 		this.#state.frameObject(other);
-
-		// Debug:
-		// const intersection = curve.getPointAt(minI / 100);
-		// this.#state.arrowHelper(intersection, tan, 0xff0000);
-		// this.#state.pointHelper(intersection, 0xff0000);
-		// this.#state.arrowHelper(pos, lampDir, 0x00ff00);
-		// this.#state.pointHelper(pos, 0x00ff00);
-		// this.#state.lineHelper(curve.getPoints(100));
-		// this.#state.pointHelper(this.mesh.localToWorld(new Vector3().copy(j1.point2)), 0x0000ff);
-
+		
 		return j1.group;
 	}
 
