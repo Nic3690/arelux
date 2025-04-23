@@ -16,6 +16,7 @@ import {
 	Vector3,
 	Box3,
 	Quaternion,
+	Matrix4,
 	type Object3DEventMap,
 	type Vector3Like,
 } from 'three';
@@ -226,7 +227,7 @@ export class TemporaryObject {
 		});
 
 		if (!dontFrame) this.#state.frameObject(other);
-
+		
 		return j1.group;
 	}
 
@@ -250,7 +251,6 @@ export class TemporaryObject {
 			this.mesh.localToWorld(new Vector3().copy(j1.point2)),
 		);
 	
-		// Find point on the curve that is closest to `pos`
 		let minI = 0;
 		let minDist = 9001;
 		for (const [i, point] of curve.getSpacedPoints(100).entries()) {
@@ -261,43 +261,33 @@ export class TemporaryObject {
 			}
 		}
 		
-		// Get tangent to the curve at the attachment point
 		const tan = curve.getTangentAt(minI / 100);
-		
-		// Check if this is a light fixture
+		const attachPoint = curve.getPointAt(minI / 100);
 		const isLight = other.getCatalogEntry().code.includes('XNRS') || 
 					   other.getCatalogEntry().code.includes('SP');
-		
-		// Get attachment point on the curve
-		const attachPoint = curve.getPointAt(minI / 100);
 		
 		if (isLight) {
 			other.mesh.rotation.set(0, 0, 0);
 			
+			const profileDirection = tan.clone().normalize();
 			const worldUp = new Vector3(0, 1, 0);
+			const baseDirection = new Vector3();
+			baseDirection.crossVectors(worldUp, profileDirection).normalize();
 			
-			const perpVector = new Vector3().crossVectors(tan, worldUp).normalize();
+			const lightForward = new Vector3(0, 0, 1);
+			const lightUp = new Vector3(0, 1, 0);
 			
-			// For debugging
-			console.log("Profile direction:", tan);
-			console.log("Perpendicular direction:", perpVector);
+			const qVertical = new Quaternion().setFromUnitVectors(lightUp, worldUp);
+			const dirAfterVertical = lightForward.clone().applyQuaternion(qVertical);
+			const qAlign = new Quaternion().setFromUnitVectors(dirAfterVertical, profileDirection);
+			const finalRotation = new Quaternion().multiplyQuaternions(qAlign, qVertical);
 			
-			const targetQuaternion = new Quaternion().setFromUnitVectors(
-				new Vector3(0, 0, 1), // Light's forward direction
-				perpVector           // Desired direction
-			);
-
-			other.mesh.quaternion.copy(targetQuaternion);
-
-			const eulerRotation = other.mesh.rotation.clone();
-			eulerRotation.x = 0;
-			eulerRotation.z = 0;
-			other.mesh.rotation.copy(eulerRotation);
+			other.mesh.quaternion.copy(finalRotation);
 		} else {
 			const lampDir = this.#state.angleHelper(j2.angle);
 			other.mesh.rotateY(tan.angleTo(lampDir));
 		}
-
+	
 		const pos2 = other.mesh.localToWorld(new Vector3().copy(j2));
 		other.mesh.position.copy({
 			x: other.mesh.position.x + attachPoint.x - pos2.x,
