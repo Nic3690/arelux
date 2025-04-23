@@ -265,27 +265,26 @@ export class TemporaryObject {
 		const attachPoint = curve.getPointAt(minI / 100);
 		const isLight = other.getCatalogEntry().code.includes('XNRS') || 
 					   other.getCatalogEntry().code.includes('SP');
-		
+
 		if (isLight) {
 			other.mesh.rotation.set(0, 0, 0);
-			
-			const profileDirection = tan.clone().normalize();
-			const worldUp = new Vector3(0, 1, 0);
-			const baseDirection = new Vector3();
-			baseDirection.crossVectors(worldUp, profileDirection).normalize();
-			
-			const lightForward = new Vector3(0, 0, 1);
-			const lightUp = new Vector3(0, 1, 0);
-			
-			const qVertical = new Quaternion().setFromUnitVectors(lightUp, worldUp);
-			const dirAfterVertical = lightForward.clone().applyQuaternion(qVertical);
-			const qAlign = new Quaternion().setFromUnitVectors(dirAfterVertical, profileDirection);
-			const finalRotation = new Quaternion().multiplyQuaternions(qAlign, qVertical);
-			
-			other.mesh.quaternion.copy(finalRotation);
-		} else {
-			const lampDir = this.#state.angleHelper(j2.angle);
-			other.mesh.rotateY(tan.angleTo(lampDir));
+
+			const profileDir = tan.clone().normalize();
+			const angleY = Math.atan2(profileDir.z, profileDir.x);
+
+			other.mesh.rotation.set(0, angleY, 0);
+
+			if (other.getCatalogEntry().code.includes('XNRS14')) {
+				other.mesh.rotateY(Math.PI/2);
+			}
+			else if (other.getCatalogEntry().code.includes('XNRS15')) {
+				other.mesh.rotateY(-Math.PI/4);
+			}
+			else if (other.getCatalogEntry().code.includes('XNRS31')) {
+			}
+			else if (other.getCatalogEntry().code.includes('XNRS32')) {
+				other.mesh.rotateY(Math.PI/2);
+			}
 		}
 	
 		const pos2 = other.mesh.localToWorld(new Vector3().copy(j2));
@@ -383,43 +382,55 @@ export class RendererObject extends TemporaryObject {
 	 * @param code Il codice dell'oggetto in catalogo
 	 * @returns Un istanza di RendererObject
 	 */
-	  static async init(state: Renderer, code: string): Promise<RendererObject> {
+	static async init(state: Renderer, code: string): Promise<RendererObject> {
 		const mesh = await loadModel(state, code);
 		
-		// Normalizza l'orientamento universalmente
-		this.normalizeModelOrientation(mesh);
+		// Qui passiamo anche il codice al metodo
+		this.normalizeModelOrientation(mesh, code);
 		
 		return new RendererObject(state, code, mesh);
 	  }
 	  
-	  // Metodo statico per normalizzare l'orientamento
-	  private static normalizeModelOrientation(mesh: Group): void {
-		// Reset della rotazione iniziale
+
+	private static normalizeModelOrientation(mesh: Group, code: string): void {
+		// Reset rotazione iniziale
 		mesh.rotation.set(0, 0, 0);
 		
-		// Calcola la bounding box per determinare la dimensione principale
+		// Invece di basarci sulle dimensioni, forziamo orientamenti STANDARD
+		// per categorie precise di oggetti
+		
+		// CASO 1: PROFILI (tutti i tipi)
+		if (code.includes('XNS') || code.includes('XNR')) {
+		// Forza i profili ad avere l'asse X come direzione principale
+		mesh.rotation.set(0, 0, 0);
+		// Nessuna rotazione necessaria, assumiamo che i profili siano già orientati
+		// correttamente nei file originali con l'asse lungo su X
+		} 
+		// CASO 2: LUCI
+		else if (code.includes('XNRS') || code.includes('SP')) {
+		// FORZA uno standard: tutte le luci con base su XZ e corpo lungo Y
+		mesh.rotation.set(0, 0, 0);
+		mesh.rotateX(-Math.PI/2); // Ruota per avere Y verso l'alto
+		
+		// Ciò che varia tra modelli di luce è la rotazione attorno all'asse Y
+		// Quindi aggiungiamo correzioni specifiche per modello
+		}
+		
+		// CORREZIONI specifiche per modello (catalogo di trasformazioni)
+		if (code.includes('XNRS14')) {
+		mesh.rotateY(Math.PI); // Ruota 180° attorno all'asse Y
+		} 
+		else if (code.includes('XNRS15')) {
+		mesh.rotateY(Math.PI/2); // Ruota 90° attorno all'asse Y
+		}
+		else if (code.includes('XNRS31')) {
+		mesh.rotateY(-Math.PI/2); // Ruota -90° attorno all'asse Y
+		}
+		
+		// Stampa per debug
 		const box = new Box3().setFromObject(mesh);
 		const size = new Vector3();
 		box.getSize(size);
-		
-		// Determina quale asse è il più lungo (probabilmente l'asse principale del profilo)
-		const maxDimension = Math.max(size.x, size.y, size.z);
-		
-		// Se l'asse X non è quello principale, ruota il modello
-		// Assumiamo che vogliamo tutti i profili allineati lungo l'asse X (orizzontale)
-		if (size.x < maxDimension) {
-		  if (size.y === maxDimension) {
-			// Se l'asse Y è dominante, ruota di 90 gradi attorno all'asse Z
-			mesh.rotateZ(-Math.PI/2);
-		  } else if (size.z === maxDimension) {
-			// Se l'asse Z è dominante, ruota di 90 gradi attorno all'asse Y
-			mesh.rotateY(Math.PI/2);
-		  }
-		}
-		
-		// Debug
-		console.log(`Normalizzato modello. Dimensioni: [${size.x.toFixed(2)}, ${size.y.toFixed(2)}, ${size.z.toFixed(2)}], Asse dominante: ${
-		  size.x === maxDimension ? 'X' : size.y === maxDimension ? 'Y' : 'Z'
-		}`);
-	  }
+		console.log(`Normalizzato modello ${code}. Dimensioni: [${size.x.toFixed(2)}, ${size.y.toFixed(2)}, ${size.z.toFixed(2)}]`);
 	}
+}
