@@ -1,0 +1,12 @@
+- XNS01CF_ST cos'è?
+- manca modello per XNRS01WWR{,D} OP
+- manca modello per XNRS4{1,2}WWR{,} SP {SBK,FNI,SCF}
+- manca modello per XNRS11WW (NON WWR)
+- manca modello per XNRS14WWR
+- manca immagine per XNS01SC sul sito
+- mancano XNRS14 curvi
+- mancano XNR01{C90,T,X}
+- Connettori incasso
+- Connettori verticali superficie
+- Aggiungere connettore tra SRC/LRC e altri pezzi
+- manca XNS01EAC

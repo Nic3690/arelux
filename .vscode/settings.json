@@ -1,0 +1,8 @@
+{
+    "deno.enablePaths": [
+        "./supabase/functions"
+    ],
+    "files.exclude": {
+        "build": true
+    }
+}

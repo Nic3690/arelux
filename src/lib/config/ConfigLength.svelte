@@ -1,0 +1,184 @@
+<script lang="ts">
+    import { cn } from '$shad/utils';
+    import _ from 'lodash';
+    import type { Family } from '../../app';
+    import { onMount } from 'svelte';
+
+    type Props = {
+        family: Family;
+        value?: string;
+        onsubmit?: (value: string, length: number, isCustom?: boolean) => any;
+    };
+
+    let { family, value = $bindable(), onsubmit }: Props = $props();
+
+    let valueInvalid = $state(false);
+    let isCustomLength = $state(false);
+    let valueLen = $state(1000);
+    let items: { code: string; len: number }[] = $state([]);
+    let debugInfo = $state("");
+
+    // Funzione per il logging
+    function debug(msg: string) {
+        console.log(msg);
+        debugInfo = msg;
+    }
+
+    onMount(() => {
+        // Analisi della famiglia all'avvio
+        debug(`Famiglia: ${family.code}, Sistema: ${family.system}`);
+        debug(`Items totali: ${family.items.length}`);
+        
+        // Estrai le lunghezze valide
+        const validItems = family.items
+            .filter(i => i.len > 0 && i.len !== undefined)
+            .map(i => ({ code: i.code, len: i.len }));
+            
+        debug(`Items con lunghezza valida: ${validItems.length}`);
+        
+        // Raggruppa per lunghezza unica
+        items = _.uniqWith(
+            validItems.sort((a, b) => a.len - b.len),
+            (a, b) => a.len === b.len
+        );
+        
+        debug(`Lunghezze uniche: ${items.map(i => i.len).join(', ')}`);
+        
+        // Imposta un valore iniziale sensato
+        if (items.length > 0) {
+            valueLen = items[0].len;
+            value = items[0].code;
+            debug(`Valore iniziale: ${valueLen}mm (${value})`);
+        }
+    });
+
+    function selectLength(code: string, len: number) {
+        debug(`Selezionato: ${code} - ${len}mm`);
+        value = code;
+        valueLen = len;
+        isCustomLength = false;
+        valueInvalid = false;
+        if (onsubmit) onsubmit(value, len, false);
+    }
+    
+    // Nuova funzione per trovare il modello più vicino a una lunghezza personalizzata
+    function findClosestModelLength(customLength: number) {
+        if (items.length === 0) return null;
+        
+        // Trova il modello con la lunghezza più vicina
+        let closestItem = items[0];
+        let minDiff = Math.abs(customLength - closestItem.len);
+        
+        for (let i = 1; i < items.length; i++) {
+            const diff = Math.abs(customLength - items[i].len);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closestItem = items[i];
+            }
+        }
+        
+        debug(`Lunghezza personalizzata: ${customLength}mm, modello più vicino: ${closestItem.code} (${closestItem.len}mm)`);
+        return closestItem;
+    }
+    
+    function handleCustomLength() {
+        if (!valueLen || valueLen <= 0) {
+            valueInvalid = true;
+            return;
+        }
+        
+        const matchingItem = items.find(i => i.len === Number(valueLen));
+        
+        if (matchingItem) {
+            // Se c'è una corrispondenza esatta
+            value = matchingItem.code;
+            isCustomLength = false;
+            if (onsubmit) onsubmit(value, valueLen, false);
+        } else {
+            // Usa il modello più vicino ma mantieni la lunghezza personalizzata
+            isCustomLength = true;
+            const closestModel = findClosestModelLength(valueLen);
+            
+            if (closestModel && onsubmit) {
+                value = closestModel.code; // Usa il codice del modello più vicino
+                onsubmit(closestModel.code, valueLen, true);
+            }
+        }
+    }
+</script>
+
+<div class="flex flex-col items-center justify-center rounded bg-box px-6 py-1">
+    <!-- Barra grafica con i pallini selezionabili -->
+    <div class="relative flex w-full items-center justify-center">
+        <svg height="20" width="120" viewBox="0 0 100 20">
+            <line x1="5" y1="10" x2="95" y2="10" stroke-width="1.5" class="stroke-primary" />
+            
+            {#if items.length > 0}
+                {#each items as { code, len }, i}
+                    {@const position = items.length > 1 
+                        ? 5 + (i * 90 / (items.length - 1))
+                        : 50}
+                    
+                    <circle
+                        cx={position}
+                        cy="10"
+                        r={valueLen === len && !isCustomLength ? 7 : 5}
+                        class={cn(
+                            'cursor-pointer fill-primary stroke-primary', 
+                            valueLen === len && !isCustomLength && 'brightness-95'
+                        )}
+                        role="button"
+                        tabindex={i + 1}
+                        aria-label={`${len}mm`}
+                        onclick={() => selectLength(code, len)}
+                        onkeyup={(e) => (e.key === ' ' || e.key === 'Enter') && selectLength(code, len)}
+                    />
+                {/each}
+            {/if}
+        </svg>
+    </div>
+
+    <!-- Input manuale -->
+    <div class="mt-2 flex items-center">
+        <input
+            bind:value={valueLen}
+            type="number"
+            min="1"
+            class={cn(
+                'font-input w-16 appearance-none rounded-md border-2 border-black/40 bg-transparent',
+                valueInvalid && 'border-red-500',
+                isCustomLength && 'border-primary',
+            )}
+            onblur={() => handleCustomLength()}
+            onkeyup={(e) => {
+                if (e.key === 'Enter') handleCustomLength();
+            }}
+        />
+        <span class="ml-0.5">mm</span>
+    </div>
+    
+    <!-- Debug info (commentato per produzione) -->
+    <!-- <div class="mt-1 text-xs text-gray-500">
+        {debugInfo}
+    </div> -->
+    
+    <!-- Lista lunghezze disponibili -->
+    {#if items.length > 0}
+        <div class="mt-1 flex flex-wrap gap-1 text-xs">
+            {#each items as { code, len }}
+                <button 
+                    class={cn(
+                        "px-1 py-0.5 border rounded", 
+                        valueLen === len && !isCustomLength && "bg-primary text-white border-primary",
+                        isCustomLength && value === code && "border-primary"
+                    )}
+                    onclick={() => selectLength(code, len)}
+                >
+                    {len}mm
+                </button>
+            {/each}
+        </div>
+    {:else}
+        <div class="mt-1 text-xs text-red-500">Nessuna lunghezza disponibile</div>
+    {/if}
+</div>
