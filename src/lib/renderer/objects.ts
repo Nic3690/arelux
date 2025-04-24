@@ -153,22 +153,22 @@ export class TemporaryObject {
 						break;
 					}
 				}
-			if (parentObject) break;
+				if (parentObject) break;
+			}
 		}
-	}
-		
+
 		if (!parentObject || parentJunctionId === -1 || !this.mesh || !parentObject.mesh) {
-		console.error('Unable to move light: not properly attached to any profile');
-		return null;
+			console.error('Unable to move light: not properly attached to any profile');
+			return null;
 		}
 
 		const j1 = parentObject.#catalogEntry.line_juncts[parentJunctionId];
 		if (!j1) return null;
 
 		const curve = new QuadraticBezierCurve3(
-		parentObject.mesh.localToWorld(new Vector3().copy(j1.point1)),
-		parentObject.mesh.localToWorld(new Vector3().copy(j1.pointC)),
-		parentObject.mesh.localToWorld(new Vector3().copy(j1.point2))
+			parentObject.mesh.localToWorld(new Vector3().copy(j1.point1)),
+			parentObject.mesh.localToWorld(new Vector3().copy(j1.pointC)),
+			parentObject.mesh.localToWorld(new Vector3().copy(j1.point2))
 		);
 
 		const attachPoint = curve.getPointAt(position);
@@ -205,9 +205,9 @@ export class TemporaryObject {
 
 		const pos2 = this.mesh.localToWorld(new Vector3().copy(j2));
 		this.mesh.position.copy({
-		x: this.mesh.position.x + attachPoint.x - pos2.x,
-		y: this.mesh.position.y + attachPoint.y - pos2.y,
-		z: this.mesh.position.z + attachPoint.z - pos2.z,
+			x: this.mesh.position.x + attachPoint.x - pos2.x,
+			y: this.mesh.position.y + attachPoint.y - pos2.y,
+			z: this.mesh.position.z + attachPoint.z - pos2.z,
 		});
 
 		return j1.group;
