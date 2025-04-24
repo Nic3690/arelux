@@ -311,7 +311,7 @@ export class Renderer {
 		
 		for (const lineJunction of junction.getLineJunctions()) {
 			if (lineJunction === obj) {
-			return true; // This light is attached to a profile
+				return true; // This light is attached to a profile
 			}
 		}
 		}
@@ -333,12 +333,23 @@ export class Renderer {
 		return lightObj.moveLight(position) !== null;
 	}
 	
+	// Aggiungi o modifica questo metodo nella classe Renderer in src/lib/renderer/renderer.ts
+
 	/**
-	 * Finds all movable lights in the scene
-	 * @returns Array of movable light objects
+	 * Trova tutte le luci movibili nella scena
+	 * @returns Array di oggetti luce movibili
 	 */
 	getMovableLights(): TemporaryObject[] {
-		return this.#objects.filter(obj => this.isMovableLight(obj));
+		// Questo metodo deve raccogliere tutte le luci movibili, non solo l'ultima aggiunta
+		return this.#objects.filter(obj => {
+			// Verifica se l'oggetto è una luce
+			const isLight = obj.getCatalogEntry().code.includes('XNRS') || 
+							obj.getCatalogEntry().code.includes('SP');
+							
+			if (!isLight) return false;
+			
+			return true;
+		});
 	}
 	
 	/**

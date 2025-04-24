@@ -48,16 +48,17 @@
 		selectedLight = null;
 		
 		if (lightMoverMode && renderer) {
+			// Aggiorna la lista di tutte le luci movibili
 			movableLights = renderer.getMovableLights();
 			
 			if (movableLights.length === 0) {
-				toast.info('No movable lights found. Add a light to a profile first.');
-				lightMoverMode = false;
+			toast.info('Non sono state trovate luci movibili. Aggiungi prima una luce a un profilo.');
+			lightMoverMode = false;
 			} else {
-				toast.info('Light mover mode activated. Click on a light to select it.');
+			toast.info('Modalità spostamento luci attivata. Clicca su una luce per selezionarla.');
 			}
 		} else {
-			renderer?.setOpacity(1); // Reset opacity when exiting light mover mode
+			renderer?.setOpacity(1); // Ripristina l'opacità normale quando esci dalla modalità
 		}
 	}
 
@@ -85,41 +86,45 @@
 	onMount(() => {
 		renderer = Renderer.get(data, canvas, controlsEl)
 			.setCamera(controlsEl, {
-				is3d,
-				isOrtographic: is3d,
+			is3d,
+			isOrtographic: is3d,
 			})
 			.setScene('normal');
 		renderer.handles.setVisible(false);
 		
-		// Add event listener for light selection
+		// Aggiunta evento pointerdown con detection delle luci migliorata
 		controlsEl.addEventListener('pointerdown', (event) => {
 			if (lightMoverMode && renderer) {
-				// Update pointer position for raycaster
-				pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-				pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
-				
-				// Get movable lights as Object3D array
-				const intersectables = movableLights
-					.filter(obj => obj.mesh)
-					.map(obj => obj.mesh) as Object3D[];
-				
-				// Use the renderer's raycast method
-				const intersections = renderer.raycast(pointer, intersectables);
-				
-				if (intersections.length > 0) {
-					for (const light of movableLights) {
-						let found = false;
-						light.mesh?.traverse((child) => {
-							if (intersections.some(i => i.object.uuid === child.uuid)) {
-								selectedLight = light;
-								lightPosition = selectedLight.getCurvePosition();
-								renderer.highlightLight(selectedLight);
-								found = true;
-							}
-						});
-						if (found) break;
+			// Assicurati di avere la lista aggiornata di tutte le luci
+			movableLights = renderer.getMovableLights();
+			
+			// Aggiorna le coordinate del puntatore per il raycaster
+			pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+			pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+			
+			// Usa tutte le luci movibili per il test di intersezione
+			const intersectables = movableLights
+				.filter(obj => obj.mesh)
+				.map(obj => obj.mesh) as Object3D[];
+			
+			// Usa il metodo raycast del renderer
+			const intersections = renderer.raycast(pointer, intersectables);
+			
+			if (intersections.length > 0) {
+				// Cerca quale luce è stata cliccata
+				for (const light of movableLights) {
+				let found = false;
+				light.mesh?.traverse((child) => {
+					if (intersections.some(i => i.object.uuid === child.uuid)) {
+					selectedLight = light;
+					lightPosition = selectedLight.getCurvePosition();
+					renderer.highlightLight(selectedLight);
+					found = true;
 					}
+				});
+				if (found) break;
 				}
+			}
 			}
 		});
 	});
