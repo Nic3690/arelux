@@ -296,6 +296,55 @@
 <div class="absolute bottom-5 left-80 right-80 flex justify-center gap-3">
     {#if page.state.chosenFamily !== undefined}
       {@const family = data.families[page.state.chosenFamily]}
+
+	        <!-- Selettore di lunghezza modificato -->
+			{#if family.system === "XNet" || family.system === "XFree s"}
+			<ConfigLength
+				{family}
+				onsubmit={(objectCode, length, isCustom) => {
+					configLength = length;
+					
+					replaceState('', {
+					chosenItem: objectCode,
+					chosenFamily: page.state.chosenFamily,
+					reference: page.state.reference,
+					length: length,
+					// Usa il tipo corretto definito in PageState
+					isCustomLength: isCustom
+					});
+				}}
+				/>
+		  {:else if family.needsLengthConfig && !family.arbitraryLength}
+			<ConfigLength
+			  {family}
+			  onsubmit={(objectCode, length, isCustom) => {
+				configLength = length;
+				
+				// Per lunghezze personalizzate, troviamo visivamente il modello più vicino
+				let displayCode = objectCode;
+				
+				replaceState('', {
+				  chosenItem: displayCode,
+				  chosenFamily: page.state.chosenFamily,
+				  reference: page.state.reference,
+				  length: length,
+				  isCustomLength: isCustom === true
+				});
+			  }}
+			/>
+		  {:else if family.needsLengthConfig && family.arbitraryLength}
+			<ConfigLengthArbitrary
+			  value={arbitraryLength}
+			  onsubmit={(length) => {
+				replaceState('', {
+				  chosenItem: page.state.chosenItem,
+				  chosenFamily: page.state.chosenFamily,
+				  reference: page.state.reference,
+				  length,
+				});
+			  }}
+			/>
+		  {/if}
       
       {#if family.needsCurveConfig}
         <ConfigCurveShape
@@ -328,58 +377,6 @@
               chosenItem: items[0].code,
               chosenFamily: page.state.chosenFamily,
               reference: page.state.reference,
-            });
-          }}
-        />
-      {/if}
-  
-      <!-- Selettore di lunghezza modificato -->
-      {#if family.system === "XNet" || family.system === "XFree s"}
-	    <p>{family.system}</p>
-        <ConfigLength
-			{family}
-			onsubmit={(objectCode, length, isCustom) => {
-				configLength = length;
-				
-				replaceState('', {
-				chosenItem: objectCode,
-				chosenFamily: page.state.chosenFamily,
-				reference: page.state.reference,
-				length: length,
-				// Usa il tipo corretto definito in PageState
-				isCustomLength: isCustom
-				});
-			}}
-			/>
-      {:else if family.needsLengthConfig && !family.arbitraryLength}
-	    <p>{family.system}</p>
-        <ConfigLength
-          {family}
-          onsubmit={(objectCode, length, isCustom) => {
-            configLength = length;
-            
-            // Per lunghezze personalizzate, troviamo visivamente il modello più vicino
-            let displayCode = objectCode;
-            
-            replaceState('', {
-              chosenItem: displayCode,
-              chosenFamily: page.state.chosenFamily,
-              reference: page.state.reference,
-              length: length,
-              isCustomLength: isCustom === true
-            });
-          }}
-        />
-      {:else if family.needsLengthConfig && family.arbitraryLength}
-	  <p>{family.system}</p>
-        <ConfigLengthArbitrary
-          value={arbitraryLength}
-          onsubmit={(length) => {
-            replaceState('', {
-              chosenItem: page.state.chosenItem,
-              chosenFamily: page.state.chosenFamily,
-              reference: page.state.reference,
-              length,
             });
           }}
         />

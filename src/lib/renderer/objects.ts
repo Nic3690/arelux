@@ -250,19 +250,27 @@ export class TemporaryObject {
 			this.mesh.localToWorld(new Vector3().copy(j1.pointC)),
 			this.mesh.localToWorld(new Vector3().copy(j1.point2)),
 		);
+
+		const MARGIN = 0.05;
 	
 		let minI = 0;
 		let minDist = 9001;
-		for (const [i, point] of curve.getSpacedPoints(100).entries()) {
-			const dist = point.distanceTo(pos);
+		const points = curve.getSpacedPoints(200);
+    
+		for (let i = 0; i < points.length; i++) {
+			const t = i / (points.length - 1);
+			if (t < MARGIN || t > (1 - MARGIN)) continue;
+			
+			const dist = points[i].distanceTo(pos);
 			if (dist < minDist) {
 				minDist = dist;
 				minI = i;
 			}
 		}
 		
-		const tan = curve.getTangentAt(minI / 100);
-		const attachPoint = curve.getPointAt(minI / 100);
+		const t = minI / (points.length - 1);
+		const tan = curve.getTangentAt(t);
+		const attachPoint = curve.getPointAt(t);
 		const isLight = other.getCatalogEntry().code.includes('XNRS') || 
 					   other.getCatalogEntry().code.includes('SP');
 

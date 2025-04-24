@@ -52,7 +52,7 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Trigger class={button()}>Modifica curvatura</Dialog.Trigger>
+	<Dialog.Trigger class="tracking-wider {button()}">MODIFICA CURVATURA</Dialog.Trigger>
 
 	<Dialog.Portal>
 		<Dialog.Overlay
