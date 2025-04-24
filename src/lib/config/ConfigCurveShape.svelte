@@ -19,6 +19,7 @@
 		radius: number;
 	};
 
+	// Ordina i punti per raggio e angolo
 	function sorted(points: Point[]): Point[] {
 		return points.toSorted((a, b) => {
 			if (a.radius < b.radius) return -1;
@@ -32,12 +33,15 @@
 	let { selected = $bindable(), onSubmit, family }: Props = $props();
 	let open = $state(false);
 
+	// Ricava i punti unici dalla famiglia
 	const points = $derived<Point[]>(
 		_.uniqWith(
 			family.items.map((i) => ({ angle: i.deg, radius: i.radius })),
 			_.isEqual,
 		),
 	);
+	
+	// Mappa i raggi a valori visuali per il grafico
 	const mappedRadii = $derived.by<Map<string, number>>(() => {
 		const minR = Math.max(...family.items.map((i) => i.radius));
 		const maxR = Math.min(...family.items.map((i) => i.radius));
@@ -46,6 +50,8 @@
 			family.items.map((i) => [JSON.stringify({ angle: i.deg, radius: i.radius }), lerp(i.radius)]),
 		);
 	});
+	
+	// Ottieni tutti gli angoli e i raggi disponibili
 	const angles = $derived(new Set(points.map((p) => p.angle)));
 	const wide = $derived(angles.values().some((angle) => angle > 90));
 	const radii = $derived(new Set(points.map((p) => mappedRadii.get(JSON.stringify(p))!)));
@@ -67,8 +73,21 @@
 				wide ? 'max-w-[800px]' : 'max-w-[600px]',
 			)}
 		>
-			<Dialog.Title class="flex w-full items-center text-left text-2xl font-bold">
-				Modifica curvatura:
+			<Dialog.Title class="relative flex w-full items-center text-left text-2xl font-bold">
+				<span>Modifica curvatura:</span>
+				
+				{#if selected !== undefined}
+					<div class="absolute right-0 flex gap-4 text-sm font-normal">
+						<div class="flex items-center gap-1">
+							<span class="text-muted-foreground text-lg">Angolo:</span>
+							<span class="font-medium text-lg">{selected.deg}°</span>
+						</div>
+						<div class="flex items-center gap-1">
+							<span class="text-muted-foreground text-lg">Raggio:</span>
+							<span class="font-medium text-lg">{selected.radius}mm</span>
+						</div>
+					</div>
+				{/if}
 			</Dialog.Title>
 			<Separator.Root class="-mx-5 mb-3 mt-3 block h-px bg-muted" />
 
@@ -81,20 +100,20 @@
 					fill="none"
 					stroke-width="0.6"
 				>
-					<!-- non bottom lines -->
+					<!-- Linee non inferiori -->
 					{#each angles as angle}
 						{@const x = 100 * Math.cos((180 + angle) * DEG2RAD)}
 						{@const y = 100 * Math.sin((180 + angle) * DEG2RAD)}
 						<line x1="0" y1="0" x2={x} y2={y} stroke="#e5e7eb" />
 					{/each}
 
-					<!-- bottom line -->
+					<!-- Linea inferiore -->
 					<line x1="0" y1="0" x2="-100" y2="0" stroke="#e5e7eb" />
 					{#if wide}
 						<line x1="0" y1="0" x2="100" y2="0" stroke="#e5e7eb" />
 					{/if}
 
-					<!-- arcs -->
+					<!-- Archi -->
 					{#each radii as radius}
 						<path d={arc(radius, wide ? 180 : 90)} stroke="#e5e7eb" stroke-dasharray="2" />
 					{/each}
@@ -138,20 +157,6 @@
 							onkeyup={(e) => (e.key === ' ' || e.key === 'Enter') && select()}
 						/>
 					{/each}
-
-					{#if selected !== undefined}
-						{@const point = points.find(
-							(p) => p.radius === selected!.radius && p.angle === selected!.deg,
-						)!}
-						<text
-							x={mappedRadii.get(JSON.stringify(point))! * -1 + 2}
-							y="-2"
-							fill="hsl(var(--foreground))"
-							class="text-[5px]"
-						>
-							{point.radius}mm
-						</text>
-					{/if}
 				</svg>
 			</Dialog.Description>
 
