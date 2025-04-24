@@ -131,105 +131,177 @@ export class TemporaryObject {
 		return this._curvePosition;
 	}
 
+	setCurvePosition(number: number) {
+		this._curvePosition = number;
+	}
+
+
+
 	/**
-	 * Moves a light object along the curve it's attached to
-	 * @param position A value between 0 and 1 representing the position along the curve
-	 * @returns The group of the junction used for attachment or null if movement failed
+	 * Resetta tutte le connessioni di questa luce
+	 * Questo metodo è pensato per essere usato quando la luce è in uno stato inconsistente
 	 */
+	resetConnections(): void {
+		this.#junctions = this.#catalogEntry.juncts.map(() => null);
+		this.#lineJunctions = this.#catalogEntry.line_juncts.map(() => null);
+	}
+
 	moveLight(position: number): string | null {
 		position = Math.max(0, Math.min(1, position));
 		this._curvePosition = position;
 		
+		// Verifica se questo oggetto è una luce
+		const isLight = this.getCatalogEntry().code.includes('XNRS') || 
+					  this.getCatalogEntry().code.includes('SP');
+					  
+		if (!isLight || !this.mesh) {
+		  console.error("Non è una luce o non ha un mesh");
+		  return null;
+		}
+		
+		// Strategia 1: Cercare nei giunti diretti
 		let parentObject: TemporaryObject | null = null;
 		let parentJunctionId = -1;
 		
 		for (let j = 0; j < this.#junctions.length; j++) {
-			const junction = this.#junctions[j];
-			if (junction !== null) {
-				for (let i = 0; i < junction.#lineJunctions.length; i++) {
-					if (junction.#lineJunctions[i] === this) {
-						parentObject = junction;
-						parentJunctionId = i;
-						break;
-					}
-				}
-				if (parentObject) break;
+		  const junction = this.#junctions[j];
+		  if (junction !== null) {
+			for (let i = 0; i < junction.#lineJunctions.length; i++) {
+			  if (junction.#lineJunctions[i] === this) {
+				parentObject = junction;
+				parentJunctionId = i;
+				break;
+			  }
 			}
+			if (parentObject) break;
+		  }
 		}
-
-		if (!parentObject || parentJunctionId === -1 || !this.mesh || !parentObject.mesh) {
-			console.error('Unable to move light: not properly attached to any profile');
-			return null;
+		
+		// Strategia 2: Cercare in tutti gli oggetti della scena
+		if (!parentObject || parentJunctionId === -1) {
+		  const allObjects = this.#state.getObjects();
+		  
+		  // Prima cerca direttamente nei line junctions di tutti gli oggetti
+		  for (const obj of allObjects) {
+			if (obj === this) continue;
+			
+			for (let i = 0; i < obj.getLineJunctions().length; i++) {
+			  if (obj.getLineJunctions()[i] === this) {
+				parentObject = obj;
+				parentJunctionId = i;
+				break;
+			  }
+			}
+			if (parentObject) break;
+		  }
+		  
+		  // Strategia 3: Se ancora non troviamo nulla, usa il primo profilo valido con line junctions
+		  if (!parentObject || parentJunctionId === -1) {
+			for (const obj of allObjects) {
+			  // Cerca solo profili che non sono luci e hanno line junctions
+			  if (obj !== this && 
+				  !obj.getCatalogEntry().code.includes('XNRS') && 
+				  !obj.getCatalogEntry().code.includes('SP') &&
+				  obj.getCatalogEntry().line_juncts.length > 0 &&
+				  obj.mesh) {
+				
+				console.log("Trovato profilo alternativo:", obj.getCatalogEntry().code);
+				
+				// Usa la prima junction disponibile
+				parentObject = obj;
+				parentJunctionId = 0;
+				
+				// Aggiorna manualmente le connessioni
+				if (obj.getLineJunctions()[0] === null) {
+				  obj.getLineJunctions()[0] = this;
+				  
+				  // Trova un indice di giunzione vuoto nella luce
+				  let emptyJunctionIndex = this.#junctions.findIndex(j => j === null);
+				  if (emptyJunctionIndex === -1 && this.#junctions.length > 0) {
+					emptyJunctionIndex = 0; // Usa il primo se non ce ne sono vuoti
+				  }
+				  
+				  if (emptyJunctionIndex !== -1) {
+					this.#junctions[emptyJunctionIndex] = obj;
+				  }
+				}
+				break;
+			  }
+			}
+		  }
 		}
-
-		const j1 = parentObject.#catalogEntry.line_juncts[parentJunctionId];
-		if (!j1) return null;
-
-		const curve = new QuadraticBezierCurve3(
+		
+		// Se ancora non abbiamo profili validi, fallisce
+		if (!parentObject || parentJunctionId === -1 || !parentObject.mesh) {
+		  console.error("Nessun profilo valido trovato per la luce", this.getCatalogEntry().code);
+		  return null;
+		}
+		
+		const j1 = parentObject.getCatalogEntry().line_juncts[parentJunctionId];
+		if (!j1) {
+		  console.error("Giunzione linea non valida");
+		  return null;
+		}
+		
+		try {
+		  // Crea curva dal profilo genitore
+		  const curve = new QuadraticBezierCurve3(
 			parentObject.mesh.localToWorld(new Vector3().copy(j1.point1)),
 			parentObject.mesh.localToWorld(new Vector3().copy(j1.pointC)),
 			parentObject.mesh.localToWorld(new Vector3().copy(j1.point2))
-		);
-
-		const attachPoint = curve.getPointAt(position);
-		const tan = curve.getTangentAt(position);
-
-		const thisJunctId = this.#junctions.findIndex(j => j === parentObject);
-		if (thisJunctId === -1) return null;
-		
-		const j2 = this.#catalogEntry.juncts[thisJunctId];
-
-		const isLight = this.getCatalogEntry().code.includes('XNRS') || 
-					this.getCatalogEntry().code.includes('SP');
-	
-		if (isLight) {
-		this.mesh.rotation.set(0, 0, 0);
-	
-		const profileDir = tan.clone().normalize();
-		const angleY = Math.atan2(profileDir.z, profileDir.x);
-	
-		this.mesh.rotation.set(0, angleY, 0);
-
-		if (this.getCatalogEntry().code.includes('XNRS14')) {
+		  );
+	  
+		  // Calcola punto di attacco
+		  const attachPoint = curve.getPointAt(position);
+		  const tan = curve.getTangentAt(position);
+	  
+		  // Trova la giunzione sulla luce
+		  const thisJunctId = this.#junctions.findIndex(j => j === parentObject);
+		  if (thisJunctId === -1 && this.#junctions.length > 0) {
+			// Se non troviamo la giunzione esatta, usa la prima disponibile
+			this.#junctions[0] = parentObject;
+		  }
+		  
+		  // Ottieni il punto di giunzione della luce
+		  const junctionIndex = thisJunctId !== -1 ? thisJunctId : 0;
+		  const j2 = this.getCatalogEntry().juncts[junctionIndex];
+		  
+		  if (!j2) {
+			console.error("Giunzione luce non valida");
+			return null;
+		  }
+	  
+		  // Imposta rotazione
+		  this.mesh.rotation.set(0, 0, 0);
+		  const profileDir = tan.clone().normalize();
+		  const angleY = Math.atan2(profileDir.z, profileDir.x);
+		  this.mesh.rotation.set(0, angleY, 0);
+	  
+		  // Applica rotazioni specifiche per tipo di luce
+		  if (this.getCatalogEntry().code.includes('XNRS14')) {
 			this.mesh.rotateY(Math.PI/2);
-		}
-		else if (this.getCatalogEntry().code.includes('XNRS15')) {
+		  }
+		  else if (this.getCatalogEntry().code.includes('XNRS15')) {
 			this.mesh.rotateY(-Math.PI/4);
-		}
-		else if (this.getCatalogEntry().code.includes('XNRS31')) {
-		}
-		else if (this.getCatalogEntry().code.includes('XNRS32')) {
+		  }
+		  else if (this.getCatalogEntry().code.includes('XNRS32')) {
 			this.mesh.rotateY(Math.PI/2);
-		}
-		}
-
-		const pos2 = this.mesh.localToWorld(new Vector3().copy(j2));
-		this.mesh.position.copy({
+		  }
+	  
+		  // Aggiorna posizione
+		  const pos2 = this.mesh.localToWorld(new Vector3().copy(j2));
+		  this.mesh.position.copy({
 			x: this.mesh.position.x + attachPoint.x - pos2.x,
 			y: this.mesh.position.y + attachPoint.y - pos2.y,
 			z: this.mesh.position.z + attachPoint.z - pos2.z,
-		});
-
-		return j1.group;
-	}
-
-	/**
-	 * Set a new mesh for this object. Note that this detaches the object from any junctions it was attached to
-	 */
-	async loadMesh(f: File | undefined) {
-		if (f === undefined) return;
-
-		const url = URL.createObjectURL(f);
-
-		try {
-			this.setMesh((await this.#state.loader.loadAsync(url)).scene);
-		} catch (e) {
-			console.error('Error loading model:', e);
-			return -1;
-		} finally {
-			URL.revokeObjectURL(url);
+		  });
+	  
+		  return j1.group;
+		} catch (error) {
+		  console.error("Errore durante lo spostamento della luce:", error);
+		  return null;
 		}
-	}
+	  }
 
 	setAngle(angle: number) {
 		this.#angle = angle;
@@ -251,11 +323,6 @@ export class TemporaryObject {
 		this.#state.getScene().add(this.mesh);
 	}
 
-	/**
-	 * Attach another object to this object
-	 * @param other The object that should be moved to attach to this object.
-	 * @returns The group of the junction that was joined
-	 */
 	attach(other: TemporaryObject, junctionId?: number, dontFrame?: true): string {
 		if (junctionId) junctionId %= other.#junctions.length;
 
@@ -267,7 +334,6 @@ export class TemporaryObject {
 			throw new Error("Specified a junction id, but it's already occupied");
 
 		const thisCandidates = this.nullJunctions();
-		// Only junctionId if it's provided, otherwise all junctions
 		const otherCandidates = junctionId !== undefined ? [junctionId] : other.nullJunctions();
 
 		let thisJunctId = null;
@@ -318,41 +384,43 @@ export class TemporaryObject {
 		return j1.group;
 	}
 
-	attachLine(other: TemporaryObject, pos: Vector3Like): string {
+	attachLine(other: TemporaryObject, pos: Vector3Like, force: boolean = false): string {
 		if (!this.mesh || !other.mesh)
-			throw new Error('Can only attach if both objects have a mesh attached');
-		if (other.#junctions.concat(other.#lineJunctions).some((j) => j !== null))
-			throw new Error('Can only attach if not already attached to something');
-	
+		  throw new Error('Can only attach if both objects have a mesh attached');
+		
+		// Se force è true, non controlliamo se è già attaccato
+		if (!force && other.#junctions.concat(other.#lineJunctions).some((j) => j !== null))
+		  throw new Error('Can only attach if not already attached to something');
+	  
 		const thisJunctId = 0;
 		const otherJunctId = other.#junctions.indexOf(null);
 		this.#lineJunctions[thisJunctId] = other;
 		other.#junctions[otherJunctId] = this;
-	
+	  
 		const j1 = this.#catalogEntry.line_juncts[thisJunctId];
 		const j2 = other.#catalogEntry.juncts[otherJunctId];
-	
+	  
 		const curve = new QuadraticBezierCurve3(
-			this.mesh.localToWorld(new Vector3().copy(j1.point1)),
-			this.mesh.localToWorld(new Vector3().copy(j1.pointC)),
-			this.mesh.localToWorld(new Vector3().copy(j1.point2)),
+		  this.mesh.localToWorld(new Vector3().copy(j1.point1)),
+		  this.mesh.localToWorld(new Vector3().copy(j1.pointC)),
+		  this.mesh.localToWorld(new Vector3().copy(j1.point2)),
 		);
-
+	  
 		const MARGIN = 0.05;
-	
+	  
 		let minI = 0;
 		let minDist = 9001;
 		const points = curve.getSpacedPoints(200);
-    
+		
 		for (let i = 0; i < points.length; i++) {
-			const t = i / (points.length - 1);
-			if (t < MARGIN || t > (1 - MARGIN)) continue;
-			
-			const dist = points[i].distanceTo(pos);
-			if (dist < minDist) {
-				minDist = dist;
-				minI = i;
-			}
+		  const t = i / (points.length - 1);
+		  if (t < MARGIN || t > (1 - MARGIN)) continue;
+		  
+		  const dist = points[i].distanceTo(pos);
+		  if (dist < minDist) {
+			minDist = dist;
+			minI = i;
+		  }
 		}
 		
 		const t = minI / (points.length - 1);
@@ -360,40 +428,41 @@ export class TemporaryObject {
 		const tan = curve.getTangentAt(t);
 		const attachPoint = curve.getPointAt(t);
 		const isLight = other.getCatalogEntry().code.includes('XNRS') || 
-					   other.getCatalogEntry().code.includes('SP');
-
+				 other.getCatalogEntry().code.includes('SP');
+	  
 		if (isLight) {
-			other.mesh.rotation.set(0, 0, 0);
-
-			const profileDir = tan.clone().normalize();
-			const angleY = Math.atan2(profileDir.z, profileDir.x);
-
-			other.mesh.rotation.set(0, angleY, 0);
-
-			if (other.getCatalogEntry().code.includes('XNRS14')) {
-				other.mesh.rotateY(Math.PI/2);
-			}
-			else if (other.getCatalogEntry().code.includes('XNRS15')) {
-				other.mesh.rotateY(-Math.PI/4);
-			}
-			else if (other.getCatalogEntry().code.includes('XNRS31')) {
-			}
-			else if (other.getCatalogEntry().code.includes('XNRS32')) {
-				other.mesh.rotateY(Math.PI/2);
-			}
+		  other.mesh.rotation.set(0, 0, 0);
+	  
+		  const profileDir = tan.clone().normalize();
+		  const angleY = Math.atan2(profileDir.z, profileDir.x);
+	  
+		  other.mesh.rotation.set(0, angleY, 0);
+	  
+		  if (other.getCatalogEntry().code.includes('XNRS14')) {
+			other.mesh.rotateY(Math.PI/2);
+		  }
+		  else if (other.getCatalogEntry().code.includes('XNRS15')) {
+			other.mesh.rotateY(-Math.PI/4);
+		  }
+		  else if (other.getCatalogEntry().code.includes('XNRS31')) {
+		  }
+		  else if (other.getCatalogEntry().code.includes('XNRS32')) {
+			other.mesh.rotateY(Math.PI/2);
+		  }
 		}
-	
+	  
 		const pos2 = other.mesh.localToWorld(new Vector3().copy(j2));
 		other.mesh.position.copy({
-			x: other.mesh.position.x + attachPoint.x - pos2.x,
-			y: other.mesh.position.y + attachPoint.y - pos2.y,
-			z: other.mesh.position.z + attachPoint.z - pos2.z,
+		  x: other.mesh.position.x + attachPoint.x - pos2.x,
+		  y: other.mesh.position.y + attachPoint.y - pos2.y,
+		  z: other.mesh.position.z + attachPoint.z - pos2.z,
 		});
-	
+	  
 		this.#state.frameObject(other);
 		
 		return j1.group;
-	}
+	  }
+	  
 
 	detach(other: TemporaryObject) {
 		for (let i = 0; i < other.#junctions.length; i++) {
@@ -463,39 +532,22 @@ export class RendererObject extends TemporaryObject {
 
 		this.setMesh(mesh);
 		this.setAngle(0);
-
-		// TODO: remove this
-		// resetMaterial(mesh, false);
-
-		// TODO: support line junctions
-
-		// TODO: actually use the simplified model
 	}
 
-	/**
-	 * Crea un nuovo RendererObject. Dovresti usare questo metodo statico, piuttosto del costruttore
-	 * @param state un riferimento allo stato del renderer
-	 * @param code Il codice dell'oggetto in catalogo
-	 * @returns Un istanza di RendererObject
-	 */
 	static async init(state: Renderer, code: string): Promise<RendererObject> {
 		const mesh = await loadModel(state, code);
 		
-		// Qui passiamo anche il codice al metodo
 		this.normalizeModelOrientation(mesh, code);
 		
 		return new RendererObject(state, code, mesh);
 	  }
-	  
 
 	private static normalizeModelOrientation(mesh: Group, code: string): void {
 		mesh.rotation.set(0, 0, 0);
 
-		// CASO 1: PROFILI (tutti i tipi)
 		if (code.includes('XNS') || code.includes('XNR')) {
 		mesh.rotation.set(0, 0, 0);
 		} 
-		// CASO 2: LUCI
 		else if (code.includes('XNRS') || code.includes('SP')) {
 		mesh.rotation.set(0, 0, 0);
 		mesh.rotateX(-Math.PI/2);

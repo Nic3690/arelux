@@ -4,7 +4,7 @@
     import ArrowLeft from 'phosphor-svelte/lib/ArrowLeft';
     import ArrowRight from 'phosphor-svelte/lib/ArrowRight';
     import LightbulbFilament from 'phosphor-svelte/lib/LightbulbFilament';
-	import type { MouseEventHandler } from 'svelte/elements';
+    import type { MouseEventHandler } from 'svelte/elements';
 
     let { 
         active = false,
@@ -16,7 +16,6 @@
     } = $props();
 
     function handleMove(increment: number) {
-        // Ensure position stays between 0.05 and 0.95 (to avoid endpoints)
         const newPosition = Math.max(0.05, Math.min(0.95, position + increment));
         position = newPosition;
         onMove(newPosition);

@@ -109,7 +109,6 @@ export class Renderer {
 		return RENDERER;
 	}
 
-	/** PRIVATE */
 	constructor(
 		supabase: SupabaseClient<Database>,
 		tenant: string,
@@ -147,7 +146,6 @@ export class Renderer {
 		};
 	}
 
-	/** PRIVATE */
 	reinitWebgl(canvas: HTMLCanvasElement) {
 		this.#webgl = new WebGLRenderer({ canvas, antialias: true });
 		this.#webgl.setClearColor(0xffffff);
@@ -167,7 +165,6 @@ export class Renderer {
 		});
 	}
 
-	/** PRIVATE */
 	reinitControls(controlsElement: HTMLElement): Renderer {
 		const newControls = new OrbitControls(this.#camera, controlsElement);
 		newControls.minZoom = 10;
@@ -291,109 +288,155 @@ export class Renderer {
 		return this;
 	}
 
-	/**
-	 * Checks if an object is a light that can be moved
-	 * @param obj The object to check
-	 * @returns True if the object is a movable light
-	 */
-	isMovableLight(obj: TemporaryObject): boolean {
-		if (!obj) return false;
-		
-		// Check if the object's code indicates it's a light
-		const isLight = obj.getCatalogEntry().code.includes('XNRS') || 
-					obj.getCatalogEntry().code.includes('SP');
-		
-		if (!isLight) return false;
-		
-		// Check if the light is attached to a profile via a line junction
-		for (const junction of obj.getJunctions()) {
-		if (junction === null) continue;
-		
-		for (const lineJunction of junction.getLineJunctions()) {
-			if (lineJunction === obj) {
-				return true; // This light is attached to a profile
-			}
-		}
-		}
-		
-		return false;
-	}
-	
-	/**
-	 * Moves a light along its attached profile
-	 * @param lightObj The light object to move
-	 * @param position A value between 0 and 1 representing position along the curve
-	 * @returns True if the movement was successful
-	 */
-	moveLight(lightObj: TemporaryObject, position: number): boolean {
-		if (!this.isMovableLight(lightObj)) {
-		return false;
-		}
-		
-		return lightObj.moveLight(position) !== null;
-	}
-	
-	// Aggiungi o modifica questo metodo nella classe Renderer in src/lib/renderer/renderer.ts
-
-	/**
-	 * Trova tutte le luci movibili nella scena
-	 * @returns Array di oggetti luce movibili
-	 */
-	getMovableLights(): TemporaryObject[] {
-		// Questo metodo deve raccogliere tutte le luci movibili, non solo l'ultima aggiunta
+	getLights(): TemporaryObject[] {
 		return this.#objects.filter(obj => {
-			// Verifica se l'oggetto è una luce
 			const isLight = obj.getCatalogEntry().code.includes('XNRS') || 
-							obj.getCatalogEntry().code.includes('SP');
-							
-			if (!isLight) return false;
-			
-			return true;
+						obj.getCatalogEntry().code.includes('SP');
+			return isLight;
 		});
 	}
-	
+
 	/**
-	 * Highlights a selected light in the scene
-	 * @param lightObj The light object to highlight
+	 * Versione migliorata di moveLight
+	 * @param lightObj L'oggetto luce da spostare
+	 * @param position La posizione lungo la curva (0-1)
+	 * @returns True se lo spostamento è riuscito
 	 */
+	moveLight(lightObj: TemporaryObject, position: number): boolean {
+		// Controlla se è una luce
+		const isLight = lightObj.getCatalogEntry().code.includes('XNRS') || 
+						lightObj.getCatalogEntry().code.includes('SP');
+		
+		if (!isLight || !lightObj.mesh) {
+		console.error("Non è una luce valida o non ha un mesh");
+		toast.error("Oggetto non valido per lo spostamento");
+		return false;
+		}
+		
+		// Tentativo 1: Prova a spostare direttamente
+		const directResult = lightObj.moveLight(position);
+		if (directResult !== null) {
+		return true; // Spostamento riuscito!
+		}
+		
+		console.log("Spostamento diretto fallito, tentativo con reset delle connessioni");
+		
+		// Reset delle connessioni e nuovo tentativo
+		// Prima di tutto, facciamo un reset completo delle connessioni
+		lightObj.resetConnections();
+		
+		// Cerca il profilo migliore come fallback
+		const fallbackProfile = this.#objects.find(obj => 
+		obj !== lightObj && 
+		!obj.getCatalogEntry().code.includes('XNRS') && 
+		!obj.getCatalogEntry().code.includes('SP') &&
+		obj.getCatalogEntry().line_juncts.length > 0 &&
+		obj.mesh
+		);
+		
+		if (!fallbackProfile) {
+		console.error("Nessun profilo disponibile per la luce");
+		toast.error("Nessun profilo disponibile per la luce");
+		return false;
+		}
+		
+		console.log("Tentativo di riconnessione con profilo:", fallbackProfile.getCatalogEntry().code);
+		
+		// Tenta di attaccare la luce al profilo con il flag "force"
+		try {
+		// Calcola punto centrale del profilo per l'attacco
+		const lineJunct = fallbackProfile.getCatalogEntry().line_juncts[0];
+		const midPoint = new Vector3()
+			.copy(lineJunct.point1)
+			.add(lineJunct.point2)
+			.multiplyScalar(0.5);
+			
+		// Usa il force flag per ignorare il controllo sugli attaccamenti
+		fallbackProfile.attachLine(lightObj, midPoint, true);
+		
+		// Prova di nuovo a spostare
+		const finalResult = lightObj.moveLight(position);
+		if (finalResult === null) {
+			console.error("Fallimento anche dopo reset e riconnessione");
+			toast.error("Impossibile spostare la luce");
+			return false;
+		}
+		
+		return true;
+		} catch (error) {
+		console.error("Errore durante la riconnessione della luce:", error);
+		toast.error("Impossibile spostare la luce");
+		return false;
+		}
+	}
+
 	highlightLight(lightObj: TemporaryObject | null): void {
-		// Reset all objects to normal opacity
 		this.setOpacity(1);
 		
 		if (lightObj) {
-		// Dim all other objects
-		for (const obj of this.#objects) {
-			if (obj !== lightObj) {
-			obj.setOpacity(0.4);
+			for (const obj of this.#objects) {
+				if (obj !== lightObj) {
+					obj.setOpacity(0.4);
+				}
 			}
-		}
-		
-		// Make sure the selected light is fully visible
-		lightObj.setOpacity(1);
-		
-		// Frame the camera on this light
-		this.frameObject(lightObj);
+			
+			lightObj.setOpacity(1);
+			this.frameObject(lightObj);
 		}
 	}
-	
+
 	/**
-	 * Performs raycasting in the scene with the current camera
-	 * @param pointer The normalized pointer coordinates (-1 to 1 range)
-	 * @param objects The objects to test for intersection
-	 * @returns Array of intersection results
+	 * Trova un profilo valido per una luce
+	 * @param lightObj L'oggetto luce
+	 * @returns Un array con [profilo, indice giunzione] o [null, -1] se non trovato
 	 */
+	findValidProfileForLight(lightObj: TemporaryObject): [TemporaryObject | null, number] {
+		// Prima controlliamo se la luce ha già un profilo associato
+		const junctions = lightObj.getJunctions();
+		for (let j = 0; j < junctions.length; j++) {
+		const junction = junctions[j];
+		if (junction !== null) {
+			for (let i = 0; i < junction.getLineJunctions().length; i++) {
+			if (junction.getLineJunctions()[i] === lightObj) {
+				return [junction, i];
+			}
+			}
+		}
+		}
+	
+	// Se non troviamo, cerchiamo in tutti gli oggetti
+	for (const obj of this.#objects) {
+		if (obj === lightObj) continue;
+		
+		// Controlla se è un profilo (non è una luce)
+		const isProfile = !obj.getCatalogEntry().code.includes('XNRS') && 
+							!obj.getCatalogEntry().code.includes('SP');
+							
+		if (isProfile && obj.getCatalogEntry().line_juncts.length > 0 && obj.mesh) {
+			// Cerca in tutte le giunzioni di linea disponibili
+			for (let i = 0; i < obj.getLineJunctions().length; i++) {
+			// Se la giunzione è libera o ha questa luce
+			if (obj.getLineJunctions()[i] === null || obj.getLineJunctions()[i] === lightObj) {
+				return [obj, i];
+			}
+			}
+		}
+		}
+		
+		// Nessun profilo trovato
+		return [null, -1];
+	}
+
 	raycast(pointer: Vector2, objects: Object3D[]): Intersection[] {
 		const localRaycaster = new Raycaster();
 		localRaycaster.setFromCamera(pointer, this.#camera);
 		return localRaycaster.intersectObjects(objects, true);
 	}
 
-	/** PRIVATE */
 	getCanvasSize(): Vector2 {
 		return new Vector2(this.#webgl.domElement.width, this.#webgl.domElement.height);
 	}
 
-	/** PRIVATE */
 	getScene(): Scene {
 		return this.#scene;
 	}
@@ -420,10 +463,6 @@ export class Renderer {
 		return this;
 	}
 
-	/**
-	 * Set the background color of the scene
-	 * @param color An hexadecimal number representing the color in RGB format
-	 */
 	setBackground(color: ColorRepresentation): Renderer {
 		this.#scene.background = new Color(color);
 		return this;

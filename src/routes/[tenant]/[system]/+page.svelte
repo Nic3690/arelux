@@ -20,7 +20,6 @@
 	let { data } = $props();
 	let renderer: Renderer;
 
-	// Dichiarare prima le variabili che verranno utilizzate in altre definizioni
 	let showDownloadPopup = $state(false);
 	let is3d = $state(true);
 	let code = $state('');
@@ -28,18 +27,17 @@
 	let codeWrong = $state(false);
 	let codeRight = $state(false);
 	
-	// Ora possiamo usare codeRight in downloadDisabled
 	let downloadDisabled = $derived($objects.length === 0 || (data.settings.password.length !== 0 && !codeRight));
 	
 	let lightMoverMode = $state(false);
 	let selectedLight = $state<TemporaryObject | null>(null);
 	let lightPosition = $state(0.5);
-	let movableLights = $state<TemporaryObject[]>([]);
+	let lights = $state<TemporaryObject[]>([]);
 	let pointer = $state(new Vector2());
 
 	$effect(() => {
 		if (renderer && $objects.length > 0) {
-			movableLights = renderer.getMovableLights();
+			lights = renderer.getLights();
 		}
 	});
 
@@ -48,30 +46,32 @@
 		selectedLight = null;
 		
 		if (lightMoverMode && renderer) {
-			// Aggiorna la lista di tutte le luci movibili
-			movableLights = renderer.getMovableLights();
+			lights = renderer.getLights();
 			
-			if (movableLights.length === 0) {
-			toast.info('Non sono state trovate luci movibili. Aggiungi prima una luce a un profilo.');
-			lightMoverMode = false;
+			if (lights.length === 0) {
+				toast.info('Non sono state trovate luci. Aggiungi prima una luce al progetto.');
+				lightMoverMode = false;
 			} else {
-			toast.info('Modalità spostamento luci attivata. Clicca su una luce per selezionarla.');
+				toast.info('Modalità spostamento luci attivata. Clicca su una luce per selezionarla.');
 			}
 		} else {
-			renderer?.setOpacity(1); // Ripristina l'opacità normale quando esci dalla modalità
+			renderer?.setOpacity(1);
 		}
 	}
 
 	function handleLightMove(position: number) {
 		if (selectedLight && renderer) {
-			lightPosition = position; 
+			lightPosition = position;
+			
+			// Usa la versione migliorata di moveLight dal renderer
 			const success = renderer.moveLight(selectedLight, position);
 			
 			if (!success) {
-				toast.error('Failed to move light');
+			console.error("Impossibile spostare la luce:", selectedLight.getCatalogEntry().code);
+			// Toast mostrato direttamente nel metodo moveLight del renderer
 			}
 		}
-	}
+		}
 
 	function remove(item: SavedObject) {
 		let i = $objects.indexOf(item);
@@ -92,39 +92,48 @@
 			.setScene('normal');
 		renderer.handles.setVisible(false);
 		
-		// Aggiunta evento pointerdown con detection delle luci migliorata
 		controlsEl.addEventListener('pointerdown', (event) => {
 			if (lightMoverMode && renderer) {
-			// Assicurati di avere la lista aggiornata di tutte le luci
-			movableLights = renderer.getMovableLights();
-			
-			// Aggiorna le coordinate del puntatore per il raycaster
-			pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-			pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
-			
-			// Usa tutte le luci movibili per il test di intersezione
-			const intersectables = movableLights
+				// Aggiorna la lista di luci
+				lights = renderer.getLights();
+				
+				// Calcola coordinate pointer
+				pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+				pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+				
+				// Prepara oggetti per raycast
+				const intersectables = lights
 				.filter(obj => obj.mesh)
 				.map(obj => obj.mesh) as Object3D[];
-			
-			// Usa il metodo raycast del renderer
-			const intersections = renderer.raycast(pointer, intersectables);
-			
-			if (intersections.length > 0) {
-				// Cerca quale luce è stata cliccata
-				for (const light of movableLights) {
-				let found = false;
-				light.mesh?.traverse((child) => {
+				
+				// Esegui raycast
+				const intersections = renderer.raycast(pointer, intersectables);
+				
+				if (intersections.length > 0) {
+				// Trova la luce cliccata
+				for (const light of lights) {
+					let found = false;
+					light.mesh?.traverse((child) => {
 					if (intersections.some(i => i.object.uuid === child.uuid)) {
-					selectedLight = light;
-					lightPosition = selectedLight.getCurvePosition();
-					renderer.highlightLight(selectedLight);
-					found = true;
+						// Luce trovata!
+						selectedLight = light;
+						
+						// Assicuriamoci che la luce abbia una posizione valida
+						if (selectedLight.getCurvePosition() === undefined) {
+						// Imposta una posizione predefinita se necessario
+						selectedLight.setCurvePosition(0.5);
+						}
+						
+						lightPosition = selectedLight.getCurvePosition();
+						
+						// Evidenzia la luce
+						renderer.highlightLight(selectedLight);
+						found = true;
 					}
-				});
-				if (found) break;
+					});
+					if (found) break;
 				}
-			}
+				}
 			}
 		});
 	});
@@ -291,7 +300,6 @@
 
 	<div bind:this={controlsEl}></div>
 
-	<!-- Aggiungi il LightMover alla UI -->
 	<div class="absolute bottom-5 left-80 right-80 flex justify-center gap-3">
 		<LightMover
 			active={lightMoverMode}
