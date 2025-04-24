@@ -22,7 +22,7 @@
 
 	// Dichiarare prima le variabili che verranno utilizzate in altre definizioni
 	let showDownloadPopup = $state(false);
-	let is3d = $state(false);
+	let is3d = $state(true);
 	let code = $state('');
 	let codeDialogOpen = $state(false);
 	let codeWrong = $state(false);
