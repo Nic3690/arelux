@@ -25,6 +25,7 @@ export class TemporaryObject {
 	readonly id: string;
 	readonly #state: Renderer;
 	#catalogEntry: CatalogEntry;
+	private _curvePosition: number = 0.5;
 
 	#junctionMark: Mesh<SphereGeometry, MeshBasicMaterial> | null;
 	#angle: number;
@@ -126,6 +127,10 @@ export class TemporaryObject {
 		return this.#catalogEntry;
 	}
 
+	getCurvePosition(): number {
+		return this._curvePosition;
+	}
+
 	/**
 	 * Moves a light object along the curve it's attached to
 	 * @param position A value between 0 and 1 representing the position along the curve
@@ -133,23 +138,24 @@ export class TemporaryObject {
 	 */
 	moveLight(position: number): string | null {
 		position = Math.max(0, Math.min(1, position));
-
+		this._curvePosition = position;
+		
 		let parentObject: TemporaryObject | null = null;
 		let parentJunctionId = -1;
 		
 		for (let j = 0; j < this.#junctions.length; j++) {
-		const junction = this.#junctions[j];
-		if (junction !== null) {
-			for (let i = 0; i < junction.#lineJunctions.length; i++) {
-			if (junction.#lineJunctions[i] === this) {
-				parentObject = junction;
-				parentJunctionId = i;
-				break;
-			}
-			}
+			const junction = this.#junctions[j];
+			if (junction !== null) {
+				for (let i = 0; i < junction.#lineJunctions.length; i++) {
+					if (junction.#lineJunctions[i] === this) {
+						parentObject = junction;
+						parentJunctionId = i;
+						break;
+					}
+				}
 			if (parentObject) break;
 		}
-		}
+	}
 		
 		if (!parentObject || parentJunctionId === -1 || !this.mesh || !parentObject.mesh) {
 		console.error('Unable to move light: not properly attached to any profile');
@@ -350,6 +356,7 @@ export class TemporaryObject {
 		}
 		
 		const t = minI / (points.length - 1);
+		other._curvePosition = t;
 		const tan = curve.getTangentAt(t);
 		const attachPoint = curve.getPointAt(t);
 		const isLight = other.getCatalogEntry().code.includes('XNRS') || 

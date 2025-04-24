@@ -33,7 +33,7 @@
 	
 	let lightMoverMode = $state(false);
 	let selectedLight = $state<TemporaryObject | null>(null);
-	let lightPosition = $state(0.5); // Default position 50% along the curve
+	let lightPosition = $state(0.5);
 	let movableLights = $state<TemporaryObject[]>([]);
 	let pointer = $state(new Vector2());
 
@@ -112,6 +112,7 @@
 						light.mesh?.traverse((child) => {
 							if (intersections.some(i => i.object.uuid === child.uuid)) {
 								selectedLight = light;
+								lightPosition = selectedLight.getCurvePosition();
 								renderer.highlightLight(selectedLight);
 								found = true;
 							}
