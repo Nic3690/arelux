@@ -127,6 +127,87 @@ export class TemporaryObject {
 	}
 
 	/**
+	 * Moves a light object along the curve it's attached to
+	 * @param position A value between 0 and 1 representing the position along the curve
+	 * @returns The group of the junction used for attachment or null if movement failed
+	 */
+	moveLight(position: number): string | null {
+		position = Math.max(0, Math.min(1, position));
+
+		let parentObject: TemporaryObject | null = null;
+		let parentJunctionId = -1;
+		
+		for (let j = 0; j < this.#junctions.length; j++) {
+		const junction = this.#junctions[j];
+		if (junction !== null) {
+			for (let i = 0; i < junction.#lineJunctions.length; i++) {
+			if (junction.#lineJunctions[i] === this) {
+				parentObject = junction;
+				parentJunctionId = i;
+				break;
+			}
+			}
+			if (parentObject) break;
+		}
+		}
+		
+		if (!parentObject || parentJunctionId === -1 || !this.mesh || !parentObject.mesh) {
+		console.error('Unable to move light: not properly attached to any profile');
+		return null;
+		}
+
+		const j1 = parentObject.#catalogEntry.line_juncts[parentJunctionId];
+		if (!j1) return null;
+
+		const curve = new QuadraticBezierCurve3(
+		parentObject.mesh.localToWorld(new Vector3().copy(j1.point1)),
+		parentObject.mesh.localToWorld(new Vector3().copy(j1.pointC)),
+		parentObject.mesh.localToWorld(new Vector3().copy(j1.point2))
+		);
+
+		const attachPoint = curve.getPointAt(position);
+		const tan = curve.getTangentAt(position);
+
+		const thisJunctId = this.#junctions.findIndex(j => j === parentObject);
+		if (thisJunctId === -1) return null;
+		
+		const j2 = this.#catalogEntry.juncts[thisJunctId];
+
+		const isLight = this.getCatalogEntry().code.includes('XNRS') || 
+					this.getCatalogEntry().code.includes('SP');
+	
+		if (isLight) {
+		this.mesh.rotation.set(0, 0, 0);
+	
+		const profileDir = tan.clone().normalize();
+		const angleY = Math.atan2(profileDir.z, profileDir.x);
+	
+		this.mesh.rotation.set(0, angleY, 0);
+
+		if (this.getCatalogEntry().code.includes('XNRS14')) {
+			this.mesh.rotateY(Math.PI/2);
+		}
+		else if (this.getCatalogEntry().code.includes('XNRS15')) {
+			this.mesh.rotateY(-Math.PI/4);
+		}
+		else if (this.getCatalogEntry().code.includes('XNRS31')) {
+		}
+		else if (this.getCatalogEntry().code.includes('XNRS32')) {
+			this.mesh.rotateY(Math.PI/2);
+		}
+		}
+
+		const pos2 = this.mesh.localToWorld(new Vector3().copy(j2));
+		this.mesh.position.copy({
+		x: this.mesh.position.x + attachPoint.x - pos2.x,
+		y: this.mesh.position.y + attachPoint.y - pos2.y,
+		z: this.mesh.position.z + attachPoint.z - pos2.z,
+		});
+
+		return j1.group;
+	}
+
+	/**
 	 * Set a new mesh for this object. Note that this detaches the object from any junctions it was attached to
 	 */
 	async loadMesh(f: File | undefined) {
@@ -401,44 +482,26 @@ export class RendererObject extends TemporaryObject {
 	  
 
 	private static normalizeModelOrientation(mesh: Group, code: string): void {
-		// Reset rotazione iniziale
 		mesh.rotation.set(0, 0, 0);
-		
-		// Invece di basarci sulle dimensioni, forziamo orientamenti STANDARD
-		// per categorie precise di oggetti
-		
+
 		// CASO 1: PROFILI (tutti i tipi)
 		if (code.includes('XNS') || code.includes('XNR')) {
-		// Forza i profili ad avere l'asse X come direzione principale
 		mesh.rotation.set(0, 0, 0);
-		// Nessuna rotazione necessaria, assumiamo che i profili siano già orientati
-		// correttamente nei file originali con l'asse lungo su X
 		} 
 		// CASO 2: LUCI
 		else if (code.includes('XNRS') || code.includes('SP')) {
-		// FORZA uno standard: tutte le luci con base su XZ e corpo lungo Y
 		mesh.rotation.set(0, 0, 0);
-		mesh.rotateX(-Math.PI/2); // Ruota per avere Y verso l'alto
-		
-		// Ciò che varia tra modelli di luce è la rotazione attorno all'asse Y
-		// Quindi aggiungiamo correzioni specifiche per modello
+		mesh.rotateX(-Math.PI/2);
 		}
-		
-		// CORREZIONI specifiche per modello (catalogo di trasformazioni)
+
 		if (code.includes('XNRS14')) {
-		mesh.rotateY(Math.PI); // Ruota 180° attorno all'asse Y
+		mesh.rotateY(Math.PI);
 		} 
 		else if (code.includes('XNRS15')) {
-		mesh.rotateY(Math.PI/2); // Ruota 90° attorno all'asse Y
+		mesh.rotateY(Math.PI/2);
 		}
 		else if (code.includes('XNRS31')) {
-		mesh.rotateY(-Math.PI/2); // Ruota -90° attorno all'asse Y
+		mesh.rotateY(-Math.PI/2);
 		}
-		
-		// Stampa per debug
-		const box = new Box3().setFromObject(mesh);
-		const size = new Vector3();
-		box.getSize(size);
-		console.log(`Normalizzato modello ${code}. Dimensioni: [${size.x.toFixed(2)}, ${size.y.toFixed(2)}, ${size.z.toFixed(2)}]`);
 	}
 }

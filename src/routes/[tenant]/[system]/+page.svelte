@@ -7,24 +7,70 @@
 	import { onMount } from 'svelte';
 	import type { SavedObject } from '../../../app';
 	import { button, objects } from '$lib';
-	import type { PageData } from './$types';
 	import ArrowLeft from 'phosphor-svelte/lib/ArrowLeft';
 	import { fade } from 'svelte/transition';
 	import { flyAndScale } from '$shad/utils';
 	import { cn } from '$shad/utils';
 	import { Renderer } from '$lib/renderer/renderer';
+	import { toast } from 'svelte-sonner';
+	import { Vector2, Object3D } from 'three';
+	import type { TemporaryObject } from '$lib/renderer/objects';
+	import LightMover from './LightMover.svelte';
 
-	export let data: PageData;
+	let { data } = $props();
 	let renderer: Renderer;
 
-	$: downloadDisabled =
-		$objects.length === 0 || (data.settings.password.length !== 0 && !codeRight);
-	let showDownloadPopup = false;
-	let is3d: boolean;
-	let code: string;
-	let codeDialogOpen: boolean = false;
-	let codeWrong: boolean = false;
-	let codeRight: boolean = false;
+	// Dichiarare prima le variabili che verranno utilizzate in altre definizioni
+	let showDownloadPopup = $state(false);
+	let is3d = $state(false);
+	let code = $state('');
+	let codeDialogOpen = $state(false);
+	let codeWrong = $state(false);
+	let codeRight = $state(false);
+	
+	// Ora possiamo usare codeRight in downloadDisabled
+	let downloadDisabled = $derived($objects.length === 0 || (data.settings.password.length !== 0 && !codeRight));
+	
+	let lightMoverMode = $state(false);
+	let selectedLight = $state<TemporaryObject | null>(null);
+	let lightPosition = $state(0.5); // Default position 50% along the curve
+	let movableLights = $state<TemporaryObject[]>([]);
+	let pointer = $state(new Vector2());
+
+	$effect(() => {
+		if (renderer && $objects.length > 0) {
+			movableLights = renderer.getMovableLights();
+		}
+	});
+
+	function toggleLightMoverMode() {
+		lightMoverMode = !lightMoverMode;
+		selectedLight = null;
+		
+		if (lightMoverMode && renderer) {
+			movableLights = renderer.getMovableLights();
+			
+			if (movableLights.length === 0) {
+				toast.info('No movable lights found. Add a light to a profile first.');
+				lightMoverMode = false;
+			} else {
+				toast.info('Light mover mode activated. Click on a light to select it.');
+			}
+		} else {
+			renderer?.setOpacity(1); // Reset opacity when exiting light mover mode
+		}
+	}
+
+	function handleLightMove(position: number) {
+		if (selectedLight && renderer) {
+			lightPosition = position; 
+			const success = renderer.moveLight(selectedLight, position);
+			
+			if (!success) {
+				toast.error('Failed to move light');
+			}
+		}
+	}
 
 	function remove(item: SavedObject) {
 		let i = $objects.indexOf(item);
@@ -44,13 +90,44 @@
 			})
 			.setScene('normal');
 		renderer.handles.setVisible(false);
-		// TODO: setSimplifiedModels(!is3d);
+		
+		// Add event listener for light selection
+		controlsEl.addEventListener('pointerdown', (event) => {
+			if (lightMoverMode && renderer) {
+				// Update pointer position for raycaster
+				pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+				pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+				
+				// Get movable lights as Object3D array
+				const intersectables = movableLights
+					.filter(obj => obj.mesh)
+					.map(obj => obj.mesh) as Object3D[];
+				
+				// Use the renderer's raycast method
+				const intersections = renderer.raycast(pointer, intersectables);
+				
+				if (intersections.length > 0) {
+					for (const light of movableLights) {
+						let found = false;
+						light.mesh?.traverse((child) => {
+							if (intersections.some(i => i.object.uuid === child.uuid)) {
+								selectedLight = light;
+								renderer.highlightLight(selectedLight);
+								found = true;
+							}
+						});
+						if (found) break;
+					}
+				}
+			}
+		});
 	});
 
-	$: if (controlsEl !== undefined) {
-		renderer.setCamera(controlsEl, { is3d, isOrtographic: !is3d });
-		// TODO: setSimplifiedModels(!is3d);
-	}
+	$effect(() => {
+		if (controlsEl !== undefined) {
+			renderer.setCamera(controlsEl, { is3d, isOrtographic: !is3d });
+		}
+	});
 
 	async function submitCode() {
 		if (data.settings.password === code) {
@@ -207,6 +284,18 @@
 	<Toggle2d3d bind:is3d />
 
 	<div bind:this={controlsEl}></div>
+
+	<!-- Aggiungi il LightMover alla UI -->
+	<div class="absolute bottom-5 left-80 right-80 flex justify-center gap-3">
+		<LightMover
+			active={lightMoverMode}
+			disabled={$objects.length === 0}
+			selectedLightId={selectedLight?.id ?? null}
+			position={lightPosition}
+			onToggle={toggleLightMoverMode}
+			onMove={handleLightMove}
+		/>
+	</div>
 
 	{#if showDownloadPopup}
 		<DownloadConfirmPopup

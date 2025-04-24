@@ -25,6 +25,7 @@ import {
 	DataTexture,
 	Raycaster,
 	Object3D,
+	type Intersection,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -201,15 +202,80 @@ export class Renderer {
 
 					if (intersections[0]) {
 						let intersection: Object3D | null = null;
-						this.#objects.find((obj) => {
+						let clickedObj: TemporaryObject | undefined;
+						
+						this.#objects.forEach((obj) => {
 							obj.mesh?.traverse((child) => {
-								if (child.uuid === intersections[0].object.uuid) intersection = obj.mesh;
+								if (child.uuid === intersections[0].object.uuid) {
+									intersection = obj.mesh;
+									clickedObj = obj;
+								}
 							});
 						});
+						
 						if (intersection === null) throw new Error('what?');
 
-						const object = get(objects).find((o) => o.object?.mesh === intersection);
-						if (object) focusSidebarElement(object);
+						const sceneObject = get(objects).find((o) => o.object?.mesh === intersection);
+						
+						if (sceneObject) {
+							const isLight = sceneObject.code.includes('XNRS') || sceneObject.code.includes('SP');
+							
+							if (isLight) {
+								const parentProfiles = get(objects).filter(p => 
+									p.subobjects.some(s => s.code === sceneObject.code)
+								);
+								
+								if (parentProfiles.length > 0) {
+									const parentProfile = parentProfiles[0];
+									const lightIndex = parentProfile.subobjects.findIndex(s => s.code === sceneObject.code);
+									
+									if (lightIndex >= 0) {
+										const light = parentProfile.subobjects[lightIndex];
+										const lightFamily = Object.values(this.families).find(f => 
+											f.items.some(i => i.code === light.code)
+										);
+										
+										if (lightFamily && parentProfile.object) {
+											parentProfile.subobjects = parentProfile.subobjects.toSpliced(lightIndex, 1);
+											
+											const profileId = parentProfile.object.id;
+											window.location.href = `/${this.tenant}/${lightFamily.system}/add?` + new URLSearchParams({
+												chosenFamily: lightFamily.code,
+												chosenItem: light.code,
+												reference: JSON.stringify({ typ: 'line', id: profileId, junction: 0 }),
+											}).toString();
+											return;
+										}
+									}
+								}
+							} else {
+								for (let i = 0; i < sceneObject.subobjects.length; i++) {
+									const subitem = sceneObject.subobjects[i];
+									const isSubLight = subitem.code.includes('XNRS') || subitem.code.includes('SP');
+									
+									if (isSubLight && clickedObj) {
+										const light = sceneObject.subobjects[i];
+										const lightFamily = Object.values(this.families).find(f => 
+											f.items.some(i => i.code === light.code)
+										);
+										
+										if (lightFamily) {
+											sceneObject.subobjects = sceneObject.subobjects.toSpliced(i, 1);
+											
+											const profileId = sceneObject.object!.id;
+											window.location.href = `/${this.tenant}/${lightFamily.system}/add?` + new URLSearchParams({
+												chosenFamily: lightFamily.code,
+												chosenItem: light.code,
+												reference: JSON.stringify({ typ: 'line', id: profileId, junction: 0 }),
+											}).toString();
+											return;
+										}
+									}
+								}
+							}
+							
+							focusSidebarElement(sceneObject);
+						}
 					}
 				}
 			});
@@ -220,10 +286,95 @@ export class Renderer {
 			this.#controls.dispose();
 		}
 		this.#controls = newControls;
-		// setCameraLock(isCameraLocked);
 		this.#controls.update();
 
 		return this;
+	}
+
+	/**
+	 * Checks if an object is a light that can be moved
+	 * @param obj The object to check
+	 * @returns True if the object is a movable light
+	 */
+	isMovableLight(obj: TemporaryObject): boolean {
+		if (!obj) return false;
+		
+		// Check if the object's code indicates it's a light
+		const isLight = obj.getCatalogEntry().code.includes('XNRS') || 
+					obj.getCatalogEntry().code.includes('SP');
+		
+		if (!isLight) return false;
+		
+		// Check if the light is attached to a profile via a line junction
+		for (const junction of obj.getJunctions()) {
+		if (junction === null) continue;
+		
+		for (const lineJunction of junction.getLineJunctions()) {
+			if (lineJunction === obj) {
+			return true; // This light is attached to a profile
+			}
+		}
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Moves a light along its attached profile
+	 * @param lightObj The light object to move
+	 * @param position A value between 0 and 1 representing position along the curve
+	 * @returns True if the movement was successful
+	 */
+	moveLight(lightObj: TemporaryObject, position: number): boolean {
+		if (!this.isMovableLight(lightObj)) {
+		return false;
+		}
+		
+		return lightObj.moveLight(position) !== null;
+	}
+	
+	/**
+	 * Finds all movable lights in the scene
+	 * @returns Array of movable light objects
+	 */
+	getMovableLights(): TemporaryObject[] {
+		return this.#objects.filter(obj => this.isMovableLight(obj));
+	}
+	
+	/**
+	 * Highlights a selected light in the scene
+	 * @param lightObj The light object to highlight
+	 */
+	highlightLight(lightObj: TemporaryObject | null): void {
+		// Reset all objects to normal opacity
+		this.setOpacity(1);
+		
+		if (lightObj) {
+		// Dim all other objects
+		for (const obj of this.#objects) {
+			if (obj !== lightObj) {
+			obj.setOpacity(0.4);
+			}
+		}
+		
+		// Make sure the selected light is fully visible
+		lightObj.setOpacity(1);
+		
+		// Frame the camera on this light
+		this.frameObject(lightObj);
+		}
+	}
+	
+	/**
+	 * Performs raycasting in the scene with the current camera
+	 * @param pointer The normalized pointer coordinates (-1 to 1 range)
+	 * @param objects The objects to test for intersection
+	 * @returns Array of intersection results
+	 */
+	raycast(pointer: Vector2, objects: Object3D[]): Intersection[] {
+		const localRaycaster = new Raycaster();
+		localRaycaster.setFromCamera(pointer, this.#camera);
+		return localRaycaster.intersectObjects(objects, true);
 	}
 
 	/** PRIVATE */
