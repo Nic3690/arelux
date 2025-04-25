@@ -84,3 +84,32 @@
         </div>
     {/if}
 </div>
+
+<style>
+    input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #feca0a;
+        cursor: pointer;
+    }
+    
+    input[type=range]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #feca0a;
+        cursor: pointer;
+        border: none;
+    }
+    
+    input[type=range]::-ms-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #feca0a;
+        cursor: pointer;
+    }
+</style>
