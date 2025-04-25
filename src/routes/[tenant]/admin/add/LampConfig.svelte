@@ -4,7 +4,7 @@
 	import { onMount, tick } from 'svelte';
 	import * as Command from '$shad/ui/command';
 	import * as Popover from '$shad/ui/popover';
-	import { cn } from '$shad/utils';
+	import { cn } from '$shad/utils.js';
 	import { Separator } from '$shad/ui/separator';
 	import ModelInput from './ModelInput.svelte';
 	import { Button } from '$shad/ui/button';
@@ -36,7 +36,9 @@
 	let desc2: string;
 	let price: number;
 	let isLed: boolean = false;
-	$: isLed = chosenFamily !== undefined && page.data.families[chosenFamily].isLed;
+	let isEditMode: boolean = false;
+	
+	$: isLed = chosenFamily !== undefined && page.data.families[chosenFamily]?.isLed;
 
 	let junctions: {
 		x: number;
@@ -54,21 +56,41 @@
 	}[] = [];
 
 	if (page.state.editing !== undefined) {
+		isEditMode = true;
 		const item = page.data.catalog[page.state.editing];
 		code = item.code;
 		power = item.power;
+		price = item.price_cents / 100;
 		junctions = item.juncts.map((x) => ({ ...x, groups_open: false, can_connect_open: false }));
 		lineJunctions = item.line_juncts.map((x) => ({
 			...x,
 			groups_open: false,
 			can_connect_open: false,
 		}));
+		
+		// Find the family this object belongs to
+		for (const [familyCode, family] of Object.entries(page.data.families)) {
+			if (family.items.some(item => item.code === code)) {
+				chosenFamily = familyCode;
+				
+				// Look for the item in the family to get its metadata
+				const familyItem = family.items.find(item => item.code === code);
+				if (familyItem) {
+					desc1 = familyItem.desc1;
+					desc2 = familyItem.desc2;
+					color = familyItem.color;
+					len = familyItem.len;
+					angle = familyItem.deg;
+					radius = familyItem.radius;
+				}
+				break;
+			}
+		}
 	}
 
 	onMount(() => {
 		renderer.handles.setVisible(true);
 		renderer.handles.clear();
-		modelInput?.onShow();
 
 		for (let i = 0; i < junctions.length; i++) {
 			renderer.handles.createTemporaryHandle();
@@ -84,73 +106,126 @@
 	async function onSubmit() {
 		const supabase = page.data.supabase;
 		const tenant = page.data.tenant;
-		let image = (imageInput.files ?? [])[0];
-
-		if (chosenFamily && page.data.families[chosenFamily].hasModel) {
-			let model = await modelInput.onShow();
-			let simplifiedModel = await simplifiedModelInput.onShow();
-
-			if (model === undefined) return toast.error('You need to choose a model file');
-			if (!(model instanceof File)) {
-				console.error(`An error occurred retrieving the model file: ${model}`);
-				return toast.error('An error occurred');
-			}
-
-			await supabase.storage.from(tenant).upload(`models/${code}.glb`, model, { upsert: true });
-			if (simplifiedModel !== undefined)
-				await supabase.storage.from(tenant).upload(`simple/${code}.glb`, model, { upsert: true });
-		}
-
+		let image = (imageInput?.files ?? [])[0];
+		
+		// Basic validations that apply to both edit and create
 		if (code === undefined || code.trim() === '')
 			return toast.error("The `code` field can't be empty");
-		if (desc1 === undefined || desc1.trim() === '')
-			return toast.error("The `description` field can't be empty");
-		if (!isLed && (desc2 === undefined || desc2.trim() === ''))
-			return toast.error("The `description` field can't be empty");
+		
 		if (power === null || power === undefined)
 			return toast.error("The `power` field can't be empty");
-		if (image === undefined) return toast.error('You need to choose an image file');
-		if (junctions.some((j) => j.angle === null || j.angle === undefined))
-			return toast.error("The `angle` field can't be empty");
-		if (chosenFamily === undefined) return toast.error('You must choose a family');
-		for (const j of junctions)
-			if (j.x === null || j.y === null || j.z === null)
-				return toast.error("The `position` field can't be empty");
-		for (const j of lineJunctions)
-			for (const p of [j.point1, j.pointC, j.point2])
-				if (p.x === null || p.y === null || p.z === null)
+			
+		// Only validate junctions if they exist
+		if (junctions.length > 0) {
+			if (junctions.some((j) => j.angle === null || j.angle === undefined))
+				return toast.error("The `angle` field can't be empty");
+			
+			for (const j of junctions)
+				if (j.x === null || j.y === null || j.z === null)
 					return toast.error("The `position` field can't be empty");
+		}
+		
+		// Only validate line junctions if they exist
+		if (lineJunctions.length > 0) {
+			for (const j of lineJunctions)
+				for (const p of [j.point1, j.pointC, j.point2])
+					if (p.x === null || p.y === null || p.z === null)
+						return toast.error("The `position` field can't be empty");
+		}
+		
+		// Different validations for create vs edit
+		if (!isEditMode) {
+			// Creating a new object - need everything
+			if (image === undefined) 
+				return toast.error('You need to choose an image file');
+			
+			if (chosenFamily === undefined) 
+				return toast.error('You must choose a family');
+			
+			if (desc1 === undefined || desc1.trim() === '')
+				return toast.error("The `description` field can't be empty");
+			
+			if (!isLed && (desc2 === undefined || desc2.trim() === ''))
+				return toast.error("The `description` field can't be empty");
+		} else {
+			// Editing an existing object - only validate changed fields when family is provided
+			if (chosenFamily !== undefined) {
+				// For descriptions, only validate if they've been changed
+				if (desc1 !== undefined && desc1.trim() === '')
+					return toast.error("The `description` field can't be empty");
+					
+				if (!isLed && desc2 !== undefined && desc2.trim() === '')
+					return toast.error("The `description` field can't be empty");
+			}
+		}
 
 		try {
-			await supabase.storage.from(tenant).upload(`images/${code}.webp`, image, { upsert: true });
+			// Only upload image if a new one is provided
+			if (image !== undefined) {
+				await supabase.storage.from(tenant).upload(`images/${code}.webp`, image, { upsert: true });
+			}
 
+			// Only try to upload models if the family requires them and files were provided
+			if (chosenFamily && page.data.families[chosenFamily]?.hasModel) {
+				try {
+					// Get files from model inputs if they exist
+					const model = modelInput?.getFile?.() || null;
+					const simplifiedModel = simplifiedModelInput?.getFile?.() || null;
+
+					if (model instanceof File) {
+						await supabase.storage.from(tenant).upload(`models/${code}.glb`, model, { upsert: true });
+					}
+					
+					if (simplifiedModel instanceof File) {
+						await supabase.storage.from(tenant).upload(`simple/${code}.glb`, simplifiedModel, { upsert: true });
+					}
+				} catch (error) {
+					console.error("Error processing models:", error);
+				}
+			}
+
+			// Update object data
 			await supabase
 				.from('objects')
 				.upsert({ code, tenant, power, system: $selectedSystem, price_cents: price * 100 })
 				.throwOnError();
+				
+			// Delete existing junctions to update them
 			await supabase
 				.from('object_junctions')
 				.delete()
 				.eq('object_code', code)
 				.eq('tenant', tenant)
 				.throwOnError();
-
+				
+			// Delete existing curve junctions to update them
 			await supabase
-				.from('family_objects')
-				.upsert({
-					familycode: chosenFamily,
-					objectcode: code,
-					tenant,
-					angle,
-					color,
-					len,
-					temperature,
-					radius,
-					desc1,
-					desc2: desc2 ?? '',
-				})
+				.from('object_curve_junctions')
+				.delete()
+				.eq('object_code', code)
+				.eq('tenant', tenant)
 				.throwOnError();
 
+			// Only update family object if we have family data
+			if (chosenFamily) {
+				await supabase
+					.from('family_objects')
+					.upsert({
+						familycode: chosenFamily,
+						objectcode: code,
+						tenant,
+						angle,
+						color,
+						len,
+						temperature,
+						radius,
+						desc1: desc1 || '',
+						desc2: desc2 || '',
+					})
+					.throwOnError();
+			}
+
+			// Update junctions
 			for (const j of junctions) {
 				const junctId = await supabase
 					.from('junctions')
@@ -175,6 +250,7 @@
 					.throwOnError();
 			}
 
+			// Update curve junctions
 			for (const j of lineJunctions) {
 				const junction1_id = await supabase
 					.from('junctions')
@@ -225,7 +301,7 @@
 			return;
 		}
 
-		toast.success('Object inserted successfully');
+		toast.success(isEditMode ? 'Object updated successfully' : 'Object inserted successfully');
 		invalidateAll();
 	}
 
@@ -245,13 +321,13 @@
 </script>
 
 <div>
-	<Label for="lamp-code">Code</Label>
-	<Input type="text" id="lamp-code" bind:value={code} />
+	<Label for="lamp-code">Code {isEditMode ? '(editing)' : ''}</Label>
+	<Input type="text" id="lamp-code" bind:value={code} disabled={isEditMode} />
 </div>
 
 <!-- family popup -->
 <div>
-	<Label>Family</Label>
+	<Label>Family {isEditMode && chosenFamily ? `(${page.data.families[chosenFamily]?.displayName})` : ''}</Label>
 	<Popover.Root bind:open={familyInputOpen} let:ids>
 		<Popover.Trigger asChild let:builder class="">
 			<Button
@@ -265,7 +341,7 @@
 				)}
 			>
 				{chosenFamily !== undefined
-					? page.data.families[chosenFamily].displayName
+					? page.data.families[chosenFamily]?.displayName || 'Unknown family'
 					: 'Choose a family...'}
 				<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
 			</Button>
@@ -318,7 +394,7 @@
 </div>
 
 <div>
-	<Label for="image">Image</Label>
+	<Label for="image">Image {isEditMode ? '(only required for new objects)' : ''}</Label>
 	<Input
 		type="file"
 		id="image"
@@ -327,8 +403,8 @@
 	/>
 </div>
 
-{#if chosenFamily && page.data.families[chosenFamily].hasModel}
-	<ModelInput {renderer} idSupplement="lamp" bind:this={modelInput}>Model</ModelInput>
+{#if chosenFamily && page.data.families[chosenFamily]?.hasModel}
+	<ModelInput {renderer} idSupplement="lamp" bind:this={modelInput}>Model {isEditMode ? '(optional when editing)' : ''}</ModelInput>
 	<ModelInput {renderer} idSupplement="simplified" bind:this={simplifiedModelInput}>
 		Simplified model (optional)
 	</ModelInput>
@@ -341,25 +417,25 @@
 
 {#if chosenFamily !== undefined}
 	{@const family = page.data.families[chosenFamily]}
-	{#if family.needsColorConfig}
+	{#if family?.needsColorConfig}
 		<div>
 			<Label>Color</Label>
 			<Input type="color" bind:value={color} />
 		</div>
 	{/if}
-	{#if family.needsLengthConfig}
+	{#if family?.needsLengthConfig}
 		<div>
 			<Label>Length (mm)</Label>
 			<Input type="number" bind:value={len} />
 		</div>
 	{/if}
-	{#if family.needsTemperatureConfig}
+	{#if family?.needsTemperatureConfig}
 		<div>
 			<Label>Temperature (Kelvin)</Label>
 			<Input type="number" bind:value={temperature} />
 		</div>
 	{/if}
-	{#if family.isLed}
+	{#if family?.isLed}
 		<div>
 			<Label>Minimum length (mm)</Label>
 			<Input type="number" bind:value={len} />
@@ -370,7 +446,7 @@
 			<Input type="number" bind:value={radius} placeholder="5mm" />
 		</div>
 	{/if}
-	{#if family.needsCurveConfig}
+	{#if family?.needsCurveConfig}
 		<div>
 			<Label>Angle (degrees)</Label>
 			<Input type="number" bind:value={angle} />
@@ -582,4 +658,4 @@
 	</div>
 {/each}
 
-<Button class="mt-3 w-full" onclick={onSubmit}>Submit</Button>
+<Button class="mt-3 w-full" onclick={onSubmit}>{isEditMode ? 'Update' : 'Submit'}</Button>

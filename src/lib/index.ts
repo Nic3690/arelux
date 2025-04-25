@@ -195,6 +195,19 @@ export const button = tv({
 	},
 });
 
+export const sidebarRefs = new Map<string, HTMLElement>();
+
+export function focusSidebarElement(item: SavedObject) {
+    // Get the element from the map using item code
+    const element = sidebarRefs.get(item.code);
+    if (!element) return;
+    
+    element.scrollIntoView({ behavior: 'smooth' });
+    element.focus();
+    element.classList.add('ring');
+    setTimeout(() => element.classList.remove('ring'), 3000);
+}
+
 let supabase: SupabaseClient<Database> | undefined;
 
 export function getSupabase(): SupabaseClient<Database> {
@@ -257,12 +270,4 @@ export async function invoiceTemplate(
 		iva: iva * 100,
 		totale,
 	});
-}
-
-export function focusSidebarElement(item: SavedObject) {
-	if (!item.sidebarItem) return;
-	item.sidebarItem.scrollIntoView({ behavior: 'smooth' });
-	item.sidebarItem.focus();
-	item.sidebarItem.classList.add('ring');
-	setTimeout(() => item.sidebarItem?.classList.remove('ring'), 3000);
 }

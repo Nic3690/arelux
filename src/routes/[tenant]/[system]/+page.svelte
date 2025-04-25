@@ -36,6 +36,19 @@
 	let lights = $state<TemporaryObject[]>([]);
 	let pointer = $state(new Vector2());
 	let invertedControls = $state(false);
+	
+	// Import and use the shared Map from $lib/index.ts
+	import { sidebarRefs, focusSidebarElement } from '$lib/index';
+
+	// Custom action to store element references
+	function setRef(node: HTMLElement, code: string) {
+		sidebarRefs.set(code, node);
+		return {
+			destroy() {
+				sidebarRefs.delete(code);
+			}
+		};
+	}
 
 	$effect(() => {
 		if (renderer && $objects.length > 0) {
@@ -71,7 +84,7 @@
 			console.error("Impossibile spostare la luce:", selectedLight.getCatalogEntry().code);
 			}
 		}
-		}
+	}
 
 	function remove(item: SavedObject) {
 		let i = $objects.indexOf(item);
@@ -80,6 +93,8 @@
 		}
 		if (item.object) renderer.removeObject(item.object);
 	}
+
+	// Now using the imported focusSidebarElement function
 
 	let canvas: HTMLCanvasElement;
 	let controlsEl: HTMLElement;
@@ -166,14 +181,14 @@
 		<ScrollArea.Root>
 			<ScrollArea.Viewport class="h-full w-full">
 				<ScrollArea.Content>
-					{#each $objects.filter((o) => !o.hidden) as item}
+					{#each $objects.filter((o) => !o.hidden) as item (item.code)}
 						{@const url = data.supabase.storage
 							.from(data.tenant)
 							.getPublicUrl(`images/${item.code}.webp`)}
 
 						<div
 							class="mt-3 rounded bg-box3 ring-inset ring-primary transition-all"
-							bind:this={item.sidebarItem}
+							use:setRef={item.code}
 						>
 							<div class="mt-3 flex items-center justify-start rounded">
 								<img
