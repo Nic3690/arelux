@@ -26,6 +26,7 @@ import {
 	Raycaster,
 	Object3D,
 	type Intersection,
+	QuadraticBezierCurve3,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -411,32 +412,34 @@ export class Renderer {
 		return [null, -1];
 	}
 
-/**
- * Determines if light movement controls should be inverted based on object orientation
- * @param lightObj The light object we're moving
- * @return boolean True if controls should be inverted, false otherwise
- */
-getLightMovementDirection(lightObj: TemporaryObject): boolean {
-	if (!lightObj || !lightObj.mesh) {
-	  return false;
-	}
+	getLightMovementDirection(lightObj: TemporaryObject): boolean {
+		if (!lightObj || !lightObj.mesh) {
+		  return false;
+		}
+	  
+		const parentProfile = this.findParentProfileForLight(lightObj);
+		if (!parentProfile || !parentProfile.mesh) {
+		  return false;
+		}
+	  
+		const junctionId = this.findJunctionIdForProfile(parentProfile, lightObj);
+		if (junctionId < 0) return false;
+		
+		const curveData = parentProfile.getCatalogEntry().line_juncts[junctionId];
+		if (!curveData) return false;
 
-	const parentProfile = this.findParentProfileForLight(lightObj);
-	if (!parentProfile || !parentProfile.mesh) {
-	  return false;
-	}
+		const curve = new QuadraticBezierCurve3(
+		  parentProfile.mesh.localToWorld(new Vector3().copy(curveData.point1)),
+		  parentProfile.mesh.localToWorld(new Vector3().copy(curveData.pointC)),
+		  parentProfile.mesh.localToWorld(new Vector3().copy(curveData.point2))
+		);
 
-	const junctionId = this.findJunctionIdForProfile(parentProfile, lightObj);
-	if (junctionId < 0) return false;
-	
-	const curveData = parentProfile.getCatalogEntry().line_juncts[junctionId];
-	if (!curveData) return false;
+		const curPos = lightObj.getCurvePosition();
+		const tangent = curve.getTangentAt(curPos);
+		const cameraRight = new Vector3(1, 0, 0).applyQuaternion(this.#camera.quaternion);
 
-	const point1 = parentProfile.mesh.localToWorld(new Vector3().copy(curveData.point1));
-	const point2 = parentProfile.mesh.localToWorld(new Vector3().copy(curveData.point2));
-
-	return point2.x < point1.x;
-  }
+		return tangent.dot(cameraRight) < 0;
+	  }
   
 	/**
 	 * Find the parent profile object for a light
