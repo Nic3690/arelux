@@ -303,7 +303,6 @@ export class Renderer {
 	 * @returns True se lo spostamento è riuscito
 	 */
 	moveLight(lightObj: TemporaryObject, position: number): boolean {
-		// Controlla se è una luce
 		const isLight = lightObj.getCatalogEntry().code.includes('XNRS') || 
 						lightObj.getCatalogEntry().code.includes('SP');
 		
@@ -312,20 +311,16 @@ export class Renderer {
 		toast.error("Oggetto non valido per lo spostamento");
 		return false;
 		}
-		
-		// Tentativo 1: Prova a spostare direttamente
+
 		const directResult = lightObj.moveLight(position);
 		if (directResult !== null) {
-		return true; // Spostamento riuscito!
+		return true;
 		}
 		
 		console.log("Spostamento diretto fallito, tentativo con reset delle connessioni");
-		
-		// Reset delle connessioni e nuovo tentativo
-		// Prima di tutto, facciamo un reset completo delle connessioni
+
 		lightObj.resetConnections();
-		
-		// Cerca il profilo migliore come fallback
+
 		const fallbackProfile = this.#objects.find(obj => 
 		obj !== lightObj && 
 		!obj.getCatalogEntry().code.includes('XNRS') && 
@@ -341,20 +336,16 @@ export class Renderer {
 		}
 		
 		console.log("Tentativo di riconnessione con profilo:", fallbackProfile.getCatalogEntry().code);
-		
-		// Tenta di attaccare la luce al profilo con il flag "force"
+
 		try {
-		// Calcola punto centrale del profilo per l'attacco
 		const lineJunct = fallbackProfile.getCatalogEntry().line_juncts[0];
 		const midPoint = new Vector3()
 			.copy(lineJunct.point1)
 			.add(lineJunct.point2)
 			.multiplyScalar(0.5);
-			
-		// Usa il force flag per ignorare il controllo sugli attaccamenti
+
 		fallbackProfile.attachLine(lightObj, midPoint, true);
-		
-		// Prova di nuovo a spostare
+
 		const finalResult = lightObj.moveLight(position);
 		if (finalResult === null) {
 			console.error("Fallimento anche dopo reset e riconnessione");
@@ -391,7 +382,6 @@ export class Renderer {
 	 * @returns Un array con [profilo, indice giunzione] o [null, -1] se non trovato
 	 */
 	findValidProfileForLight(lightObj: TemporaryObject): [TemporaryObject | null, number] {
-		// Prima controlliamo se la luce ha già un profilo associato
 		const junctions = lightObj.getJunctions();
 		for (let j = 0; j < junctions.length; j++) {
 		const junction = junctions[j];
@@ -403,29 +393,103 @@ export class Renderer {
 			}
 		}
 		}
-	
-	// Se non troviamo, cerchiamo in tutti gli oggetti
+
 	for (const obj of this.#objects) {
 		if (obj === lightObj) continue;
-		
-		// Controlla se è un profilo (non è una luce)
+
 		const isProfile = !obj.getCatalogEntry().code.includes('XNRS') && 
 							!obj.getCatalogEntry().code.includes('SP');
 							
 		if (isProfile && obj.getCatalogEntry().line_juncts.length > 0 && obj.mesh) {
-			// Cerca in tutte le giunzioni di linea disponibili
 			for (let i = 0; i < obj.getLineJunctions().length; i++) {
-			// Se la giunzione è libera o ha questa luce
 			if (obj.getLineJunctions()[i] === null || obj.getLineJunctions()[i] === lightObj) {
 				return [obj, i];
 			}
 			}
 		}
 		}
-		
-		// Nessun profilo trovato
 		return [null, -1];
 	}
+
+/**
+ * Determines if light movement controls should be inverted based on object orientation
+ * @param lightObj The light object we're moving
+ * @return boolean True if controls should be inverted, false otherwise
+ */
+getLightMovementDirection(lightObj: TemporaryObject): boolean {
+	if (!lightObj || !lightObj.mesh) {
+	  return false;
+	}
+
+	const parentProfile = this.findParentProfileForLight(lightObj);
+	if (!parentProfile || !parentProfile.mesh) {
+	  return false;
+	}
+
+	const junctionId = this.findJunctionIdForProfile(parentProfile, lightObj);
+	if (junctionId < 0) return false;
+	
+	const curveData = parentProfile.getCatalogEntry().line_juncts[junctionId];
+	if (!curveData) return false;
+
+	const point1 = parentProfile.mesh.localToWorld(new Vector3().copy(curveData.point1));
+	const point2 = parentProfile.mesh.localToWorld(new Vector3().copy(curveData.point2));
+
+	return point2.x < point1.x;
+  }
+  
+	/**
+	 * Find the parent profile object for a light
+	 * @param lightObj The light object
+	 * @return The parent profile or null if not found
+	 */
+	findParentProfileForLight(lightObj: TemporaryObject): TemporaryObject | null {
+		for (let j = 0; j < lightObj.getJunctions().length; j++) {
+		const junction = lightObj.getJunctions()[j];
+		if (junction !== null) {
+			for (let i = 0; i < junction.getLineJunctions().length; i++) {
+			if (junction.getLineJunctions()[i] === lightObj) {
+				return junction;
+			}
+			}
+		}
+		}
+
+		for (const obj of this.getObjects()) {
+		if (obj === lightObj) continue;
+
+		const isProfile = !obj.getCatalogEntry().code.includes('XNRS') && 
+						!obj.getCatalogEntry().code.includes('SP');
+		
+		if (isProfile && obj.getCatalogEntry().line_juncts.length > 0) {
+			for (let i = 0; i < obj.getLineJunctions().length; i++) {
+			if (obj.getLineJunctions()[i] === lightObj) {
+				return obj;
+			}
+			}
+		}
+		}
+		
+		return null;
+	}
+  
+  /**
+   * Find the junction ID that connects a profile to a light
+   * @param profileObj The profile object
+   * @param lightObj The light object
+   * @return The junction ID or -1 if not found
+   */
+  findJunctionIdForProfile(profileObj: TemporaryObject, lightObj: TemporaryObject): number {
+	if (!profileObj || !lightObj) return -1;
+	
+	for (let i = 0; i < profileObj.getLineJunctions().length; i++) {
+	  if (profileObj.getLineJunctions()[i] === lightObj) {
+		return i;
+	  }
+	}
+	
+	return -1;
+  }
 
 	raycast(pointer: Vector2, objects: Object3D[]): Intersection[] {
 		const localRaycaster = new Raycaster();

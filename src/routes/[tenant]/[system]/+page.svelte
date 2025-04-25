@@ -16,6 +16,7 @@
 	import { Vector2, Object3D } from 'three';
 	import type { TemporaryObject } from '$lib/renderer/objects';
 	import LightMover from './LightMover.svelte';
+	import { Vector3 } from 'three';
 
 	let { data } = $props();
 	let renderer: Renderer;
@@ -34,6 +35,7 @@
 	let lightPosition = $state(0.5);
 	let lights = $state<TemporaryObject[]>([]);
 	let pointer = $state(new Vector2());
+	let invertedControls = $state(false);
 
 	$effect(() => {
 		if (renderer && $objects.length > 0) {
@@ -62,13 +64,11 @@
 	function handleLightMove(position: number) {
 		if (selectedLight && renderer) {
 			lightPosition = position;
-			
-			// Usa la versione migliorata di moveLight dal renderer
+
 			const success = renderer.moveLight(selectedLight, position);
 			
 			if (!success) {
 			console.error("Impossibile spostare la luce:", selectedLight.getCatalogEntry().code);
-			// Toast mostrato direttamente nel metodo moveLight del renderer
 			}
 		}
 		}
@@ -84,58 +84,51 @@
 	let canvas: HTMLCanvasElement;
 	let controlsEl: HTMLElement;
 	onMount(() => {
-		renderer = Renderer.get(data, canvas, controlsEl)
-			.setCamera(controlsEl, {
-			is3d,
-			isOrtographic: is3d,
-			})
-			.setScene('normal');
-		renderer.handles.setVisible(false);
+	renderer = Renderer.get(data, canvas, controlsEl)
+		.setCamera(controlsEl, {
+		is3d,
+		isOrtographic: is3d,
+		})
+		.setScene('normal');
+	renderer.handles.setVisible(false);
+	
+	controlsEl.addEventListener('pointerdown', (event) => {
+		if (lightMoverMode && renderer) {
+		lights = renderer.getLights();
+
+		pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+		pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+		const intersectables = lights
+		.filter(obj => obj.mesh)
+		.map(obj => obj.mesh) as Object3D[];
+
+		const intersections = renderer.raycast(pointer, intersectables);
 		
-		controlsEl.addEventListener('pointerdown', (event) => {
-			if (lightMoverMode && renderer) {
-				// Aggiorna la lista di luci
-				lights = renderer.getLights();
-				
-				// Calcola coordinate pointer
-				pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-				pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
-				
-				// Prepara oggetti per raycast
-				const intersectables = lights
-				.filter(obj => obj.mesh)
-				.map(obj => obj.mesh) as Object3D[];
-				
-				// Esegui raycast
-				const intersections = renderer.raycast(pointer, intersectables);
-				
-				if (intersections.length > 0) {
-				// Trova la luce cliccata
-				for (const light of lights) {
-					let found = false;
-					light.mesh?.traverse((child) => {
-					if (intersections.some(i => i.object.uuid === child.uuid)) {
-						// Luce trovata!
-						selectedLight = light;
-						
-						// Assicuriamoci che la luce abbia una posizione valida
-						if (selectedLight.getCurvePosition() === undefined) {
-						// Imposta una posizione predefinita se necessario
-						selectedLight.setCurvePosition(0.5);
-						}
-						
-						lightPosition = selectedLight.getCurvePosition();
-						
-						// Evidenzia la luce
-						renderer.highlightLight(selectedLight);
-						found = true;
-					}
-					});
-					if (found) break;
+		if (intersections.length > 0) {
+			for (const light of lights) {
+			let found = false;
+			light.mesh?.traverse((child) => {
+				if (intersections.some(i => i.object.uuid === child.uuid)) {
+				selectedLight = light;
+
+				if (selectedLight.getCurvePosition() === undefined) {
+					selectedLight.setCurvePosition(0.5);
 				}
+				
+				lightPosition = selectedLight.getCurvePosition();
+
+				invertedControls = renderer.getLightMovementDirection(selectedLight);
+
+				renderer.highlightLight(selectedLight);
+				found = true;
 				}
+			});
+			if (found) break;
 			}
-		});
+		}
+		}
+	});
 	});
 
 	$effect(() => {
@@ -306,9 +299,10 @@
 			disabled={$objects.length === 0}
 			selectedLightId={selectedLight?.id ?? null}
 			position={lightPosition}
+			invertedControls={invertedControls}
 			onToggle={toggleLightMoverMode}
 			onMove={handleLightMove}
-		/>
+	  />
 	</div>
 
 	{#if showDownloadPopup}

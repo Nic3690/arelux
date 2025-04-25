@@ -11,12 +11,14 @@
         disabled = false,
         selectedLightId = null,
         position = 0.5,
+        invertedControls = false,
         onToggle = () => {},
         onMove = () => {}
     } = $props();
 
     function handleMove(increment: number) {
-        const newPosition = Math.max(0.05, Math.min(0.95, position + increment));
+        const adjustedIncrement = invertedControls ? -increment : increment;
+        const newPosition = Math.max(0.05, Math.min(0.95, position + adjustedIncrement));
         position = newPosition;
         onMove(newPosition);
     }
