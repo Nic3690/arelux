@@ -623,7 +623,7 @@ export class Renderer {
                      obj.getCatalogEntry().line_juncts.length > 0;
     
 		if (!isProfile) return obj;
-
+		
 		const bbox = new Box3().setFromObject(obj.mesh);
 		const center = bbox.getCenter(new Vector3());
 		let bsphere = bbox.getBoundingSphere(new Sphere(center));
