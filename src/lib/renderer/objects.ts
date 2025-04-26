@@ -2,7 +2,7 @@ import type { CatalogEntry } from '../../app';
 import type { Renderer } from './renderer';
 import { loadModel } from './util';
 
-import { DEG2RAD } from 'three/src/math/MathUtils.js';
+import { DEG2RAD, RAD2DEG } from 'three/src/math/MathUtils.js';
 import {
 	BufferGeometry,
 	Group,
@@ -274,21 +274,16 @@ export class TemporaryObject {
 		  // Imposta rotazione
 		  this.mesh.rotation.set(0, 0, 0);
 		  const profileDir = tan.clone().normalize();
-		  const angleY = Math.atan2(profileDir.z, profileDir.x);
+		  const isCurvedProfile = parentObject.getCatalogEntry().code.includes('C');
+  
+		// Calcolo dell'angolazione
+		  let angleY;
+		
+		  if (isCurvedProfile) angleY = Math.atan2(profileDir.x, profileDir.z) + Math.PI;
+		  else angleY = Math.atan2(profileDir.z, profileDir.x);
 		  this.mesh.rotation.set(0, angleY, 0);
 		  const junctionAngle = this.getCatalogEntry().juncts[junctionIndex].angle * (Math.PI/180); // Converti in radianti
 		  this.mesh.rotateY(junctionAngle);
-	  
-		  // Applica rotazioni specifiche per tipo di luce
-		//   if (this.getCatalogEntry().code.includes('XNRS14')) {
-		// 	this.mesh.rotateY(Math.PI/2);
-		//   }
-		//   else if (this.getCatalogEntry().code.includes('XNRS15')) {
-		// 	this.mesh.rotateY(-Math.PI/4);
-		//   }
-		//   else if (this.getCatalogEntry().code.includes('XNRS32')) {
-		// 	this.mesh.rotateY(Math.PI/2);
-		//   }
 	  
 		  // Aggiorna posizione
 		  const pos2 = this.mesh.localToWorld(new Vector3().copy(j2));
@@ -323,6 +318,7 @@ export class TemporaryObject {
 		this.mesh = mesh;
 		this.#angle = 0;
 		this.#state.getScene().add(this.mesh);
+		console.log(this.#catalogEntry.code);
 	}
 
 	attach(other: TemporaryObject, junctionId?: number, dontFrame?: true): string {
@@ -430,30 +426,24 @@ export class TemporaryObject {
 		const tan = curve.getTangentAt(t);
 		const attachPoint = curve.getPointAt(t);
 		const isLight = other.getCatalogEntry().code.includes('XNRS') || 
-				 other.getCatalogEntry().code.includes('SP');
+				other.getCatalogEntry().code.includes('SP');
 	  
 		if (isLight) {
 		  other.mesh.rotation.set(0, 0, 0);
 	  
 		  const profileDir = tan.clone().normalize();
-		  const angleY = Math.atan2(profileDir.z, profileDir.x);
-	  
+		  
+		  const isCurvedProfile = this.getCatalogEntry().code.includes('C');
+		  
+		  let angleY;
+		  
+		  if (isCurvedProfile) angleY = Math.atan2(profileDir.x, profileDir.z) + Math.PI;
+		  else angleY = Math.atan2(profileDir.z, profileDir.x);
+		  
 		  other.mesh.rotation.set(0, angleY, 0);
 		
 		  const junctionAngle = other.getCatalogEntry().juncts[0].angle * (Math.PI/180);
 		  other.mesh.rotateY(junctionAngle);
-	  
-		//   if (other.getCatalogEntry().code.includes('XNRS14')) {
-		// 	other.mesh.rotateY(Math.PI/2);
-		//   }
-		//   else if (other.getCatalogEntry().code.includes('XNRS15')) {
-		// 	other.mesh.rotateY(-Math.PI/4);
-		//   }
-		//   else if (other.getCatalogEntry().code.includes('XNRS31')) {
-		//   }
-		//   else if (other.getCatalogEntry().code.includes('XNRS32')) {
-		// 	other.mesh.rotateY(Math.PI/2);
-		//   }
 		}
 	  
 		const pos2 = other.mesh.localToWorld(new Vector3().copy(j2));
