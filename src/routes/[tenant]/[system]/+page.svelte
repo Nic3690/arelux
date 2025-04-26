@@ -181,7 +181,7 @@
 		<ScrollArea.Root>
 			<ScrollArea.Viewport class="h-full w-full">
 				<ScrollArea.Content>
-					{#each $objects.filter((o) => !o.hidden) as item (item.code)}
+					{#each $objects.filter((o) => !o.hidden) as item, index (item.object?.id || index + "-" + item.code)}
 						{@const url = data.supabase.storage
 							.from(data.tenant)
 							.getPublicUrl(`images/${item.code}.webp`)}
