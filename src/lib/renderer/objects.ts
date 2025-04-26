@@ -276,17 +276,19 @@ export class TemporaryObject {
 		  const profileDir = tan.clone().normalize();
 		  const angleY = Math.atan2(profileDir.z, profileDir.x);
 		  this.mesh.rotation.set(0, angleY, 0);
+		  const junctionAngle = this.getCatalogEntry().juncts[junctionIndex].angle * (Math.PI/180); // Converti in radianti
+		  this.mesh.rotateY(junctionAngle);
 	  
 		  // Applica rotazioni specifiche per tipo di luce
-		  if (this.getCatalogEntry().code.includes('XNRS14')) {
-			this.mesh.rotateY(Math.PI/2);
-		  }
-		  else if (this.getCatalogEntry().code.includes('XNRS15')) {
-			this.mesh.rotateY(-Math.PI/4);
-		  }
-		  else if (this.getCatalogEntry().code.includes('XNRS32')) {
-			this.mesh.rotateY(Math.PI/2);
-		  }
+		//   if (this.getCatalogEntry().code.includes('XNRS14')) {
+		// 	this.mesh.rotateY(Math.PI/2);
+		//   }
+		//   else if (this.getCatalogEntry().code.includes('XNRS15')) {
+		// 	this.mesh.rotateY(-Math.PI/4);
+		//   }
+		//   else if (this.getCatalogEntry().code.includes('XNRS32')) {
+		// 	this.mesh.rotateY(Math.PI/2);
+		//   }
 	  
 		  // Aggiorna posizione
 		  const pos2 = this.mesh.localToWorld(new Vector3().copy(j2));
@@ -437,18 +439,21 @@ export class TemporaryObject {
 		  const angleY = Math.atan2(profileDir.z, profileDir.x);
 	  
 		  other.mesh.rotation.set(0, angleY, 0);
+		
+		  const junctionAngle = other.getCatalogEntry().juncts[0].angle * (Math.PI/180);
+		  other.mesh.rotateY(junctionAngle);
 	  
-		  if (other.getCatalogEntry().code.includes('XNRS14')) {
-			other.mesh.rotateY(Math.PI/2);
-		  }
-		  else if (other.getCatalogEntry().code.includes('XNRS15')) {
-			other.mesh.rotateY(-Math.PI/4);
-		  }
-		  else if (other.getCatalogEntry().code.includes('XNRS31')) {
-		  }
-		  else if (other.getCatalogEntry().code.includes('XNRS32')) {
-			other.mesh.rotateY(Math.PI/2);
-		  }
+		//   if (other.getCatalogEntry().code.includes('XNRS14')) {
+		// 	other.mesh.rotateY(Math.PI/2);
+		//   }
+		//   else if (other.getCatalogEntry().code.includes('XNRS15')) {
+		// 	other.mesh.rotateY(-Math.PI/4);
+		//   }
+		//   else if (other.getCatalogEntry().code.includes('XNRS31')) {
+		//   }
+		//   else if (other.getCatalogEntry().code.includes('XNRS32')) {
+		// 	other.mesh.rotateY(Math.PI/2);
+		//   }
 		}
 	  
 		const pos2 = other.mesh.localToWorld(new Vector3().copy(j2));
@@ -537,30 +542,6 @@ export class RendererObject extends TemporaryObject {
 	static async init(state: Renderer, code: string): Promise<RendererObject> {
 		const mesh = await loadModel(state, code);
 		
-		this.normalizeModelOrientation(mesh, code);
-		
 		return new RendererObject(state, code, mesh);
 	  }
-
-	private static normalizeModelOrientation(mesh: Group, code: string): void {
-		mesh.rotation.set(0, 0, 0);
-
-		if (code.includes('XNS') || code.includes('XNR')) {
-		mesh.rotation.set(0, 0, 0);
-		} 
-		else if (code.includes('XNRS') || code.includes('SP')) {
-		mesh.rotation.set(0, 0, 0);
-		mesh.rotateX(-Math.PI/2);
-		}
-
-		if (code.includes('XNRS14')) {
-		mesh.rotateY(Math.PI);
-		} 
-		else if (code.includes('XNRS15')) {
-		mesh.rotateY(Math.PI/2);
-		}
-		else if (code.includes('XNRS31')) {
-		mesh.rotateY(-Math.PI/2);
-		}
-	}
 }
