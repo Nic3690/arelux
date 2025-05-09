@@ -292,59 +292,60 @@
 
 	<div bind:this={controlsEl}></div>
 
-<!-- Bottom configuration -->
 <div class="absolute bottom-5 left-80 right-80 flex justify-center gap-3">
     {#if page.state.chosenFamily !== undefined}
       {@const family = data.families[page.state.chosenFamily]}
 
-	        <!-- Selettore di lunghezza modificato -->
-			{#if family.system === "XNet" || family.system === "XFree s"}
-			<ConfigLength
-				{family}
-				onsubmit={(objectCode, length, isCustom) => {
-					configLength = length;
-					
-					replaceState('', {
-					chosenItem: objectCode,
-					chosenFamily: page.state.chosenFamily,
-					reference: page.state.reference,
-					length: length,
-					// Usa il tipo corretto definito in PageState
-					isCustomLength: isCustom
-					});
-				}}
-				/>
-		  {:else if family.needsLengthConfig && !family.arbitraryLength}
-			<ConfigLength
-			  {family}
-			  onsubmit={(objectCode, length, isCustom) => {
-				configLength = length;
-				
-				// Per lunghezze personalizzate, troviamo visivamente il modello più vicino
-				let displayCode = objectCode;
-				
-				replaceState('', {
-				  chosenItem: displayCode,
-				  chosenFamily: page.state.chosenFamily,
-				  reference: page.state.reference,
-				  length: length,
-				  isCustomLength: isCustom === true
-				});
-			  }}
-			/>
-		  {:else if family.needsLengthConfig && family.arbitraryLength}
-			<ConfigLengthArbitrary
-			  value={arbitraryLength}
-			  onsubmit={(length) => {
-				replaceState('', {
-				  chosenItem: page.state.chosenItem,
-				  chosenFamily: page.state.chosenFamily,
-				  reference: page.state.reference,
-				  length,
-				});
-			  }}
-			/>
-		  {/if}
+      {@const isProfilo = family.group.toLowerCase().includes('profil') || 
+                        family.displayName.toLowerCase().includes('profil') ||
+                        (family.needsLengthConfig && !family.isLed)}
+
+      {#if isProfilo}
+        {#if family.system === "XNet" || family.system === "XFree s"}
+            <ConfigLength
+                {family}
+                onsubmit={(objectCode, length, isCustom) => {
+                    configLength = length;
+                    
+                    replaceState('', {
+                    chosenItem: objectCode,
+                    chosenFamily: page.state.chosenFamily,
+                    reference: page.state.reference,
+                    length: length,
+                    isCustomLength: isCustom
+                    });
+                }}
+                />
+        {:else if family.needsLengthConfig && !family.arbitraryLength}
+            <ConfigLength
+            {family}
+            onsubmit={(objectCode, length, isCustom) => {
+                configLength = length;
+                let displayCode = objectCode;
+                
+                replaceState('', {
+                chosenItem: displayCode,
+                chosenFamily: page.state.chosenFamily,
+                reference: page.state.reference,
+                length: length,
+                isCustomLength: isCustom === true
+                });
+            }}
+            />
+        {:else if family.needsLengthConfig && family.arbitraryLength}
+            <ConfigLengthArbitrary
+            value={arbitraryLength}
+            onsubmit={(length) => {
+                replaceState('', {
+                chosenItem: page.state.chosenItem,
+                chosenFamily: page.state.chosenFamily,
+                reference: page.state.reference,
+                length,
+                });
+            }}
+            />
+        {/if}
+      {/if}
       
       {#if family.needsCurveConfig}
         <ConfigCurveShape
@@ -372,7 +373,7 @@
               .filter((i) => (needsCurveConfig ? i.deg === angle && i.radius === radius : true))
               .filter((i) => (needsLengthConfig ? i.len === configLength : true))
               .filter((i) => i.color === color);
-            if (items.length === 0) throw new Error('what?');
+            if (items.length === 0) throw new Error("what?");
             replaceState('', {
               chosenItem: items[0].code,
               chosenFamily: page.state.chosenFamily,
