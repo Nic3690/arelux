@@ -51,6 +51,12 @@ import { get } from 'svelte/store';
 import { focusSidebarElement, objects } from '$lib';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
+interface RoomDimensions {
+	width: number;
+	height: number;
+	depth: number;
+}
+
 const CAMERA_FOV: number = 70;
 let RENDERER: Renderer | undefined = undefined;
 let exr: DataTexture | undefined = undefined;
@@ -78,6 +84,7 @@ export class Renderer {
 	#pointer: Vector2;
 	#helpers: ArrowHelper[] = [];
 	#virtualRoom: Group | null = null;
+	#currentRoomDimensions: RoomDimensions = { width: 3, height: 3, depth: 3 };
 
 	#objects: TemporaryObject[] = [];
 	#clickCallback: ((_: HandleMesh | LineHandleMesh) => any) | undefined;
@@ -682,109 +689,146 @@ export class Renderer {
 		for (const obj of this.#objects) obj.setOpacity(opacity);
 	}
 
-	createVirtualRoom(size: number = 3, centered: boolean = true, visible: boolean = false): Renderer {
+	createVirtualRoom(
+		dimensions: number | RoomDimensions = 3, 
+		centered: boolean = true, 
+		visible: boolean = false
+	): Renderer {
 		if (this.#virtualRoom) {
-		this.#scene.remove(this.#virtualRoom);
-		this.#virtualRoom = null;
+			this.#scene.remove(this.#virtualRoom);
+			this.#virtualRoom = null;
 		}
-
+	
 		const room = new Group();
 		this.#virtualRoom = room;
-
 		room.visible = visible;
-
+	
 		const material = new MeshStandardMaterial({
-		color: 0xf0f0f0,
-		transparent: true,
-		opacity: 0.15,
-		side: DoubleSide,
-		depthWrite: false
+			color: 0xf0f0f0,
+			transparent: true,
+			opacity: 0.15,
+			side: DoubleSide,
+			depthWrite: false
 		});
-
+	
 		let center = new Vector3(0, 0, 0);
-
 		const scaleFactor = 60;
-		const roomSize = size * scaleFactor;
+		
+		let roomWidth: number, roomHeight: number, roomDepth: number;
+		
+		if (typeof dimensions === 'number') {
+			roomWidth = roomHeight = roomDepth = dimensions * scaleFactor;
+		} else {
+			roomWidth = dimensions.width * scaleFactor;
+			roomHeight = dimensions.height * scaleFactor;
+			roomDepth = dimensions.depth * scaleFactor;
+		}
 		
 		if (centered && this.#objects.length > 0) {
-		const bbox = new Box3();
-		
-		this.#objects.forEach(obj => {
-			if (obj.mesh) {
-			bbox.expandByObject(obj.mesh);
-			}
-		});
-
-		center = bbox.getCenter(new Vector3());
-		const maxY = bbox.max.y;
-		center.y = maxY - roomSize / 2;
+			const bbox = new Box3();
+			
+			this.#objects.forEach(obj => {
+				if (obj.mesh) {
+					bbox.expandByObject(obj.mesh);
+				}
+			});
+	
+			center = bbox.getCenter(new Vector3());
+			const maxY = bbox.max.y;
+			center.y = maxY - roomHeight / 2;
 		} else {
-		center.y = -roomSize / 2;
+			center.y = -roomHeight / 2;
 		}
 
-		const halfSize = roomSize / 2;
 		const ceiling = new Mesh(
-		new PlaneGeometry(roomSize, roomSize),
-		new MeshStandardMaterial({
-			color: 0xf5f5f5,
-			transparent: true,
-			opacity: 0.3,
-			side: DoubleSide
-		})
+			new PlaneGeometry(roomWidth, roomDepth),
+			new MeshStandardMaterial({
+				color: 0xf5f5f5,
+				transparent: true,
+				opacity: 0.3,
+				side: DoubleSide
+			})
 		);
 		ceiling.rotation.x = Math.PI / 2;
-		ceiling.position.set(center.x, center.y + halfSize, center.z);
+		ceiling.position.set(center.x, center.y + roomHeight / 2, center.z);
 		room.add(ceiling);
 
 		const floor = new Mesh(
-		new PlaneGeometry(roomSize, roomSize),
-		material.clone()
+			new PlaneGeometry(roomWidth, roomDepth),
+			material.clone()
 		);
 		floor.rotation.x = Math.PI / 2;
-		floor.position.set(center.x, center.y - halfSize, center.z);
+		floor.position.set(center.x, center.y - roomHeight / 2, center.z);
 		room.add(floor);
 
-		// Parete back
 		const wallBack = new Mesh(
-		new PlaneGeometry(roomSize, roomSize),
-		material.clone()
+			new PlaneGeometry(roomWidth, roomHeight),
+			material.clone()
 		);
-		wallBack.position.set(center.x, center.y, center.z - halfSize);
+		wallBack.position.set(center.x, center.y, center.z - roomDepth / 2);
 		wallBack.rotation.y = Math.PI;
 		room.add(wallBack);
-		
-		// Parete left
+
 		const wallLeft = new Mesh(
-		new PlaneGeometry(roomSize, roomSize),
-		material.clone()
+			new PlaneGeometry(roomDepth, roomHeight),
+			material.clone()
 		);
-		wallLeft.position.set(center.x - halfSize, center.y, center.z);
+		wallLeft.position.set(center.x - roomWidth / 2, center.y, center.z);
 		wallLeft.rotation.y = Math.PI / 2;
 		room.add(wallLeft);
-		
-		// Parete right
+
 		const wallRight = new Mesh(
-		new PlaneGeometry(roomSize, roomSize),
-		material.clone()
+			new PlaneGeometry(roomDepth, roomHeight),
+			material.clone()
 		);
-		wallRight.position.set(center.x + halfSize, center.y, center.z);
+		wallRight.position.set(center.x + roomWidth / 2, center.y, center.z);
 		wallRight.rotation.y = -Math.PI / 2;
 		room.add(wallRight);
 
-		const gridHelper = new GridHelper(roomSize, 10, 0x888888, 0xcccccc);
-		gridHelper.position.set(center.x, center.y + halfSize - 0.01, center.z);
-		gridHelper.rotation.x = Math.PI;
-		room.add(gridHelper);
+		const gridDivisions = 10;
+		const gridHelperCeiling = new GridHelper(
+			Math.max(roomWidth, roomDepth), 
+			gridDivisions, 
+			0x888888, 
+			0xcccccc
+		);
+
+		gridHelperCeiling.scale.set(
+			roomWidth / Math.max(roomWidth, roomDepth),
+			1,
+			roomDepth / Math.max(roomWidth, roomDepth)
+		);
+		
+		gridHelperCeiling.position.set(center.x, center.y + roomHeight / 2 - 0.01, center.z);
+		gridHelperCeiling.rotation.x = Math.PI;
+		room.add(gridHelperCeiling);
+
+		const gridHelperFloor = new GridHelper(
+			Math.max(roomWidth, roomDepth), 
+			gridDivisions, 
+			0x888888, 
+			0xcccccc
+		);
+
+		gridHelperFloor.scale.set(
+			roomWidth / Math.max(roomWidth, roomDepth),
+			1,
+			roomDepth / Math.max(roomWidth, roomDepth)
+		);
+		
+		gridHelperFloor.position.set(center.x, center.y - roomHeight / 2 + 0.01, center.z);
+		room.add(gridHelperFloor);
+		
 		this.#scene.add(room);
 		
 		return this;
 	}
 
 	updateVirtualRoom(): Renderer {
-	  if (this.#virtualRoom && this.#objects.length > 0) {
-		this.createVirtualRoom(3, true);
-	  }
-	  return this;
+		if (this.#virtualRoom && this.#objects.length > 0) {
+			this.createVirtualRoom(this.#currentRoomDimensions, true, this.#virtualRoom.visible);
+		}
+		return this;
 	}
 
 	setVirtualRoomVisible(visible: boolean): Renderer {
@@ -800,7 +844,12 @@ export class Renderer {
 	  return this.#virtualRoom !== null && this.#virtualRoom.visible;
 	}
 
-	resizeVirtualRoom(size: number): Renderer {
-	  return this.createVirtualRoom(size, true);
+	resizeVirtualRoom(dimensions: number | RoomDimensions): Renderer {
+		const isVisible = this.#virtualRoom?.visible ?? false;
+		return this.createVirtualRoom(dimensions, true, isVisible);
+	}
+
+	setCurrentRoomDimensions(dimensions: RoomDimensions): void {
+		this.#currentRoomDimensions = dimensions;
 	}
 }

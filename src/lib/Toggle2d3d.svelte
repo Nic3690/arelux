@@ -14,20 +14,38 @@
 	} = $props();
 
 	let showVirtualRoom = $state(false);
-	let roomSize = $state(3);
+	let roomWidth = $state(3);
+	let roomHeight = $state(3);
+	let roomDepth = $state(3);
 	
 	function toggleVirtualRoom() {
-		
 		showVirtualRoom = !showVirtualRoom;
 		
 		if (renderer) {
+			if (showVirtualRoom) {
+				renderer.resizeVirtualRoom({ 
+					width: roomWidth, 
+					height: roomHeight, 
+					depth: roomDepth 
+				});
+			}
 			renderer.setVirtualRoomVisible(showVirtualRoom);
 		}
 	}
 
 	function updateRoomSize() {
 		if (renderer) {
-			renderer.resizeVirtualRoom(roomSize);
+			const dimensions = {
+				width: roomWidth,
+				height: roomHeight,
+				depth: roomDepth
+			};
+
+			renderer.setCurrentRoomDimensions(dimensions);
+
+			if (showVirtualRoom) {
+				renderer.resizeVirtualRoom(dimensions);
+			}
 		}
 	}
 
@@ -46,7 +64,6 @@
 			<div><span>3D</span></div>
 		</label>
 	{/if}
-
 
 	{#if is3d}
 	<button 
@@ -99,22 +116,52 @@
 					<h2 class="mb-2 mt-2 text-xl font-bold">Legenda simboli:</h2>
 
 					<h2 class="mb-2 mt-4 text-xl font-bold">Stanza virtuale:</h2>
-					<p>La stanza virtuale è un riferimento visivo con dimensioni 3m x 3m x 3m che aiuta a visualizzare le dimensioni reali degli elementi. Può essere attivata o disattivata con il pulsante della casa.</p>
+					<p>La stanza virtuale è un riferimento visivo che aiuta a visualizzare le dimensioni reali degli elementi. Può essere attivata o disattivata con il pulsante della casa.</p>
 					
 					{#if is3d && renderer}
-						<div class="mt-4 flex items-center">
-							<label for="roomSize" class="mr-2">Dimensione stanza (metri):</label>
-							<input 
-								id="roomSize" 
-								type="range" 
-								min="3" 
-								max="20" 
-								step="1" 
-								class="w-40"
-								bind:value={roomSize}
-								onchange={updateRoomSize}
-							/>
-							<span class="ml-2">{roomSize}m</span>
+						<div class="mt-4 flex flex-col gap-3">
+							<div class="flex items-center">
+								<label for="roomWidth" class="mr-2 w-24">Larghezza:</label>
+								<input 
+									id="roomWidth" 
+									type="range" 
+									min="3" 
+									max="20" 
+									step="1" 
+									class="w-40"
+									bind:value={roomWidth}
+									onchange={updateRoomSize}
+								/>
+								<span class="ml-2 w-12 text-right">{roomWidth}m</span>
+							</div>
+							<div class="flex items-center">
+								<label for="roomHeight" class="mr-2 w-24">Altezza:</label>
+								<input 
+									id="roomHeight" 
+									type="range" 
+									min="3" 
+									max="20" 
+									step="1" 
+									class="w-40"
+									bind:value={roomHeight}
+									onchange={updateRoomSize}
+								/>
+								<span class="ml-2 w-12 text-right">{roomHeight}m</span>
+							</div>
+							<div class="flex items-center">
+								<label for="roomDepth" class="mr-2 w-24">Profondità:</label>
+								<input 
+									id="roomDepth" 
+									type="range" 
+									min="3" 
+									max="20" 
+									step="1" 
+									class="w-40"
+									bind:value={roomDepth}
+									onchange={updateRoomSize}
+								/>
+								<span class="ml-2 w-12 text-right">{roomDepth}m</span>
+							</div>
 						</div>
 					{/if}
 				</Dialog.Description>
