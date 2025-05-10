@@ -162,9 +162,7 @@ async function loadFamilies(
 		}
 	}
 
-	// Ordina gli elementi di ciascuna famiglia secondo la logica richiesta
 	for (const family of Object.values(res)) {
-		// Definiamo una funzione per stabilire se un colore è nero
 		const isBlack = (color: string) => {
 			if (!color) return false;
 			return color.toLowerCase() === '#000000' || 
@@ -174,49 +172,36 @@ async function loadFamilies(
                    color.toLowerCase() === 'sbk';
 		};
 
-		// Ordina gli elementi in base al tipo di famiglia
 		if (family.system === 'xnet' || family.system === 'XNet') {
-			// Ordinamento specifico per i profili XNet
 			family.items.sort((a, b) => {
-				// Primo criterio: lineari (deg = 0) prima dei curvi (deg > 0)
 				if ((a.deg === 0 || a.deg === -1) && b.deg > 0) return -1;
 				if (a.deg > 0 && (b.deg === 0 || b.deg === -1)) return 1;
-				
-				// Secondo criterio: per lo stesso tipo (lineari o curvi), ordina per colore (nero prima)
+
 				const aIsBlack = isBlack(a.color);
 				const bIsBlack = isBlack(b.color);
 				if (aIsBlack && !bIsBlack) return -1;
 				if (!aIsBlack && bIsBlack) return 1;
-				
-				// Terzo criterio: per lo stesso colore, ordina per lunghezza (più corto prima)
+
 				return a.len - b.len;
 			});
 		} else if (family.needsCurveConfig) {
-			// Per altre famiglie con configurazione curva, usiamo la stessa logica dei profili XNet
 			family.items.sort((a, b) => {
-				// Primo criterio: lineari (deg = 0) prima dei curvi (deg > 0)
 				if ((a.deg === 0 || a.deg === -1) && b.deg > 0) return -1;
 				if (a.deg > 0 && (b.deg === 0 || b.deg === -1)) return 1;
-				
-				// Secondo criterio: ordina per colore (nero prima)
+
 				const aIsBlack = isBlack(a.color);
 				const bIsBlack = isBlack(b.color);
 				if (aIsBlack && !bIsBlack) return -1;
 				if (!aIsBlack && bIsBlack) return 1;
-				
-				// Terzo criterio: per lo stesso colore, ordina per lunghezza (più corto prima)
+
 				return a.len - b.len;
 			});
 		} else if (family.needsColorConfig) {
-			// Per famiglie che hanno solo configurazione di colore
 			family.items.sort((a, b) => {
-				// Primo criterio: ordina per colore (nero prima)
 				const aIsBlack = isBlack(a.color);
 				const bIsBlack = isBlack(b.color);
 				if (aIsBlack && !bIsBlack) return -1;
 				if (!aIsBlack && bIsBlack) return 1;
-				
-				// Secondo criterio: ordina per lunghezza se disponibile
 				if (a.len !== -1 && b.len !== -1) {
 					return a.len - b.len;
 				}
@@ -224,15 +209,11 @@ async function loadFamilies(
 				return 0;
 			});
 		} else if (family.needsLengthConfig) {
-			// Per famiglie che hanno solo configurazione di lunghezza
 			family.items.sort((a, b) => {
-				// Ordina per lunghezza crescente
 				return a.len - b.len;
 			});
 		} else {
-			// Ordinamento generico per altre famiglie
 			family.items.sort((a, b) => {
-				// Se hanno codici, ordinali alfabeticamente
 				return a.code.localeCompare(b.code);
 			});
 		}

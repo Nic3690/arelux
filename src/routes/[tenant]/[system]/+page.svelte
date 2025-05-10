@@ -19,7 +19,7 @@
 	import { Vector3 } from 'three';
 
 	let { data } = $props();
-	let renderer: Renderer;
+	let renderer = $state<Renderer | undefined>(undefined);
 
 	let showDownloadPopup = $state(false);
 	let is3d = $state(true);
@@ -36,11 +36,9 @@
 	let lights = $state<TemporaryObject[]>([]);
 	let pointer = $state(new Vector2());
 	let invertedControls = $state(false);
-	
-	// Import and use the shared Map from $lib/index.ts
+
 	import { sidebarRefs, focusSidebarElement } from '$lib/index';
 
-	// Custom action to store element references
 	function setRef(node: HTMLElement, code: string) {
 		sidebarRefs.set(code, node);
 		return {
@@ -91,21 +89,19 @@
 		if (i > -1) {
 			$objects = $objects.toSpliced(i, 1);
 		}
-		if (item.object) renderer.removeObject(item.object);
+		if (item.object && renderer) renderer.removeObject(item.object);
 	}
-
-	// Now using the imported focusSidebarElement function
 
 	let canvas: HTMLCanvasElement;
 	let controlsEl: HTMLElement;
 	onMount(() => {
-	renderer = Renderer.get(data, canvas, controlsEl)
-		.setCamera(controlsEl, {
-		is3d,
-		isOrtographic: is3d,
-		})
-		.setScene('normal');
-	renderer.handles.setVisible(false);
+		renderer = Renderer.get(data, canvas, controlsEl)
+			.setCamera(controlsEl, {
+				is3d,
+				isOrtographic: is3d,
+			})
+			.setScene('normal');
+		renderer.handles.setVisible(false);
 	
 	controlsEl.addEventListener('pointerdown', (event) => {
 		if (lightMoverMode && renderer) {
@@ -133,9 +129,13 @@
 				
 				lightPosition = selectedLight.getCurvePosition();
 
-				invertedControls = renderer.getLightMovementDirection(selectedLight);
+				if (renderer) {
+					invertedControls = renderer.getLightMovementDirection(selectedLight);
+				}
 
-				renderer.highlightLight(selectedLight);
+				if (renderer) {
+					renderer.highlightLight(selectedLight);
+				}
 				found = true;
 				}
 			});
@@ -148,7 +148,9 @@
 
 	$effect(() => {
 		if (controlsEl !== undefined) {
-			renderer.setCamera(controlsEl, { is3d, isOrtographic: !is3d });
+			if (renderer) {
+				renderer.setCamera(controlsEl, { is3d, isOrtographic: !is3d });
+			}
 		}
 	});
 
@@ -165,7 +167,6 @@
 </script>
 
 <main class="grid h-dvh grid-cols-layout grid-rows-layout gap-3 p-5">
-	<!-- Sidebar -->
 	<div class="row-span-3 flex flex-col gap-3">
 		<a href="/{data.tenant}" class="inline-flex">
 			<ArrowLeft class="translate-y-1" />
@@ -234,7 +235,6 @@
 			</ScrollArea.Scrollbar>
 		</ScrollArea.Root>
 
-		<!-- Add element button -->
 		<Button.Root class={button({ class: 'mt-auto' })} href="/{data.tenant}/{data.system}/add">
 			AGGIUNGI
 		</Button.Root>
@@ -304,7 +304,7 @@
 	</div>
 
 	<AreluxLogo />
-	<Toggle2d3d bind:is3d />
+	<Toggle2d3d bind:is3d {renderer} />
 
 	<div bind:this={controlsEl}></div>
 

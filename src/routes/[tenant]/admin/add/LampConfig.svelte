@@ -67,13 +67,11 @@
 			groups_open: false,
 			can_connect_open: false,
 		}));
-		
-		// Find the family this object belongs to
+
 		for (const [familyCode, family] of Object.entries(page.data.families)) {
 			if (family.items.some(item => item.code === code)) {
 				chosenFamily = familyCode;
-				
-				// Look for the item in the family to get its metadata
+
 				const familyItem = family.items.find(item => item.code === code);
 				if (familyItem) {
 					desc1 = familyItem.desc1;
@@ -107,15 +105,13 @@
 		const supabase = page.data.supabase;
 		const tenant = page.data.tenant;
 		let image = (imageInput?.files ?? [])[0];
-		
-		// Basic validations that apply to both edit and create
+
 		if (code === undefined || code.trim() === '')
 			return toast.error("The `code` field can't be empty");
 		
 		if (power === null || power === undefined)
 			return toast.error("The `power` field can't be empty");
-			
-		// Only validate junctions if they exist
+
 		if (junctions.length > 0) {
 			if (junctions.some((j) => j.angle === null || j.angle === undefined))
 				return toast.error("The `angle` field can't be empty");
@@ -124,18 +120,15 @@
 				if (j.x === null || j.y === null || j.z === null)
 					return toast.error("The `position` field can't be empty");
 		}
-		
-		// Only validate line junctions if they exist
+
 		if (lineJunctions.length > 0) {
 			for (const j of lineJunctions)
 				for (const p of [j.point1, j.pointC, j.point2])
 					if (p.x === null || p.y === null || p.z === null)
 						return toast.error("The `position` field can't be empty");
 		}
-		
-		// Different validations for create vs edit
+
 		if (!isEditMode) {
-			// Creating a new object - need everything
 			if (image === undefined) 
 				return toast.error('You need to choose an image file');
 			
@@ -148,9 +141,7 @@
 			if (!isLed && (desc2 === undefined || desc2.trim() === ''))
 				return toast.error("The `description` field can't be empty");
 		} else {
-			// Editing an existing object - only validate changed fields when family is provided
 			if (chosenFamily !== undefined) {
-				// For descriptions, only validate if they've been changed
 				if (desc1 !== undefined && desc1.trim() === '')
 					return toast.error("The `description` field can't be empty");
 					
@@ -160,15 +151,12 @@
 		}
 
 		try {
-			// Only upload image if a new one is provided
 			if (image !== undefined) {
 				await supabase.storage.from(tenant).upload(`images/${code}.webp`, image, { upsert: true });
 			}
 
-			// Only try to upload models if the family requires them and files were provided
 			if (chosenFamily && page.data.families[chosenFamily]?.hasModel) {
 				try {
-					// Get files from model inputs if they exist
 					const model = modelInput?.getFile?.() || null;
 					const simplifiedModel = simplifiedModelInput?.getFile?.() || null;
 
@@ -184,21 +172,18 @@
 				}
 			}
 
-			// Update object data
 			await supabase
 				.from('objects')
 				.upsert({ code, tenant, power, system: $selectedSystem, price_cents: price * 100 })
 				.throwOnError();
-				
-			// Delete existing junctions to update them
+
 			await supabase
 				.from('object_junctions')
 				.delete()
 				.eq('object_code', code)
 				.eq('tenant', tenant)
 				.throwOnError();
-				
-			// Delete existing curve junctions to update them
+
 			await supabase
 				.from('object_curve_junctions')
 				.delete()
@@ -206,7 +191,6 @@
 				.eq('tenant', tenant)
 				.throwOnError();
 
-			// Only update family object if we have family data
 			if (chosenFamily) {
 				await supabase
 					.from('family_objects')
@@ -225,7 +209,6 @@
 					.throwOnError();
 			}
 
-			// Update junctions
 			for (const j of junctions) {
 				const junctId = await supabase
 					.from('junctions')
@@ -250,7 +233,6 @@
 					.throwOnError();
 			}
 
-			// Update curve junctions
 			for (const j of lineJunctions) {
 				const junction1_id = await supabase
 					.from('junctions')

@@ -18,26 +18,21 @@
     let items: { code: string; len: number }[] = $state([]);
     let debugInfo = $state("");
 
-    // Funzione per il logging
     function debug(msg: string) {
         console.log(msg);
         debugInfo = msg;
     }
 
     onMount(() => {
-        
-        // Estrai le lunghezze valide
         const validItems = family.items
             .filter(i => i.len > 0 && i.len !== undefined)
             .map(i => ({ code: i.code, len: i.len }));
-        
-        // Raggruppa per lunghezza unica
+
         items = _.uniqWith(
             validItems.sort((a, b) => a.len - b.len),
             (a, b) => a.len === b.len
         );
-        
-        // Imposta un valore iniziale sensato
+
         if (items.length > 0) {
             valueLen = items[0].len;
             value = items[0].code;
@@ -52,12 +47,10 @@
         valueInvalid = false;
         if (onsubmit) onsubmit(value, len, false);
     }
-    
-    // Nuova funzione per trovare il modello più vicino a una lunghezza personalizzata
+
     function findClosestModelLength(customLength: number) {
         if (items.length === 0) return null;
-        
-        // Trova il modello con la lunghezza più vicina
+
         let closestItem = items[0];
         let minDiff = Math.abs(customLength - closestItem.len);
         
@@ -82,17 +75,15 @@
         const matchingItem = items.find(i => i.len === Number(valueLen));
         
         if (matchingItem) {
-            // Se c'è una corrispondenza esatta
             value = matchingItem.code;
             isCustomLength = false;
             if (onsubmit) onsubmit(value, valueLen, false);
         } else {
-            // Usa il modello più vicino ma mantieni la lunghezza personalizzata
             isCustomLength = true;
             const closestModel = findClosestModelLength(valueLen);
             
             if (closestModel && onsubmit) {
-                value = closestModel.code; // Usa il codice del modello più vicino
+                value = closestModel.code;
                 onsubmit(closestModel.code, valueLen, true);
             }
         }

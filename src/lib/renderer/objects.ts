@@ -135,12 +135,6 @@ export class TemporaryObject {
 		this._curvePosition = number;
 	}
 
-
-
-	/**
-	 * Resetta tutte le connessioni di questa luce
-	 * Questo metodo è pensato per essere usato quando la luce è in uno stato inconsistente
-	 */
 	resetConnections(): void {
 		this.#junctions = this.#catalogEntry.juncts.map(() => null);
 		this.#lineJunctions = this.#catalogEntry.line_juncts.map(() => null);
@@ -149,8 +143,7 @@ export class TemporaryObject {
 	moveLight(position: number): string | null {
 		position = Math.max(0, Math.min(1, position));
 		this._curvePosition = position;
-		
-		// Verifica se questo oggetto è una luce
+
 		const isLight = this.getCatalogEntry().code.includes('XNRS') || 
 					  this.getCatalogEntry().code.includes('SP');
 					  
@@ -158,8 +151,7 @@ export class TemporaryObject {
 		  console.error("Non è una luce o non ha un mesh");
 		  return null;
 		}
-		
-		// Strategia 1: Cercare nei giunti diretti
+
 		let parentObject: TemporaryObject | null = null;
 		let parentJunctionId = -1;
 		
@@ -176,12 +168,10 @@ export class TemporaryObject {
 			if (parentObject) break;
 		  }
 		}
-		
-		// Strategia 2: Cercare in tutti gli oggetti della scena
+
 		if (!parentObject || parentJunctionId === -1) {
 		  const allObjects = this.#state.getObjects();
-		  
-		  // Prima cerca direttamente nei line junctions di tutti gli oggetti
+
 		  for (const obj of allObjects) {
 			if (obj === this) continue;
 			
@@ -194,11 +184,9 @@ export class TemporaryObject {
 			}
 			if (parentObject) break;
 		  }
-		  
-		  // Strategia 3: Se ancora non troviamo nulla, usa il primo profilo valido con line junctions
+
 		  if (!parentObject || parentJunctionId === -1) {
 			for (const obj of allObjects) {
-			  // Cerca solo profili che non sono luci e hanno line junctions
 			  if (obj !== this && 
 				  !obj.getCatalogEntry().code.includes('XNRS') && 
 				  !obj.getCatalogEntry().code.includes('SP') &&
@@ -206,19 +194,16 @@ export class TemporaryObject {
 				  obj.mesh) {
 				
 				console.log("Trovato profilo alternativo:", obj.getCatalogEntry().code);
-				
-				// Usa la prima junction disponibile
+
 				parentObject = obj;
 				parentJunctionId = 0;
-				
-				// Aggiorna manualmente le connessioni
+
 				if (obj.getLineJunctions()[0] === null) {
 				  obj.getLineJunctions()[0] = this;
-				  
-				  // Trova un indice di giunzione vuoto nella luce
+
 				  let emptyJunctionIndex = this.#junctions.findIndex(j => j === null);
 				  if (emptyJunctionIndex === -1 && this.#junctions.length > 0) {
-					emptyJunctionIndex = 0; // Usa il primo se non ce ne sono vuoti
+					emptyJunctionIndex = 0;
 				  }
 				  
 				  if (emptyJunctionIndex !== -1) {
@@ -230,8 +215,7 @@ export class TemporaryObject {
 			}
 		  }
 		}
-		
-		// Se ancora non abbiamo profili validi, fallisce
+
 		if (!parentObject || parentJunctionId === -1 || !parentObject.mesh) {
 		  console.error("Nessun profilo valido trovato per la luce", this.getCatalogEntry().code);
 		  return null;
@@ -244,25 +228,19 @@ export class TemporaryObject {
 		}
 		
 		try {
-		  // Crea curva dal profilo genitore
 		  const curve = new QuadraticBezierCurve3(
 			parentObject.mesh.localToWorld(new Vector3().copy(j1.point1)),
 			parentObject.mesh.localToWorld(new Vector3().copy(j1.pointC)),
 			parentObject.mesh.localToWorld(new Vector3().copy(j1.point2))
 		  );
-	  
-		  // Calcola punto di attacco
+
 		  const attachPoint = curve.getPointAt(position);
 		  const tan = curve.getTangentAt(position);
-	  
-		  // Trova la giunzione sulla luce
 		  const thisJunctId = this.#junctions.findIndex(j => j === parentObject);
 		  if (thisJunctId === -1 && this.#junctions.length > 0) {
-			// Se non troviamo la giunzione esatta, usa la prima disponibile
 			this.#junctions[0] = parentObject;
 		  }
-		  
-		  // Ottieni il punto di giunzione della luce
+
 		  const junctionIndex = thisJunctId !== -1 ? thisJunctId : 0;
 		  const j2 = this.getCatalogEntry().juncts[junctionIndex];
 		  
@@ -270,13 +248,11 @@ export class TemporaryObject {
 			console.error("Giunzione luce non valida");
 			return null;
 		  }
-	  
-		  // Imposta rotazione
+
 		  this.mesh.rotation.set(0, 0, 0);
 		  const profileDir = tan.clone().normalize();
 		  const isCurvedProfile = parentObject.getCatalogEntry().code.includes('C');
-  
-		// Calcolo dell'angolazione
+
 		  let angleY;
 		
 		  if (isCurvedProfile) angleY = Math.atan2(profileDir.x, profileDir.z) + Math.PI;
@@ -284,8 +260,7 @@ export class TemporaryObject {
 		  this.mesh.rotation.set(0, angleY, 0);
 		  const junctionAngle = this.getCatalogEntry().juncts[junctionIndex].angle * (Math.PI/180); // Converti in radianti
 		  this.mesh.rotateY(junctionAngle);
-	  
-		  // Aggiorna posizione
+
 		  const pos2 = this.mesh.localToWorld(new Vector3().copy(j2));
 		  this.mesh.position.copy({
 			x: this.mesh.position.x + attachPoint.x - pos2.x,
@@ -385,8 +360,7 @@ export class TemporaryObject {
 	attachLine(other: TemporaryObject, pos: Vector3Like, force: boolean = false): string {
 		if (!this.mesh || !other.mesh)
 		  throw new Error('Can only attach if both objects have a mesh attached');
-		
-		// Se force è true, non controlliamo se è già attaccato
+
 		if (!force && other.#junctions.concat(other.#lineJunctions).some((j) => j !== null))
 		  throw new Error('Can only attach if not already attached to something');
 	  
@@ -536,8 +510,7 @@ export class RendererObject extends TemporaryObject {
 		
 		const entry = state.catalog[code];
 		if (entry) {
-		  
-		  // Debug dei punti di giunzione
+
 		  console.log("JUNCTIONS:", entry.juncts.length);
 		  entry.juncts.forEach((j, index) => {
 			console.log(`Junction #${index}:`, {
@@ -546,8 +519,7 @@ export class RendererObject extends TemporaryObject {
 			  group: j.group
 			});
 		  });
-		  
-		  // Debug delle line junctions
+
 		  console.log("LINE JUNCTIONS:", entry.line_juncts.length);
 		  entry.line_juncts.forEach((lj, index) => {
 			console.log(`Line Junction #${index}:`, {

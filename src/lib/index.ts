@@ -17,23 +17,13 @@ import _ from 'lodash';
 
 export let objects: Writable<SavedObject[]> = writable([]);
 
-/**
- * Used for handling rotation. When undefined, no object has been added. Otherwise, it is the id of the last TemporaryRendererObject added
- */
 export let lastAdded: Writable<string | undefined> = writable();
 
-/**
- * Trova il modello del catalogo con lunghezza più vicina a quella specificata
- * @param family La famiglia di prodotti
- * @param customLength La lunghezza personalizzata
- * @returns L'oggetto con codice e lunghezza più vicina
- */
 export function findClosestCatalogLength(family: Family, customLength: number): {code: string, len: number} {
 	if (!family || !family.items || family.items.length === 0) {
 	  throw new Error("Famiglia non valida o senza elementi");
 	}
-	
-	// Estrai tutte le lunghezze uniche dal catalogo
+
 	const catalogItems = _.uniqWith(
 	  family.items.map(item => ({
 		code: item.code,
@@ -41,8 +31,7 @@ export function findClosestCatalogLength(family: Family, customLength: number): 
 	  })),
 	  (a, b) => a.len === b.len
 	);
-	
-	// Trova l'elemento con la lunghezza più vicina
+
 	let closestItem = catalogItems[0];
 	let minDifference = Math.abs(customLength - closestItem.len);
 	
@@ -62,20 +51,14 @@ export async function finishEdit(
 	obj: RendererObject,
 	group: string | null,
 	stateOverride?: {
-		/** The family of items that the user chose */
 		chosenFamily: string;
-		/** The code of the item that the user chose to insert */
 		chosenItem: string;
-		/** The object that we are attaching to */
 		reference:
 			| { typ: 'junction'; id: string; junction: number }
 			| { typ: 'line'; id: string; junction: number; pos: Vector3Like }
 			| undefined;
-		/** The code of a LED strip, if one was added */
 		led?: string;
-		/** The length of the current piece, if the current family has "arbitraryLength" */
 		length?: number;
-		/** Indica se la lunghezza è personalizzata */
 		isCustomLength?: boolean;
 	},
 ) {
@@ -89,7 +72,6 @@ export async function finishEdit(
 		return;
 	}
 
-	// Attach joiners if needed
 	if (group && page.data.joiners[group]) {
 		for (const j of page.data.joiners[group]) {
 			objects.update((objs) =>
@@ -128,7 +110,6 @@ export async function finishEdit(
 					desc2: item?.desc2 ?? '',
 					subobjects,
 					length: state.length,
-		            // Aggiungiamo un'indicazione che è una lunghezza personalizzata
 					customLength: state.isCustomLength === true,
 					object: obj,
 				}),
@@ -137,16 +118,6 @@ export async function finishEdit(
 	goto(`/${page.data.tenant}/${page.data.system}`);
 }
 
-/**
- * Calculate the sum of all pieces' contribution to the global power budget.
- *
- * A positive number means we have power to spare (i.e. the power adapters are
- * more powerful than they need to be), while a negative number means the opposite.
- *
- * @param catalog A reference to the catalog
- *
- * @returns the total power budget, in Watts
- */
 export function getPowerBudget(
 	catalog: Record<string, CatalogEntry>,
 	objs?: SavedObject[],
@@ -198,7 +169,6 @@ export const button = tv({
 export const sidebarRefs = new Map<string, HTMLElement>();
 
 export function focusSidebarElement(item: SavedObject) {
-    // Get the element from the map using item code
     const element = sidebarRefs.get(item.code);
     if (!element) return;
     

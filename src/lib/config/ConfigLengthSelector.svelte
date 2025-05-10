@@ -2,20 +2,19 @@
     import { cn } from '$shad/utils';
     
     type Props = { 
-        standardLength?: number;  // Lunghezza standard del profilo
-        value?: number;           // Valore attuale
+        standardLength?: number;
+        value?: number;
         onsubmit?: (value: number) => any;
     };
 
     let { 
-        standardLength = 1000,   // Default 1000mm se non specificato
+        standardLength = 1000,
         value = $bindable(standardLength), 
         onsubmit 
     }: Props = $props();
 
     let valueInvalid = $state(false);
-    
-    // Calcola i 5 valori per i pallini
+
     const fractionValues = [0.2, 0.4, 0.6, 0.8, 1.0].map(f => Math.round(standardLength * f));
     
     function selectFraction(length: number) {

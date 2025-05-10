@@ -152,8 +152,7 @@ export class Renderer {
 			normal: { scene: this.#scene, objects: this.#objects, handles: this.handles },
 			single: { scene: singleScene, objects: [], handles: new HandleManager(this, this.#scene) },
 		};
-		
-		// Crea la stanza virtuale
+
 		this.createVirtualRoom();
 	}
 
@@ -308,7 +307,6 @@ export class Renderer {
 	}
 
 	/**
-	 * Versione migliorata di moveLight
 	 * @param lightObj L'oggetto luce da spostare
 	 * @param position La posizione lungo la curva (0-1)
 	 * @returns True se lo spostamento è riuscito
@@ -387,11 +385,6 @@ export class Renderer {
 		}
 	}
 
-	/**
-	 * Trova un profilo valido per una luce
-	 * @param lightObj L'oggetto luce
-	 * @returns Un array con [profilo, indice giunzione] o [null, -1] se non trovato
-	 */
 	findValidProfileForLight(lightObj: TemporaryObject): [TemporaryObject | null, number] {
 		const junctions = lightObj.getJunctions();
 		for (let j = 0; j < junctions.length; j++) {
@@ -450,12 +443,7 @@ export class Renderer {
 
 		return tangent.dot(cameraRight) < 0;
 	  }
-  
-	/**
-	 * Find the parent profile object for a light
-	 * @param lightObj The light object
-	 * @return The parent profile or null if not found
-	 */
+
 	findParentProfileForLight(lightObj: TemporaryObject): TemporaryObject | null {
 		for (let j = 0; j < lightObj.getJunctions().length; j++) {
 		const junction = lightObj.getJunctions()[j];
@@ -485,13 +473,7 @@ export class Renderer {
 		
 		return null;
 	}
-  
-	/**
-	* Find the junction ID that connects a profile to a light
-	* @param profileObj The profile object
-	* @param lightObj The light object
-	* @return The junction ID or -1 if not found
-	*/
+
 	findJunctionIdForProfile(profileObj: TemporaryObject, lightObj: TemporaryObject): number {
 		if (!profileObj || !lightObj) return -1;
 		
@@ -536,8 +518,6 @@ export class Renderer {
 		}
 
 		this.handles.clear();
-		
-		// Ricrea la stanza virtuale dopo aver ripulito la scena
 		this.createVirtualRoom();
 
 		return this;
@@ -618,8 +598,6 @@ export class Renderer {
 		const obj = await RendererObject.init(this, code);
 		this.#objects.push(obj);
 		this.frameObject(obj);
-		
-		// Aggiorna la stanza virtuale per centrarla rispetto agli oggetti
 		this.updateVirtualRoom();
 		
 		return obj;
@@ -663,8 +641,6 @@ export class Renderer {
 		obj.detachAll();
 		obj.dispose(this.#scene);
 		if (this.#objects.indexOf(obj) > -1) this.#objects.splice(this.#objects.indexOf(obj), 1);
-		
-		// Aggiorna la stanza virtuale
 		this.updateVirtualRoom();
 	}
 
@@ -705,137 +681,105 @@ export class Renderer {
 	setOpacity(opacity: number) {
 		for (const obj of this.#objects) obj.setOpacity(opacity);
 	}
-	
-	/**
- * Crea una stanza virtuale con pareti semitrasparenti
- * @param size Dimensione della stanza in metri (default: 3x3x3)
- * @param centered Se true, centra la stanza rispetto agli oggetti nella scena
- */
-createVirtualRoom(size: number = 3, centered: boolean = true): Renderer {
-	// Rimuovi la stanza precedente se esiste
-	if (this.#virtualRoom) {
-	  this.#scene.remove(this.#virtualRoom);
-	  this.#virtualRoom = null;
-	}
-  
-	// Crea un nuovo gruppo per la stanza
-	const room = new Group();
-	this.#virtualRoom = room;
-	
-	// Imposta il materiale per le pareti
-	const material = new MeshStandardMaterial({
-	  color: 0xf0f0f0,
-	  transparent: true,
-	  opacity: 0.15,
-	  side: DoubleSide,
-	  depthWrite: false
-	});
-  
-	// Calcola il centro e le dimensioni
-	let center = new Vector3(0, 0, 0);
-	
-	// Dopo l'analisi dell'immagine, sembra che la scala effettiva sia circa 1 unità = 0.6cm
-	// Quindi per una stanza di 3 metri, dobbiamo usare 3m / 0.006m = 500 unità
-	const scaleFactor = 60; // Regolato per ottenere proporzioni corrette
-	const roomSize = size * scaleFactor;
-	
-	if (centered && this.#objects.length > 0) {
-	  // Calcola il bounding box di tutti gli oggetti
-	  const bbox = new Box3();
-	  
-	  this.#objects.forEach(obj => {
-		if (obj.mesh) {
-		  bbox.expandByObject(obj.mesh);
-		}
-	  });
-	  
-	  // Ottieni il centro
-	  center = bbox.getCenter(new Vector3());
-	  
-	  // Assicurati che il pavimento sia allineato con il fondo degli oggetti
-	  const minY = bbox.min.y;
-	  center.y = minY + roomSize / 2;
-	} else {
-	  // Se non centrata, posiziona il fondo della stanza a y=0
-	  center.y = roomSize / 2;
-	}
-  
-	// Crea le pareti (usando piani invece che un cubo per avere solo le facce esterne)
-	const halfSize = roomSize / 2;
-	
-	// Pavimento
-	const floor = new Mesh(
-	  new PlaneGeometry(roomSize, roomSize),
-	  new MeshStandardMaterial({
-		color: 0xf5f5f5,
-		transparent: true,
-		opacity: 0.3,
-		side: DoubleSide
-	  })
-	);
-	floor.rotation.x = Math.PI / 2;
-	floor.position.set(center.x, center.y - halfSize, center.z);
-	room.add(floor);
-	
-	// Soffitto
-	const ceiling = new Mesh(
-	  new PlaneGeometry(roomSize, roomSize),
-	  material.clone()
-	);
-	ceiling.rotation.x = Math.PI / 2;
-	ceiling.position.set(center.x, center.y + halfSize, center.z);
-	room.add(ceiling);
-	
-	// Pareti
-	// Parete front
-	const wallFront = new Mesh(
-	  new PlaneGeometry(roomSize, roomSize),
-	  material.clone()
-	);
-	wallFront.position.set(center.x, center.y, center.z + halfSize);
-	room.add(wallFront);
-	
-	// Parete back
-	const wallBack = new Mesh(
-	  new PlaneGeometry(roomSize, roomSize),
-	  material.clone()
-	);
-	wallBack.position.set(center.x, center.y, center.z - halfSize);
-	wallBack.rotation.y = Math.PI;
-	room.add(wallBack);
-	
-	// Parete left
-	const wallLeft = new Mesh(
-	  new PlaneGeometry(roomSize, roomSize),
-	  material.clone()
-	);
-	wallLeft.position.set(center.x - halfSize, center.y, center.z);
-	wallLeft.rotation.y = Math.PI / 2;
-	room.add(wallLeft);
-	
-	// Parete right
-	const wallRight = new Mesh(
-	  new PlaneGeometry(roomSize, roomSize),
-	  material.clone()
-	);
-	wallRight.position.set(center.x + halfSize, center.y, center.z);
-	wallRight.rotation.y = -Math.PI / 2;
-	room.add(wallRight);
-  
-	// Aggiungi la griglia sul pavimento
-	const gridHelper = new GridHelper(roomSize, 10, 0x888888, 0xcccccc);
-	gridHelper.position.set(center.x, center.y - halfSize + 0.01, center.z); // Leggermente sopra il pavimento
-	room.add(gridHelper);
-	
-	// Aggiungi la stanza alla scena
-	this.#scene.add(room);
-	
-	return this;
-  }
 
-	/**
-	 * Aggiorna la posizione della stanza virtuale in base agli oggetti nella scena
-	 */
+	createVirtualRoom(size: number = 3, centered: boolean = true, visible: boolean = false): Renderer {
+		if (this.#virtualRoom) {
+		this.#scene.remove(this.#virtualRoom);
+		this.#virtualRoom = null;
+		}
+
+		const room = new Group();
+		this.#virtualRoom = room;
+
+		room.visible = visible;
+
+		const material = new MeshStandardMaterial({
+		color: 0xf0f0f0,
+		transparent: true,
+		opacity: 0.15,
+		side: DoubleSide,
+		depthWrite: false
+		});
+
+		let center = new Vector3(0, 0, 0);
+
+		const scaleFactor = 60;
+		const roomSize = size * scaleFactor;
+		
+		if (centered && this.#objects.length > 0) {
+		const bbox = new Box3();
+		
+		this.#objects.forEach(obj => {
+			if (obj.mesh) {
+			bbox.expandByObject(obj.mesh);
+			}
+		});
+
+		center = bbox.getCenter(new Vector3());
+		const maxY = bbox.max.y;
+		center.y = maxY - roomSize / 2;
+		} else {
+		center.y = -roomSize / 2;
+		}
+
+		const halfSize = roomSize / 2;
+		const ceiling = new Mesh(
+		new PlaneGeometry(roomSize, roomSize),
+		new MeshStandardMaterial({
+			color: 0xf5f5f5,
+			transparent: true,
+			opacity: 0.3,
+			side: DoubleSide
+		})
+		);
+		ceiling.rotation.x = Math.PI / 2;
+		ceiling.position.set(center.x, center.y + halfSize, center.z);
+		room.add(ceiling);
+
+		const floor = new Mesh(
+		new PlaneGeometry(roomSize, roomSize),
+		material.clone()
+		);
+		floor.rotation.x = Math.PI / 2;
+		floor.position.set(center.x, center.y - halfSize, center.z);
+		room.add(floor);
+
+		// Parete back
+		const wallBack = new Mesh(
+		new PlaneGeometry(roomSize, roomSize),
+		material.clone()
+		);
+		wallBack.position.set(center.x, center.y, center.z - halfSize);
+		wallBack.rotation.y = Math.PI;
+		room.add(wallBack);
+		
+		// Parete left
+		const wallLeft = new Mesh(
+		new PlaneGeometry(roomSize, roomSize),
+		material.clone()
+		);
+		wallLeft.position.set(center.x - halfSize, center.y, center.z);
+		wallLeft.rotation.y = Math.PI / 2;
+		room.add(wallLeft);
+		
+		// Parete right
+		const wallRight = new Mesh(
+		new PlaneGeometry(roomSize, roomSize),
+		material.clone()
+		);
+		wallRight.position.set(center.x + halfSize, center.y, center.z);
+		wallRight.rotation.y = -Math.PI / 2;
+		room.add(wallRight);
+
+		const gridHelper = new GridHelper(roomSize, 10, 0x888888, 0xcccccc);
+		gridHelper.position.set(center.x, center.y + halfSize - 0.01, center.z);
+		gridHelper.rotation.x = Math.PI;
+		room.add(gridHelper);
+		this.#scene.add(room);
+		
+		return this;
+	}
+
 	updateVirtualRoom(): Renderer {
 	  if (this.#virtualRoom && this.#objects.length > 0) {
 		this.createVirtualRoom(3, true);
@@ -843,31 +787,19 @@ createVirtualRoom(size: number = 3, centered: boolean = true): Renderer {
 	  return this;
 	}
 
-	/**
-	 * Imposta la visibilità della stanza virtuale
-	 * @param visible Se true, mostra la stanza virtuale; se false, la nasconde
-	 */
 	setVirtualRoomVisible(visible: boolean): Renderer {
 	  if (this.#virtualRoom) {
 		this.#virtualRoom.visible = visible;
 	  } else if (visible) {
-		// Se la stanza non esiste ma la visibilità è richiesta, creala
 		this.createVirtualRoom();
 	  }
 	  return this;
 	}
 
-	/**
-	 * Controlla se la stanza virtuale è attualmente visibile
-	 */
 	isVirtualRoomVisible(): boolean {
 	  return this.#virtualRoom !== null && this.#virtualRoom.visible;
 	}
 
-	/**
-	 * Modifica le dimensioni della stanza virtuale
-	 * @param size Nuova dimensione della stanza in metri
-	 */
 	resizeVirtualRoom(size: number): Renderer {
 	  return this.createVirtualRoom(size, true);
 	}

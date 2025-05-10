@@ -3,11 +3,39 @@
 	import { fade } from 'svelte/transition';
 	import { flyAndScale } from '$shad/utils';
 	import X from 'phosphor-svelte/lib/X';
+	import House from 'phosphor-svelte/lib/House';
 	import { button } from '$lib';
 	import { page } from '$app/state';
 	import { Renderer } from './renderer/renderer';
 
-	export let is3d: boolean = page.data.settings.allow3d;
+	let { is3d = $bindable(page.data.settings.allow3d), renderer }: { 
+		is3d?: boolean; 
+		renderer?: Renderer | undefined;
+	} = $props();
+
+	let showVirtualRoom = $state(false);
+	let roomSize = $state(3);
+	
+	function toggleVirtualRoom() {
+		
+		showVirtualRoom = !showVirtualRoom;
+		
+		if (renderer) {
+			renderer.setVirtualRoomVisible(showVirtualRoom);
+		}
+	}
+
+	function updateRoomSize() {
+		if (renderer) {
+			renderer.resizeVirtualRoom(roomSize);
+		}
+	}
+
+	$effect(() => {
+		if (renderer) {
+			renderer.setVirtualRoomVisible(showVirtualRoom);
+		}
+	});
 </script>
 
 <div class="main">
@@ -19,9 +47,19 @@
 		</label>
 	{/if}
 
-	<!-- Help popup -->
+
+	{#if is3d}
+	<button 
+		class={button({ size: 'square', class: 'font-bold flex items-center justify-center', color: showVirtualRoom ? 'primary' : 'secondary' })}
+		onclick={toggleVirtualRoom}
+		title={showVirtualRoom ? "Nascondi stanza virtuale" : "Mostra stanza virtuale"}
+	>
+		<House size={20} />
+	</button>
+	{/if}
+
 	<Dialog.Root>
-		<Dialog.Trigger class={button({ size: 'square', class: 'font-bold' })}>
+		<Dialog.Trigger class={button({ size: 'square', class: 'font-bold mt-2' })}>
 			<span class="text-xl">?</span>
 		</Dialog.Trigger>
 
@@ -59,6 +97,26 @@
 					</ul>
 
 					<h2 class="mb-2 mt-2 text-xl font-bold">Legenda simboli:</h2>
+
+					<h2 class="mb-2 mt-4 text-xl font-bold">Stanza virtuale:</h2>
+					<p>La stanza virtuale è un riferimento visivo con dimensioni 3m x 3m x 3m che aiuta a visualizzare le dimensioni reali degli elementi. Può essere attivata o disattivata con il pulsante della casa.</p>
+					
+					{#if is3d && renderer}
+						<div class="mt-4 flex items-center">
+							<label for="roomSize" class="mr-2">Dimensione stanza (metri):</label>
+							<input 
+								id="roomSize" 
+								type="range" 
+								min="3" 
+								max="20" 
+								step="1" 
+								class="w-40"
+								bind:value={roomSize}
+								onchange={updateRoomSize}
+							/>
+							<span class="ml-2">{roomSize}m</span>
+						</div>
+					{/if}
 				</Dialog.Description>
 
 				<Dialog.Close
@@ -143,7 +201,7 @@
 		color: hsl(var(--primary));
 		transition: color 0.2s;
 	}
-	.toggleCheckbox + .toggleContainer div:last-child {
+	.toggleContainer + .toggleContainer div:last-child {
 		color: rgba(0, 0, 0, 127);
 		transition: color 0.2s;
 	}

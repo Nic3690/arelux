@@ -84,7 +84,6 @@
 		}
 	});
 
-	// Temporary object handling
 	let temporary: RendererObject | null = null;
 	let group: string | null = $state(null);
 	$effect(() => {
@@ -118,7 +117,6 @@
 		renderer?.setOpacity(1);
 	});
 
-	// Camera handling
 	$effect(() => {
 		if (controlsEl !== undefined) {
 			renderer?.setCamera(controlsEl, { is3d, isOrtographic: !is3d });
@@ -129,7 +127,6 @@
 <main class="grid h-dvh grid-cols-layout grid-rows-layout gap-5 p-5">
 	{#if renderer !== undefined}
 		{@const rend = renderer}
-		<!-- Sidebar -->
 		<div class="row-span-3 flex max-h-full flex-col gap-6">
 			<a href="/{data.tenant}/{data.system}" class="inline-flex">
 				<ArrowLeft class="translate-y-1" />
@@ -139,12 +136,6 @@
 			<span>Modifica l'oggetto da inserire</span>
 
 			{#if page.state.chosenFamily === undefined}
-				<!--
-				Mode selection combobox
-				Implemented with a dropdown menu because why not
-				 
-				... just kidding, it's because bits-ui's combobox allows the user to type their choice, and I didn't want that.
-				-->
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger class="flex rounded bg-box p-6 text-left">
 						<span class="overflow-x-hidden text-ellipsis text-nowrap">
@@ -269,7 +260,6 @@
 					{/if}
 				</Button.Root>
 			{:else}
-				<!-- Add element button -->
 				<Button.Root
 					class={button({ class: 'mt-auto' })}
 					on:click={() => {

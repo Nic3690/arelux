@@ -118,7 +118,6 @@ export class HandleManager {
 		return this;
 	}
 
-	/** Show or hide single handles and angles. Should probably be called during initialization */
 	setVisible(visible: boolean) {
 		for (const handle of this.angles) handle.visible = visible;
 		for (const handle of this.handles) handle.visible = visible;
@@ -128,7 +127,6 @@ export class HandleManager {
 		this.visible = visible;
 	}
 
-	/** Create and add a single, disabled, handle. */
 	createDisabledHandle() {
 		const handle = new TemporaryHandleMesh(true);
 
@@ -138,7 +136,6 @@ export class HandleManager {
 		return this.disabledHandles.length - 1;
 	}
 
-	/** Create and add a single handle. Set whether it is visible or not using `showSingleHandles()` */
 	createHandle(selectedJunctId: number, otherJunctId: number, other: TemporaryObject) {
 		const handle = new HandleMesh(selectedJunctId, otherJunctId, other);
 
@@ -175,7 +172,6 @@ export class HandleManager {
 		return this.handles.length - 1;
 	}
 
-	/** Create and add a single angle. Set whether it is visible or not using `showSingleHandles()` */
 	createAngle() {
 		const angle = new ArrowHelper(new Vector3(0, 0, 1), new Vector3(0, 0, 0), 10, 0xffffff, 2, 1.5);
 		angle.visible = this.visible;
@@ -188,25 +184,21 @@ export class HandleManager {
 		this.angles.splice(i, 1);
 	}
 
-	/** Move handle with the given index to the given position */
 	moveHandle(i: number, pos: Vector3Like) {
 		if (0 <= i && i < this.handles.length) this.handles[i].position.copy(pos);
 		else toast.error(`Unknown handle ${i}`);
 	}
 
-	/** Move the disabled handle with the given index to the given position */
 	moveDisabledHandle(i: number, pos: Vector3Like) {
 		if (0 <= i && i < this.disabledHandles.length) this.disabledHandles[i].position.copy(pos);
 		else toast.error(`Unknown handle ${i}`);
 	}
 
-	/** Move and reorient the angle with the given index to the given position and degrees */
 	setAngle(index: number, deg: number, pos: Vector3Like) {
 		this.angles[index].position.copy(pos);
 		this.angles[index].setDirection(this.#state.angleHelper(deg));
 	}
 
-	/** Rescale all handles and angles based on their distance from the camera. Should be called in the renderer update loop */
 	update(camera: Camera, pointer: { x: number; y: number }) {
 		const minScale = 0.1;
 		const maxScale = 2;
@@ -237,7 +229,6 @@ export class HandleManager {
 			this.hovering = handle;
 			this.hoveringPoint = intersection.point;
 
-			// Cursor
 			if ((handle as TemporaryHandleMesh | LineHandleMesh).isDisabled) {
 				document.documentElement.style.cursor = 'not-allowed';
 			} else {
@@ -251,7 +242,6 @@ export class HandleManager {
 		}
 	}
 
-	/** Draw a curve in the "single" scene */
 	createCurve(end1: Vector3Like, control: Vector3Like, end2: Vector3Like): number {
 		const curve = new QuadraticBezierCurve3(
 			new Vector3().copy(end1),
@@ -268,7 +258,6 @@ export class HandleManager {
 		return this.curves.length - 1;
 	}
 
-	/** Remove a curve that was added by the "drawSingleCurve" function */
 	deleteCurve(i: number) {
 		if (0 <= i && i < this.curves.length) {
 			this.#scene.remove(this.curves[i]);
