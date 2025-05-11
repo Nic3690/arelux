@@ -17,14 +17,20 @@
 		if (files === null) return toast.error(`Element '${idSupplement}-model' is not of type="file"`);
 
 		if (obj) renderer.removeObject(obj);
-		obj = renderer.addTemporaryObject();
-		if ((await obj.loadMesh(files[0])) === -1) {
-			toast.error('Failed to render model. Is it a GLTF/GLB file?');
-		} else {
+		
+		try {
+			obj = renderer.addTemporaryObject();
 			renderer.frameObject(obj);
+		} catch (error) {
+			toast.error('Failed to render model. Is it a GLTF/GLB file?');
+			console.error(error);
 		}
 
 		return files[0];
+	}
+	export function getFile() {
+		const el = document.getElementById(`${idSupplement}-model`) as HTMLInputElement;
+		return el?.files?.[0] || null;
 	}
 </script>
 

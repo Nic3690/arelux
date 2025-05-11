@@ -248,8 +248,4 @@
 		color: hsl(var(--primary));
 		transition: color 0.2s;
 	}
-	.toggleContainer + .toggleContainer div:last-child {
-		color: rgba(0, 0, 0, 127);
-		transition: color 0.2s;
-	}
 </style>
