@@ -8,9 +8,14 @@
 	import { page } from '$app/state';
 	import { Renderer } from './renderer/renderer';
 
-	let { is3d = $bindable(page.data.settings.allow3d), renderer }: { 
+	let { 
+		is3d = $bindable(page.data.settings.allow3d), 
+		renderer,
+		virtualRoomDisabled = false
+	}: { 
 		is3d?: boolean; 
 		renderer?: Renderer | undefined;
+		virtualRoomDisabled?: boolean;
 	} = $props();
 
 	let showVirtualRoom = $state(false);
@@ -19,6 +24,8 @@
 	let roomDepth = $state(3);
 	
 	function toggleVirtualRoom() {
+		if (virtualRoomDisabled) return;
+		
 		showVirtualRoom = !showVirtualRoom;
 		
 		if (renderer) {
@@ -54,6 +61,13 @@
 			renderer.setVirtualRoomVisible(showVirtualRoom);
 		}
 	});
+
+	$effect(() => {
+		if (virtualRoomDisabled && showVirtualRoom && renderer) {
+			showVirtualRoom = false;
+			renderer.setVirtualRoomVisible(false);
+		}
+	});
 </script>
 
 <div class="main">
@@ -67,9 +81,17 @@
 
 	{#if is3d}
 	<button 
-		class={button({ size: 'square', class: 'font-bold flex items-center justify-center', color: showVirtualRoom ? 'primary' : 'secondary' })}
+		class={button({ 
+			size: 'square', 
+			class: 'font-bold flex items-center justify-center', 
+			color: showVirtualRoom ? 'primary' : 'secondary' 
+		})}
 		onclick={toggleVirtualRoom}
-		title={showVirtualRoom ? "Nascondi stanza virtuale" : "Mostra stanza virtuale"}
+		disabled={virtualRoomDisabled}
+		title={virtualRoomDisabled 
+			? "Aggiungi degli oggetti per attivare la stanza virtuale" 
+			: (showVirtualRoom ? "Nascondi stanza virtuale" : "Mostra stanza virtuale")
+		}
 	>
 		<House size={20} />
 	</button>
@@ -118,7 +140,7 @@
 					<h2 class="mb-2 mt-4 text-xl font-bold">Stanza virtuale:</h2>
 					<p>La stanza virtuale è un riferimento visivo che aiuta a visualizzare le dimensioni reali degli elementi. Può essere attivata o disattivata con il pulsante della casa.</p>
 					
-					{#if is3d && renderer}
+					{#if is3d && renderer && !virtualRoomDisabled}
 						<div class="mt-4 flex flex-col gap-3">
 							<div class="flex items-center">
 								<label for="roomWidth" class="mr-2 w-24">Larghezza:</label>

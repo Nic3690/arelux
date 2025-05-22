@@ -29,6 +29,7 @@
 	let codeRight = $state(false);
 	
 	let downloadDisabled = $derived($objects.length === 0 || (data.settings.password.length !== 0 && !codeRight));
+	let virtualRoomDisabled = $derived($objects.length === 0);
 	
 	let lightMoverMode = $state(false);
 	let selectedLight = $state<TemporaryObject | null>(null);
@@ -304,7 +305,7 @@
 	</div>
 
 	<AreluxLogo />
-	<Toggle2d3d bind:is3d {renderer} />
+	<Toggle2d3d bind:is3d {renderer} {virtualRoomDisabled} />
 
 	<div bind:this={controlsEl}></div>
 

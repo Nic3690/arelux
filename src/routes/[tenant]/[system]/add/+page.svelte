@@ -34,6 +34,9 @@
 	let renderer: Renderer | undefined = $state();
 	let loaded: SvelteSet<string> = $state(new SvelteSet());
 
+	// La stanza virtuale è sempre disabilitata nella pagina di aggiunta
+	let virtualRoomDisabled = $state(true);
+
 	let configShape = $state<{ angle: number; radius: number }>();
 	let configLength = $state<number>();
 
@@ -277,7 +280,7 @@
 
 		<AreluxLogo />
 
-		<Toggle2d3d bind:is3d />
+		<Toggle2d3d bind:is3d {renderer} {virtualRoomDisabled} />
 	{/if}
 
 	<div bind:this={controlsEl}></div>
