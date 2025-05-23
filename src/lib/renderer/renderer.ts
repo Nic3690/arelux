@@ -85,6 +85,7 @@ export class Renderer {
 	#helpers: ArrowHelper[] = [];
 	#virtualRoom: Group | null = null;
 	#currentRoomDimensions: RoomDimensions = { width: 3, height: 3, depth: 3 };
+	#lightFeedbackIndicator: Mesh | null = null; // <-- SPOSTA QUI
 
 	#objects: TemporaryObject[] = [];
 	#clickCallback: ((_: HandleMesh | LineHandleMesh) => any) | undefined;
@@ -564,9 +565,6 @@ export class Renderer {
 			this.#lightFeedbackIndicator = null;
 		}
 	}
-
-	// Aggiungi questa proprietà alla classe Renderer
-	#lightFeedbackIndicator: Mesh | null = null;
 
 	highlightLight(lightObj: TemporaryObject | null): void {
 		this.setOpacity(1);
