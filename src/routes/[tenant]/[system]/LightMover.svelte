@@ -25,26 +25,18 @@
     let isValidPosition = $state(true);
     let suggestedPosition = $state(position);
 
-    // Controlla la validità della posizione quando cambia
     $effect(() => {
-        if (active && selectedLight && renderer) {
-            const parentProfile = renderer.findParentProfileForLight(selectedLight);
-            if (parentProfile) {
-                isValidPosition = renderer.isValidLightPosition(parentProfile, selectedLight, position);
-                
-                if (!isValidPosition) {
-                    // Trova la posizione valida più vicina
-                    suggestedPosition = renderer.findNearestValidLightPosition(parentProfile, selectedLight, position);
-                }
-                
-                // Aggiorna il feedback visivo
-                renderer.updateLightPositionFeedback(selectedLight, position);
+    if (active && selectedLight && renderer) {
+        const parentProfile = renderer.findParentProfileForLight(selectedLight);
+        if (parentProfile) {
+            isValidPosition = renderer.isValidLightPosition(parentProfile, selectedLight, position);
+            
+            if (!isValidPosition) {
+                suggestedPosition = renderer.findNearestValidLightPosition(parentProfile, selectedLight, position);
             }
-        } else if (renderer) {
-            // Rimuovi il feedback quando non è attivo
-            renderer.clearLightPositionFeedback();
         }
-    });
+    }
+});
 
     // Pulisci il feedback quando il componente viene smontato
     $effect(() => {
@@ -56,21 +48,11 @@
     });
 
     function handleMove(increment: number) {
-        const adjustedIncrement = invertedControls ? -increment : increment;
-        let newPosition = Math.max(0.05, Math.min(0.95, position + adjustedIncrement));
-        position = newPosition;
-        
-        // Sempre fare il preview della nuova posizione
-        onPreview(newPosition);
-        
-        // Conferma automaticamente solo se la posizione è valida
-        if (selectedLight && renderer) {
-            const parentProfile = renderer.findParentProfileForLight(selectedLight);
-            if (parentProfile && renderer.isValidLightPosition(parentProfile, selectedLight, newPosition)) {
-                onMove(newPosition);
-            }
-        }
-    }
+    const adjustedIncrement = invertedControls ? -increment : increment;
+    let newPosition = Math.max(0.01, Math.min(0.99, position + adjustedIncrement));
+    
+    onMove(newPosition);
+}
 
     function handleSliderChange(e: Event) {
         const input = e.target as HTMLInputElement;
@@ -128,7 +110,7 @@
             <div class="flex items-center justify-center">
                 <button 
                     onclick={() => handleMove(-0.05)}
-                    disabled={position <= 0.05}
+                    disabled={position <= 0.01}
                     class={cn(
                         "flex h-8 w-8 items-center justify-center rounded bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 mr-2"
                     )}
@@ -139,8 +121,8 @@
                 <div class="flex-1 mx-2">
                     <input
                         type="range"
-                        min="0.05"
-                        max="0.95"
+                        min="0.01"
+                        max="0.99"
                         step="0.01"
                         value={position}
                         oninput={handleSliderChange}
@@ -149,13 +131,13 @@
                         class={cn(
                             "w-full h-2 rounded-lg appearance-none cursor-pointer",
                             isValidPosition ? "bg-green-200" : "bg-red-200 invalid"
-                        )}
-                    />
+                    )}
+                />
                 </div>
 
                 <button 
                     onclick={() => handleMove(0.05)}
-                    disabled={position >= 0.95}
+                    disabled={position >= 0.99}
                     class={cn(
                         "flex h-8 w-8 items-center justify-center rounded bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 ml-2"
                     )}

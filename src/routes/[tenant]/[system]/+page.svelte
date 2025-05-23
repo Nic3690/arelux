@@ -73,30 +73,17 @@
 		}
 	}
 
-// In src/routes/[tenant]/[system]/+page.svelte - Aggiungi queste funzioni
-
-function handleLightMove(position: number) {
-	if (selectedLight && renderer) {
-		// Aggiorna la posizione solo se è valida
-		const parentProfile = renderer.findParentProfileForLight(selectedLight);
-		if (parentProfile) {
-			const isValid = renderer.isValidLightPosition(parentProfile, selectedLight, position);
-			
-			if (isValid) {
-				lightPosition = position;
-				const success = renderer.moveLight(selectedLight, position);
-				
-				if (!success) {
-					toast.error("Impossibile spostare la luce alla posizione specificata");
-					console.error("Impossibile spostare la luce:", selectedLight.getCatalogEntry().code);
-				} else {
-					toast.success(`Luce spostata alla posizione ${Math.round(position * 100)}%`);
-				}
-			} else {
-				toast.error("Posizione non valida: troppo vicino ad un'altra luce");
-			}
-		}
-	}
+	function handleLightMove(position: number) {
+    if (selectedLight && renderer) {
+        lightPosition = position;
+        const success = renderer.moveLight(selectedLight, position);
+        
+        if (success) {
+            toast.success(`Luce spostata alla posizione ${Math.round(position * 100)}%`);
+        } else {
+            toast.error("Impossibile spostare la luce alla posizione specificata");
+        }
+    }
 }
 
 function handleLightPositionPreview(position: number) {

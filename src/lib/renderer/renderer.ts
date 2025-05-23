@@ -383,19 +383,17 @@ export class Renderer {
 					lightObj.getCatalogEntry().code.includes('SP');
 		
 		if (!isLight) return true;
-
-		// Funzione per calcolare la distanza minima basata sul tipo di luce
+	
 		const getMinDistanceForLight = (lightCode: string): number => {
-			if (lightCode.includes('XNRS01')) return 0.12; // Luci piccole
-			if (lightCode.includes('XNRS14')) return 0.15; // Luci medie
-			if (lightCode.includes('XNRS31')) return 0.18; // Luci grandi
-			if (lightCode.includes('SP')) return 0.16;     // Luci spot
-			return 0.15; // Default
+			if (lightCode.includes('XNRS01')) return 0.05;
+			if (lightCode.includes('XNRS14')) return 0.06;
+			if (lightCode.includes('XNRS31')) return 0.07;
+			if (lightCode.includes('SP')) return 0.06;
+			return 0.04;
 		};
-
+	
 		const thisLightMinDist = getMinDistanceForLight(lightObj.getCatalogEntry().code);
-
-		// Trova tutte le luci esistenti su questo profilo
+	
 		const existingLights: TemporaryObject[] = [];
 		for (const obj of this.#objects) {
 			if (obj === lightObj) continue;
@@ -404,7 +402,6 @@ export class Renderer {
 							obj.getCatalogEntry().code.includes('SP');
 			
 			if (objIsLight) {
-				// Controlla se questa luce è attaccata a questo profilo
 				for (let j = 0; j < obj.getJunctions().length; j++) {
 					if (obj.getJunctions()[j] === profileObj) {
 						existingLights.push(obj);
@@ -413,8 +410,7 @@ export class Renderer {
 				}
 			}
 		}
-
-		// Controlla collisioni con le luci esistenti
+	
 		for (const existingLight of existingLights) {
 			const existingPos = existingLight.getCurvePosition();
 			const existingMinDist = getMinDistanceForLight(existingLight.getCatalogEntry().code);
@@ -424,34 +420,28 @@ export class Renderer {
 				return false;
 			}
 		}
-
+	
 		return true;
 	}
 
-	/**
-	 * Trova la posizione valida più vicina per una luce
-	 */
 	findNearestValidLightPosition(profileObj: TemporaryObject, lightObj: TemporaryObject, desiredPosition: number): number {
-		// Limiti della curva
-		const minPos = 0.05;
-		const maxPos = 0.95;
+		const minPos = 0.02;
+		const maxPos = 0.98;
 		
-		// Se la posizione desiderata è già valida, usala
 		if (this.isValidLightPosition(profileObj, lightObj, desiredPosition)) {
 			return Math.max(minPos, Math.min(maxPos, desiredPosition));
 		}
-
+	
 		const getMinDistanceForLight = (lightCode: string): number => {
-			if (lightCode.includes('XNRS01')) return 0.12;
-			if (lightCode.includes('XNRS14')) return 0.15;
-			if (lightCode.includes('XNRS31')) return 0.18;
-			if (lightCode.includes('SP')) return 0.16;
-			return 0.15;
+			if (lightCode.includes('XNRS01')) return 0.06;
+			if (lightCode.includes('XNRS14')) return 0.08;
+			if (lightCode.includes('XNRS31')) return 0.10;
+			if (lightCode.includes('SP')) return 0.08;
+			return 0.08;
 		};
-
+	
 		const thisLightMinDist = getMinDistanceForLight(lightObj.getCatalogEntry().code);
-
-		// Trova tutte le luci esistenti
+	
 		const existingPositions: number[] = [];
 		for (const obj of this.#objects) {
 			if (obj === lightObj) continue;
@@ -468,21 +458,17 @@ export class Renderer {
 				}
 			}
 		}
-
-		// Ordina le posizioni esistenti
+	
 		existingPositions.sort((a, b) => a - b);
-
-		// Prova a trovare uno spazio libero
+	
 		let bestPosition = desiredPosition;
 		let minDistanceToDesired = Infinity;
-
-		// Controlla gli spazi tra le luci esistenti
+	
 		for (let i = 0; i <= existingPositions.length; i++) {
 			let spaceStart = i === 0 ? minPos : existingPositions[i - 1] + thisLightMinDist;
 			let spaceEnd = i === existingPositions.length ? maxPos : existingPositions[i] - thisLightMinDist;
 			
 			if (spaceEnd > spaceStart) {
-				// C'è spazio disponibile
 				let candidatePosition = Math.max(spaceStart, Math.min(spaceEnd, desiredPosition));
 				let distanceToDesired = Math.abs(candidatePosition - desiredPosition);
 				
@@ -492,7 +478,7 @@ export class Renderer {
 				}
 			}
 		}
-
+	
 		return bestPosition;
 	}
 
