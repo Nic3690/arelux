@@ -9,6 +9,7 @@ import {
 	Mesh,
 	SphereGeometry,
 	MeshBasicMaterial,
+	MeshStandardMaterial,
 	type Vector3Like,
 	type ColorRepresentation,
 	Color,
@@ -31,7 +32,6 @@ import {
 	DoubleSide, 
 	GridHelper, 
 	Group, 
-	MeshStandardMaterial, 
 	PlaneGeometry,
 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -376,6 +376,197 @@ export class Renderer {
 		return false;
 		}
 	}
+
+	isValidLightPosition(profileObj: TemporaryObject, lightObj: TemporaryObject, position: number): boolean {
+		const isLight = lightObj.getCatalogEntry().code.includes('XNRS') || 
+					lightObj.getCatalogEntry().code.includes('SP');
+		
+		if (!isLight) return true;
+
+		// Funzione per calcolare la distanza minima basata sul tipo di luce
+		const getMinDistanceForLight = (lightCode: string): number => {
+			if (lightCode.includes('XNRS01')) return 0.12; // Luci piccole
+			if (lightCode.includes('XNRS14')) return 0.15; // Luci medie
+			if (lightCode.includes('XNRS31')) return 0.18; // Luci grandi
+			if (lightCode.includes('SP')) return 0.16;     // Luci spot
+			return 0.15; // Default
+		};
+
+		const thisLightMinDist = getMinDistanceForLight(lightObj.getCatalogEntry().code);
+
+		// Trova tutte le luci esistenti su questo profilo
+		const existingLights: TemporaryObject[] = [];
+		for (const obj of this.#objects) {
+			if (obj === lightObj) continue;
+			
+			const objIsLight = obj.getCatalogEntry().code.includes('XNRS') || 
+							obj.getCatalogEntry().code.includes('SP');
+			
+			if (objIsLight) {
+				// Controlla se questa luce è attaccata a questo profilo
+				for (let j = 0; j < obj.getJunctions().length; j++) {
+					if (obj.getJunctions()[j] === profileObj) {
+						existingLights.push(obj);
+						break;
+					}
+				}
+			}
+		}
+
+		// Controlla collisioni con le luci esistenti
+		for (const existingLight of existingLights) {
+			const existingPos = existingLight.getCurvePosition();
+			const existingMinDist = getMinDistanceForLight(existingLight.getCatalogEntry().code);
+			const requiredDistance = Math.max(thisLightMinDist, existingMinDist);
+			
+			if (Math.abs(position - existingPos) < requiredDistance) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Trova la posizione valida più vicina per una luce
+	 */
+	findNearestValidLightPosition(profileObj: TemporaryObject, lightObj: TemporaryObject, desiredPosition: number): number {
+		// Limiti della curva
+		const minPos = 0.05;
+		const maxPos = 0.95;
+		
+		// Se la posizione desiderata è già valida, usala
+		if (this.isValidLightPosition(profileObj, lightObj, desiredPosition)) {
+			return Math.max(minPos, Math.min(maxPos, desiredPosition));
+		}
+
+		const getMinDistanceForLight = (lightCode: string): number => {
+			if (lightCode.includes('XNRS01')) return 0.12;
+			if (lightCode.includes('XNRS14')) return 0.15;
+			if (lightCode.includes('XNRS31')) return 0.18;
+			if (lightCode.includes('SP')) return 0.16;
+			return 0.15;
+		};
+
+		const thisLightMinDist = getMinDistanceForLight(lightObj.getCatalogEntry().code);
+
+		// Trova tutte le luci esistenti
+		const existingPositions: number[] = [];
+		for (const obj of this.#objects) {
+			if (obj === lightObj) continue;
+			
+			const objIsLight = obj.getCatalogEntry().code.includes('XNRS') || 
+							obj.getCatalogEntry().code.includes('SP');
+			
+			if (objIsLight) {
+				for (let j = 0; j < obj.getJunctions().length; j++) {
+					if (obj.getJunctions()[j] === profileObj) {
+						existingPositions.push(obj.getCurvePosition());
+						break;
+					}
+				}
+			}
+		}
+
+		// Ordina le posizioni esistenti
+		existingPositions.sort((a, b) => a - b);
+
+		// Prova a trovare uno spazio libero
+		let bestPosition = desiredPosition;
+		let minDistanceToDesired = Infinity;
+
+		// Controlla gli spazi tra le luci esistenti
+		for (let i = 0; i <= existingPositions.length; i++) {
+			let spaceStart = i === 0 ? minPos : existingPositions[i - 1] + thisLightMinDist;
+			let spaceEnd = i === existingPositions.length ? maxPos : existingPositions[i] - thisLightMinDist;
+			
+			if (spaceEnd > spaceStart) {
+				// C'è spazio disponibile
+				let candidatePosition = Math.max(spaceStart, Math.min(spaceEnd, desiredPosition));
+				let distanceToDesired = Math.abs(candidatePosition - desiredPosition);
+				
+				if (distanceToDesired < minDistanceToDesired) {
+					minDistanceToDesired = distanceToDesired;
+					bestPosition = candidatePosition;
+				}
+			}
+		}
+
+		return bestPosition;
+	}
+
+	/**
+	 * Aggiorna il feedback visivo per il posizionamento delle luci
+	 */
+	updateLightPositionFeedback(lightObj: TemporaryObject | null, position: number): void {
+		// Rimuovi il feedback precedente
+		this.clearLightPositionFeedback();
+
+		if (!lightObj) return;
+
+		// Trova il profilo parent
+		const parentProfile = this.findParentProfileForLight(lightObj);
+		if (!parentProfile) return;
+
+		const isValidPosition = this.isValidLightPosition(parentProfile, lightObj, position);
+		
+		// Crea un indicatore visivo
+		const indicatorColor = isValidPosition ? 0x00ff00 : 0xff0000; // Verde se valido, rosso se non valido
+		const indicator = new Mesh(
+			new SphereGeometry(0.8, 16, 16),
+			new MeshBasicMaterial({ 
+				color: indicatorColor, 
+				transparent: true, 
+				opacity: 0.7,
+				depthTest: false 
+			})
+		);
+		indicator.renderOrder = 10;
+
+		// Posiziona l'indicatore
+		if (parentProfile.mesh) {
+			const junctionId = this.findJunctionIdForProfile(parentProfile, lightObj);
+			const curveData = parentProfile.getCatalogEntry().line_juncts[junctionId];
+			
+			if (curveData) {
+				const curve = new QuadraticBezierCurve3(
+					parentProfile.mesh.localToWorld(new Vector3().copy(curveData.point1)),
+					parentProfile.mesh.localToWorld(new Vector3().copy(curveData.pointC)),
+					parentProfile.mesh.localToWorld(new Vector3().copy(curveData.point2))
+				);
+				
+				const indicatorPosition = curve.getPointAt(position);
+				indicator.position.copy(indicatorPosition);
+				indicator.position.y += 2; // Solleva l'indicatore sopra la curva
+			}
+		}
+
+		// Salva il riferimento per poterlo rimuovere
+		this.#lightFeedbackIndicator = indicator;
+		this.#scene.add(indicator);
+	}
+
+	/**
+	 * Rimuove il feedback visivo
+	 */
+	clearLightPositionFeedback(): void {
+		if (this.#lightFeedbackIndicator) {
+			this.#scene.remove(this.#lightFeedbackIndicator);
+			
+			// Gestisce sia Material singolo che array di Material
+			if (Array.isArray(this.#lightFeedbackIndicator.material)) {
+				this.#lightFeedbackIndicator.material.forEach(mat => mat.dispose());
+			} else {
+				this.#lightFeedbackIndicator.material.dispose();
+			}
+			
+			this.#lightFeedbackIndicator.geometry.dispose();
+			this.#lightFeedbackIndicator = null;
+		}
+	}
+
+	// Aggiungi questa proprietà alla classe Renderer
+	#lightFeedbackIndicator: Mesh | null = null;
 
 	highlightLight(lightObj: TemporaryObject | null): void {
 		this.setOpacity(1);

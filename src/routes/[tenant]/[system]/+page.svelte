@@ -73,17 +73,39 @@
 		}
 	}
 
-	function handleLightMove(position: number) {
-		if (selectedLight && renderer) {
-			lightPosition = position;
+// In src/routes/[tenant]/[system]/+page.svelte - Aggiungi queste funzioni
 
-			const success = renderer.moveLight(selectedLight, position);
+function handleLightMove(position: number) {
+	if (selectedLight && renderer) {
+		// Aggiorna la posizione solo se è valida
+		const parentProfile = renderer.findParentProfileForLight(selectedLight);
+		if (parentProfile) {
+			const isValid = renderer.isValidLightPosition(parentProfile, selectedLight, position);
 			
-			if (!success) {
-			console.error("Impossibile spostare la luce:", selectedLight.getCatalogEntry().code);
+			if (isValid) {
+				lightPosition = position;
+				const success = renderer.moveLight(selectedLight, position);
+				
+				if (!success) {
+					toast.error("Impossibile spostare la luce alla posizione specificata");
+					console.error("Impossibile spostare la luce:", selectedLight.getCatalogEntry().code);
+				} else {
+					toast.success(`Luce spostata alla posizione ${Math.round(position * 100)}%`);
+				}
+			} else {
+				toast.error("Posizione non valida: troppo vicino ad un'altra luce");
 			}
 		}
 	}
+}
+
+function handleLightPositionPreview(position: number) {
+	if (selectedLight && renderer) {
+		lightPosition = position;
+		// Aggiorna solo il feedback visivo senza spostare realmente la luce
+		renderer.updateLightPositionFeedback(selectedLight, position);
+	}
+}
 
 	function remove(item: SavedObject) {
 		let i = $objects.indexOf(item);
@@ -316,9 +338,12 @@
 			selectedLightId={selectedLight?.id ?? null}
 			position={lightPosition}
 			invertedControls={invertedControls}
+			{renderer}
+			{selectedLight}
 			onToggle={toggleLightMoverMode}
 			onMove={handleLightMove}
-	  />
+			onPreview={handleLightPositionPreview}
+		/>
 	</div>
 
 	{#if showDownloadPopup}
