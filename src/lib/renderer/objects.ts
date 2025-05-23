@@ -141,9 +141,8 @@ export class TemporaryObject {
 	}
 
 	moveLight(position: number): string | null {
-		position = Math.max(0, Math.min(1, position));
-		this._curvePosition = position;
-
+		position = Math.max(0.05, Math.min(0.95, position));
+	
 		const isLight = this.getCatalogEntry().code.includes('XNRS') || 
 					  this.getCatalogEntry().code.includes('SP');
 					  
@@ -151,7 +150,7 @@ export class TemporaryObject {
 		  console.error("Non è una luce o non ha un mesh");
 		  return null;
 		}
-
+	
 		let parentObject: TemporaryObject | null = null;
 		let parentJunctionId = -1;
 		
@@ -168,58 +167,31 @@ export class TemporaryObject {
 			if (parentObject) break;
 		  }
 		}
-
-		if (!parentObject || parentJunctionId === -1) {
-		  const allObjects = this.#state.getObjects();
-
-		  for (const obj of allObjects) {
-			if (obj === this) continue;
-			
-			for (let i = 0; i < obj.getLineJunctions().length; i++) {
-			  if (obj.getLineJunctions()[i] === this) {
-				parentObject = obj;
-				parentJunctionId = i;
-				break;
-			  }
-			}
-			if (parentObject) break;
-		  }
-
-		  if (!parentObject || parentJunctionId === -1) {
-			for (const obj of allObjects) {
-			  if (obj !== this && 
-				  !obj.getCatalogEntry().code.includes('XNRS') && 
-				  !obj.getCatalogEntry().code.includes('SP') &&
-				  obj.getCatalogEntry().line_juncts.length > 0 &&
-				  obj.mesh) {
-				
-				console.log("Trovato profilo alternativo:", obj.getCatalogEntry().code);
-
-				parentObject = obj;
-				parentJunctionId = 0;
-
-				if (obj.getLineJunctions()[0] === null) {
-				  obj.getLineJunctions()[0] = this;
-
-				  let emptyJunctionIndex = this.#junctions.findIndex(j => j === null);
-				  if (emptyJunctionIndex === -1 && this.#junctions.length > 0) {
-					emptyJunctionIndex = 0;
-				  }
-				  
-				  if (emptyJunctionIndex !== -1) {
-					this.#junctions[emptyJunctionIndex] = obj;
-				  }
-				}
-				break;
-			  }
-			}
-		  }
-		}
-
+	
 		if (!parentObject || parentJunctionId === -1 || !parentObject.mesh) {
-		  console.error("Nessun profilo valido trovato per la luce", this.getCatalogEntry().code);
+		  console.error("Nessun profilo valido trovato per la luce");
 		  return null;
 		}
+	
+		const otherLights: TemporaryObject[] = [];
+	
+		for (const obj of parentObject.#lineJunctions) {
+			if (obj && obj !== this && 
+				(obj.getCatalogEntry().code.includes('XNRS') || obj.getCatalogEntry().code.includes('SP'))) {
+				otherLights.push(obj);
+			}
+		}
+	
+		const minDistance = 0.08;
+		for (const light of otherLights) {
+			const lightPos = light.getCurvePosition();
+			if (Math.abs(position - lightPos) < minDistance) {
+				console.error("Posizione troppo vicina a un'altra luce");
+				return null;
+			}
+		}
+	
+		this._curvePosition = position;
 		
 		const j1 = parentObject.getCatalogEntry().line_juncts[parentJunctionId];
 		if (!j1) {
@@ -233,47 +205,42 @@ export class TemporaryObject {
 			parentObject.mesh.localToWorld(new Vector3().copy(j1.pointC)),
 			parentObject.mesh.localToWorld(new Vector3().copy(j1.point2))
 		  );
-
+	
 		  const attachPoint = curve.getPointAt(position);
 		  const tan = curve.getTangentAt(position);
-		  const thisJunctId = this.#junctions.findIndex(j => j === parentObject);
-		  if (thisJunctId === -1 && this.#junctions.length > 0) {
-			this.#junctions[0] = parentObject;
-		  }
-
-		  const junctionIndex = thisJunctId !== -1 ? thisJunctId : 0;
+		  
+		  const junctionIndex = 0;
 		  const j2 = this.getCatalogEntry().juncts[junctionIndex];
 		  
 		  if (!j2) {
 			console.error("Giunzione luce non valida");
 			return null;
 		  }
-
+	
 		  this.mesh.rotation.set(0, 0, 0);
 		  const profileDir = tan.clone().normalize();
 		  const isCurvedProfile = parentObject.getCatalogEntry().code.includes('C');
-
+	
 		  let angleY;
-		
 		  if (isCurvedProfile) angleY = Math.atan2(profileDir.x, profileDir.z) + Math.PI;
 		  else angleY = Math.atan2(profileDir.z, profileDir.x);
 		  this.mesh.rotation.set(0, angleY, 0);
-		  const junctionAngle = this.getCatalogEntry().juncts[junctionIndex].angle * (Math.PI/180); // Converti in radianti
+		  const junctionAngle = this.getCatalogEntry().juncts[junctionIndex].angle * (Math.PI/180);
 		  this.mesh.rotateY(junctionAngle);
-
+	
 		  const pos2 = this.mesh.localToWorld(new Vector3().copy(j2));
 		  this.mesh.position.copy({
 			x: this.mesh.position.x + attachPoint.x - pos2.x,
 			y: this.mesh.position.y + attachPoint.y - pos2.y,
 			z: this.mesh.position.z + attachPoint.z - pos2.z,
 		  });
-	  
+	
 		  return j1.group;
 		} catch (error) {
 		  console.error("Errore durante lo spostamento della luce:", error);
 		  return null;
 		}
-	  }
+	}
 
 	setAngle(angle: number) {
 		this.#angle = angle;
@@ -359,79 +326,135 @@ export class TemporaryObject {
 
 	attachLine(other: TemporaryObject, pos: Vector3Like, force: boolean = false): string {
 		if (!this.mesh || !other.mesh)
-		  throw new Error('Can only attach if both objects have a mesh attached');
-
+			throw new Error('Can only attach if both objects have a mesh attached');
+	
 		if (!force && other.#junctions.concat(other.#lineJunctions).some((j) => j !== null))
-		  throw new Error('Can only attach if not already attached to something');
-	  
-		const thisJunctId = 0;
-		const otherJunctId = other.#junctions.indexOf(null);
-		this.#lineJunctions[thisJunctId] = other;
-		other.#junctions[otherJunctId] = this;
-	  
-		const j1 = this.#catalogEntry.line_juncts[thisJunctId];
-		const j2 = other.#catalogEntry.juncts[otherJunctId];
-	  
+			throw new Error('Can only attach if not already attached to something');
+	
+		const j1 = this.#catalogEntry.line_juncts[0];
+		const j2 = other.#catalogEntry.juncts[other.#junctions.indexOf(null)];
+	
 		const curve = new QuadraticBezierCurve3(
-		  this.mesh.localToWorld(new Vector3().copy(j1.point1)),
-		  this.mesh.localToWorld(new Vector3().copy(j1.pointC)),
-		  this.mesh.localToWorld(new Vector3().copy(j1.point2)),
+			this.mesh.localToWorld(new Vector3().copy(j1.point1)),
+			this.mesh.localToWorld(new Vector3().copy(j1.pointC)),
+			this.mesh.localToWorld(new Vector3().copy(j1.point2)),
 		);
-	  
+	
 		const MARGIN = 0.05;
-	  
+	
 		let minI = 0;
 		let minDist = 9001;
 		const points = curve.getSpacedPoints(200);
 		
 		for (let i = 0; i < points.length; i++) {
-		  const t = i / (points.length - 1);
-		  if (t < MARGIN || t > (1 - MARGIN)) continue;
-		  
-		  const dist = points[i].distanceTo(pos);
-		  if (dist < minDist) {
-			minDist = dist;
-			minI = i;
-		  }
+			const t = i / (points.length - 1);
+			if (t < MARGIN || t > (1 - MARGIN)) continue;
+			
+			const dist = points[i].distanceTo(pos);
+			if (dist < minDist) {
+				minDist = dist;
+				minI = i;
+			}
 		}
 		
-		const t = minI / (points.length - 1);
-		other._curvePosition = t;
-		const tan = curve.getTangentAt(t);
-		const attachPoint = curve.getPointAt(t);
+		let finalT = minI / (points.length - 1);
 		const isLight = other.getCatalogEntry().code.includes('XNRS') || 
-				other.getCatalogEntry().code.includes('SP');
-	  
+					  other.getCatalogEntry().code.includes('SP');
+	
+		console.log("=== CONTROLLO COLLISIONE ===");
+		console.log("Oggetto da aggiungere:", other.getCatalogEntry().code);
+		console.log("È una luce?", isLight);
+		console.log("Posizione calcolata:", finalT);
+	
 		if (isLight) {
-		  other.mesh.rotation.set(0, 0, 0);
-	  
-		  const profileDir = tan.clone().normalize();
-		  
-		  const isCurvedProfile = this.getCatalogEntry().code.includes('C');
-		  
-		  let angleY;
-		  
-		  if (isCurvedProfile) angleY = Math.atan2(profileDir.x, profileDir.z) + Math.PI;
-		  else angleY = Math.atan2(profileDir.z, profileDir.x);
-		  
-		  other.mesh.rotation.set(0, angleY, 0);
-		
-		  const junctionAngle = other.getCatalogEntry().juncts[0].angle * (Math.PI/180);
-		  other.mesh.rotateY(junctionAngle);
+			console.log("Controllo altre luci su questo profilo...");
+			
+			// Cerchiamo le luci esistenti negli oggetti del renderer
+			const allObjects = this.#state.getObjects();
+			const existingLights: TemporaryObject[] = [];
+			
+			for (const obj of allObjects) {
+				if (obj === other) continue; // Saltiamo l'oggetto che stiamo aggiungendo
+				
+				const objIsLight = obj.getCatalogEntry().code.includes('XNRS') || 
+								  obj.getCatalogEntry().code.includes('SP');
+				
+				if (objIsLight) {
+					// Controlla se questa luce è attaccata a questo profilo
+					for (let j = 0; j < obj.getJunctions().length; j++) {
+						if (obj.getJunctions()[j] === this) {
+							existingLights.push(obj);
+							console.log("Trovata luce esistente:", obj.getCatalogEntry().code, "posizione:", obj.getCurvePosition());
+							break;
+						}
+					}
+				}
+			}
+	
+			console.log("Luci esistenti trovate:", existingLights.length);
+	
+			const minDistance = 0.08;
+	
+			for (const light of existingLights) {
+				const lightPos = light.getCurvePosition();
+				const distance = Math.abs(finalT - lightPos);
+				
+				console.log(`Luce esistente: posizione ${lightPos}, distanza ${distance}`);
+				
+				if (distance < minDistance) {
+					console.log("COLLISIONE RILEVATA! Spostamento necessario");
+					finalT = lightPos + minDistance;
+					if (finalT > 0.95) {
+						finalT = lightPos - minDistance;
+						if (finalT < 0.05) {
+							console.error("ERRORE: Spazio insufficiente!");
+							throw new Error('Spazio insufficiente per posizionare la luce');
+						}
+					}
+					console.log("Nuova posizione:", finalT);
+					break;
+				}
+			}
 		}
-	  
+	
+		// ORA impostiamo le connessioni
+		const thisJunctId = 0;
+		const otherJunctId = other.#junctions.indexOf(null);
+		this.#lineJunctions[thisJunctId] = other;
+		other.#junctions[otherJunctId] = this;
+		
+		other.setCurvePosition(finalT);
+	
+		console.log("Posizione finale:", other.getCurvePosition());
+		console.log("=== FINE CONTROLLO ===");
+	
+		const tan = curve.getTangentAt(finalT);
+		const attachPoint = curve.getPointAt(finalT);
+	
+		if (isLight) {
+			other.mesh.rotation.set(0, 0, 0);
+			const profileDir = tan.clone().normalize();
+			const isCurvedProfile = this.getCatalogEntry().code.includes('C');
+	
+			let angleY;
+			if (isCurvedProfile) angleY = Math.atan2(profileDir.x, profileDir.z) + Math.PI;
+			else angleY = Math.atan2(profileDir.z, profileDir.x);
+			other.mesh.rotation.set(0, angleY, 0);
+			const junctionAngle = other.getCatalogEntry().juncts[0].angle * (Math.PI/180);
+			other.mesh.rotateY(junctionAngle);
+		}
+	
 		const pos2 = other.mesh.localToWorld(new Vector3().copy(j2));
 		other.mesh.position.copy({
-		  x: other.mesh.position.x + attachPoint.x - pos2.x,
-		  y: other.mesh.position.y + attachPoint.y - pos2.y,
-		  z: other.mesh.position.z + attachPoint.z - pos2.z,
+			x: other.mesh.position.x + attachPoint.x - pos2.x,
+			y: other.mesh.position.y + attachPoint.y - pos2.y,
+			z: other.mesh.position.z + attachPoint.z - pos2.z,
 		});
-	  
+	
 		this.#state.frameObject(other);
 		
 		return j1.group;
-	  }
-	  
+	}
 
 	detach(other: TemporaryObject) {
 		for (let i = 0; i < other.#junctions.length; i++) {
