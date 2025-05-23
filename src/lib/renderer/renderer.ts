@@ -486,19 +486,15 @@ export class Renderer {
 	 * Aggiorna il feedback visivo per il posizionamento delle luci
 	 */
 	updateLightPositionFeedback(lightObj: TemporaryObject | null, position: number): void {
-		// Rimuovi il feedback precedente
 		this.clearLightPositionFeedback();
 
 		if (!lightObj) return;
 
-		// Trova il profilo parent
 		const parentProfile = this.findParentProfileForLight(lightObj);
 		if (!parentProfile) return;
 
 		const isValidPosition = this.isValidLightPosition(parentProfile, lightObj, position);
-		
-		// Crea un indicatore visivo
-		const indicatorColor = isValidPosition ? 0x00ff00 : 0xff0000; // Verde se valido, rosso se non valido
+		const indicatorColor = isValidPosition ? 0x00ff00 : 0xff0000;
 		const indicator = new Mesh(
 			new SphereGeometry(0.8, 16, 16),
 			new MeshBasicMaterial({ 
@@ -510,7 +506,6 @@ export class Renderer {
 		);
 		indicator.renderOrder = 10;
 
-		// Posiziona l'indicatore
 		if (parentProfile.mesh) {
 			const junctionId = this.findJunctionIdForProfile(parentProfile, lightObj);
 			const curveData = parentProfile.getCatalogEntry().line_juncts[junctionId];
@@ -524,11 +519,9 @@ export class Renderer {
 				
 				const indicatorPosition = curve.getPointAt(position);
 				indicator.position.copy(indicatorPosition);
-				indicator.position.y += 2; // Solleva l'indicatore sopra la curva
+				indicator.position.y += 2;
 			}
 		}
-
-		// Salva il riferimento per poterlo rimuovere
 		this.#lightFeedbackIndicator = indicator;
 		this.#scene.add(indicator);
 	}
@@ -539,8 +532,7 @@ export class Renderer {
 	clearLightPositionFeedback(): void {
 		if (this.#lightFeedbackIndicator) {
 			this.#scene.remove(this.#lightFeedbackIndicator);
-			
-			// Gestisce sia Material singolo che array di Material
+
 			if (Array.isArray(this.#lightFeedbackIndicator.material)) {
 				this.#lightFeedbackIndicator.material.forEach(mat => mat.dispose());
 			} else {

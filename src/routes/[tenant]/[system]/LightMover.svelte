@@ -1,4 +1,3 @@
-<!-- src/routes/[tenant]/[system]/LightMover.svelte -->
 <script lang="ts">
     import { button } from '$lib';
     import { cn } from '$shad/utils';
@@ -19,7 +18,7 @@
         selectedLight = null as TemporaryObject | null,
         onToggle = () => {},
         onMove = () => {},
-        onPreview = () => {} // Nuova funzione per il preview
+        onPreview = () => {}
     } = $props();
 
     let isValidPosition = $state(true);
@@ -38,7 +37,6 @@
     }
 });
 
-    // Pulisci il feedback quando il componente viene smontato
     $effect(() => {
         return () => {
             if (renderer) {
@@ -58,17 +56,13 @@
         const input = e.target as HTMLInputElement;
         const newPosition = parseFloat(input.value);
         position = newPosition;
-        // Chiama la funzione di preview per aggiornare il feedback visivo
         onPreview(newPosition);
     }
 
     function handleSliderMouseUp() {
-        // Quando l'utente rilascia il slider, applica la posizione solo se valida
         if (isValidPosition) {
             onMove(position);
         } else {
-            // Se la posizione non è valida, ripristina la posizione precedente
-            // oppure trova la posizione valida più vicina
             if (selectedLight && renderer) {
                 const parentProfile = renderer.findParentProfileForLight(selectedLight);
                 if (parentProfile) {
@@ -146,7 +140,6 @@
                 </button>
             </div>
 
-            <!-- Feedback sulla validità della posizione -->
             <div class="text-center text-xs text-gray-500 mb-2">
                 Posizione: {Math.round(position * 100)}%
             </div>
@@ -217,7 +210,6 @@
         transition: background-color 0.2s;
     }
 
-    /* Thumb verde quando la posizione è valida */
     input[type=range]:not(.invalid)::-webkit-slider-thumb {
         background: #22c55e;
     }
@@ -230,7 +222,6 @@
         background: #22c55e;
     }
 
-    /* Thumb rosso quando la posizione non è valida */
     input[type=range].invalid::-webkit-slider-thumb {
         background: #ef4444;
     }

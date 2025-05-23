@@ -34,7 +34,6 @@
 	let renderer: Renderer | undefined = $state();
 	let loaded: SvelteSet<string> = $state(new SvelteSet());
 
-	// La stanza virtuale è sempre disabilitata nella pagina di aggiunta
 	let virtualRoomDisabled = $state(true);
 
 	let configShape = $state<{ angle: number; radius: number }>();
@@ -77,8 +76,6 @@
 				}
 
 				pushState('', {
-					// CORRECTNESS: chosenFamily was asserted to not be undefined when entering the if branch,
-					// and after chosenFamily is initialized, it can never become undefined again. Same for chosenItem
 					chosenFamily: chosenFamily as string,
 					chosenItem: data.families[chosenFamily as string].items[0].code,
 					reference,
@@ -187,38 +184,47 @@
 						{@const isDisabled =
 							hasPowerSupply && item.items.some((obj) => data.catalog[obj.code].power > 0)}
 
-						<RadioGroup.Item
-							class="relative flex flex-col items-center justify-center disabled:cursor-not-allowed"
-							value={item.code}
-							id={item.code}
-							disabled={isDisabled}
-						>
-							{@const url = data.supabase.storage
-								.from(data.tenant)
-								.getPublicUrl(`families/${item.code}.webp`).data.publicUrl}
+				<RadioGroup.Item
+					class="relative flex flex-col items-center justify-center disabled:cursor-not-allowed"
+					value={item.code}
+					id={item.code}
+					disabled={isDisabled}
+				>
+					{@const url = data.supabase.storage
+						.from(data.tenant)
+						.getPublicUrl(`families/${item.code}.webp`).data.publicUrl}
 
-							<img
-								src={url}
-								width="125"
-								height="125"
-								alt=""
-								onload={() => loaded.add(url)}
-								class={cn(
-									'h-[125px] rounded-full outline outline-0 outline-primary transition-all',
-									item.code === chosenFamily && 'outline-4',
-									isDisabled && 'outline-dashed outline-2 outline-gray-400 grayscale',
-									loaded.has(url) || 'opacity-0',
-								)}
-							/>
-							<div
-								class={cn(
-									'absolute top-0 z-10 h-[125px] w-[125px] animate-pulse rounded-full bg-gray-400',
-									loaded.has(url) && 'hidden',
-								)}
-							></div>
+					<div class="relative">
+						<img
+							src={url}
+							width="125"
+							height="125"
+							alt=""
+							onload={() => loaded.add(url)}
+							class={cn(
+								'h-[125px] rounded-full outline outline-0 outline-primary transition-all',
+								item.code === chosenFamily && 'outline-4',
+								isDisabled && 'outline-dashed outline-2 outline-gray-400 grayscale',
+								loaded.has(url) || 'opacity-0',
+							)}
+						/>
 
-							{item.displayName}
-						</RadioGroup.Item>
+						{#if item.code === chosenFamily}
+						<div 
+							class="absolute top-0 left-0 w-[125px] h-[125px] rounded-full border-2 border-yellow-400 pointer-events-none"
+						></div>
+						{/if}
+						
+						<div
+							class={cn(
+								'absolute top-0 z-10 h-[125px] w-[125px] animate-pulse rounded-full bg-gray-400',
+								loaded.has(url) && 'hidden',
+							)}
+						></div>
+					</div>
+
+					{item.displayName}
+				</RadioGroup.Item>
 					{/each}
 				</RadioGroup.Root>
 
