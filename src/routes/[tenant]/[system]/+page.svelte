@@ -89,7 +89,6 @@
 function handleLightPositionPreview(position: number) {
 	if (selectedLight && renderer) {
 		lightPosition = position;
-		// Aggiorna solo il feedback visivo senza spostare realmente la luce
 		renderer.updateLightPositionFeedback(selectedLight, position);
 	}
 }

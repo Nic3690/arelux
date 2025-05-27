@@ -8,7 +8,7 @@
 	import { deleteFamily, deleteObject } from '$lib/admin';
 	import { selectedSystem } from '$lib';
 
-	export let data: PageData;
+	let { data }: { data: PageData } = $props();
 </script>
 
 <div class="flex flex-col items-center pb-6">
@@ -45,7 +45,8 @@
 					<Button
 						variant="outline"
 						class="mr-6"
-						on:click={() => {
+						onclick={() => {
+							console.log("CLICCATO EDIT OBJECT:", obj.code);
 							goto(`/${data.tenant}/admin/add`, {
 								state: { editing: obj.code } as App.PageState,
 							});
@@ -53,7 +54,13 @@
 					>
 						Edit
 					</Button>
-					<Button variant="destructive" on:click={() => deleteObject(data.tenant, obj.code)}>
+					<Button 
+						variant="destructive" 
+						onclick={() => {
+							console.log("CLICCATO DELETE OBJECT:", obj.code);
+							deleteObject(data.tenant, obj.code);
+						}}
+					>
 						Delete
 					</Button>
 				</TableCell>
@@ -86,7 +93,8 @@
 					<Button
 						variant="outline"
 						class="mr-6"
-						on:click={() => {
+						onclick={() => {
+							console.log("CLICCATO EDIT FAMILY:", obj.code);
 							goto(`/${data.tenant}/admin/familyadd`, {
 								state: { editing: obj.code } as App.PageState,
 							});
@@ -94,7 +102,13 @@
 					>
 						Edit
 					</Button>
-					<Button variant="destructive" on:click={() => deleteFamily(data.tenant, obj.code)}>
+					<Button 
+						variant="destructive" 
+						onclick={() => {
+							console.log("CLICCATO DELETE FAMILY:", obj.code);
+							deleteFamily(data.tenant, obj.code);
+						}}
+					>
 						Delete
 					</Button>
 				</TableCell>

@@ -314,11 +314,6 @@ export class Renderer {
 		});
 	}
 
-	/**
-	 * @param lightObj L'oggetto luce da spostare
-	 * @param position La posizione lungo la curva (0-1)
-	 * @returns True se lo spostamento è riuscito
-	 */
 	moveLight(lightObj: TemporaryObject, position: number): boolean {
 		const isLight = lightObj.getCatalogEntry().code.includes('XNRS') || 
 						lightObj.getCatalogEntry().code.includes('SP');
@@ -482,9 +477,6 @@ export class Renderer {
 		return bestPosition;
 	}
 
-	/**
-	 * Aggiorna il feedback visivo per il posizionamento delle luci
-	 */
 	updateLightPositionFeedback(lightObj: TemporaryObject | null, position: number): void {
 		this.clearLightPositionFeedback();
 
@@ -526,9 +518,6 @@ export class Renderer {
 		this.#scene.add(indicator);
 	}
 
-	/**
-	 * Rimuove il feedback visivo
-	 */
 	clearLightPositionFeedback(): void {
 		if (this.#lightFeedbackIndicator) {
 			this.#scene.remove(this.#lightFeedbackIndicator);
