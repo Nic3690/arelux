@@ -919,9 +919,7 @@ export class Renderer {
 		// NON aggiornare la stanza virtuale - deve rimanere fissa
 	}
 
-	/**
-	 * Centra il sistema nella stanza virtuale calcolando il baricentro dei profili
-	 */
+
 	centerSystemInRoom(): void {
 		if (!this.#virtualRoom) return;
 
@@ -947,8 +945,8 @@ export class Renderer {
 		let systemCenter: Vector3;
 
 		if (profiles.length > 0) {
-			// Calcola il baricentro dei profili usando i loro punti estremi
-			systemCenter = this.calculateProfilesBarycenter(profiles);
+			// Calcola il centro del sistema di profili
+			systemCenter = this.calculateProfilesCenter(profiles);
 		} else {
 			// Fallback al bounding box per oggetti non-profilo
 			const bbox = new Box3();
@@ -979,13 +977,47 @@ export class Renderer {
 		// Aggiorna l'offset del sistema
 		this.#systemOffset.add(offset);
 
+		// Assicurati che la stanza virtuale rimanga centrata a (0,0,0)
+		this.createVirtualRoom(this.#currentRoomDimensions, false, this.#virtualRoom.visible);
+
 		console.log(`✅ Sistema centrato: offset applicato (${offset.x.toFixed(1)}, ${offset.y.toFixed(1)}, ${offset.z.toFixed(1)})`);
+		console.log(`🎯 Centro calcolato: (${systemCenter.x.toFixed(1)}, ${systemCenter.y.toFixed(1)}, ${systemCenter.z.toFixed(1)})`);
 	}
 
-	/**
-	 * Calcola il baricentro dei profili considerando i loro punti estremi
-	 */
-	private calculateProfilesBarycenter(profiles: TemporaryObject[]): Vector3 {
+	// Sostituisci anche la funzione calculateProfilesBarycenter con questa versione migliorata:
+	private calculateProfilesCenter(profiles: TemporaryObject[]): Vector3 {
+		if (profiles.length === 0) {
+			return new Vector3(0, 0, 0);
+		}
+
+		if (profiles.length === 1) {
+			// ✅ CASO SPECIALE: Singolo profilo - calcola il centro esatto del profilo
+			const profile = profiles[0];
+			if (!profile.mesh) return new Vector3(0, 0, 0);
+
+			const lineJuncts = profile.getCatalogEntry().line_juncts;
+			if (lineJuncts.length === 0) return new Vector3(0, 0, 0);
+
+			const lineJunct = lineJuncts[0];
+			
+			// Converti i punti estremi nello spazio mondiale
+			const point1World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point1));
+			const point2World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point2));
+			
+			// Il centro del profilo è esattamente a metà tra i due punti estremi
+			const profileCenter = new Vector3()
+				.addVectors(point1World, point2World)
+				.multiplyScalar(0.5);
+
+			console.log(`📏 Singolo profilo ${profile.getCatalogEntry().code}:`);
+			console.log(`   Point1: (${point1World.x.toFixed(1)}, ${point1World.y.toFixed(1)}, ${point1World.z.toFixed(1)})`);
+			console.log(`   Point2: (${point2World.x.toFixed(1)}, ${point2World.y.toFixed(1)}, ${point2World.z.toFixed(1)})`);
+			console.log(`   Centro profilo: (${profileCenter.x.toFixed(1)}, ${profileCenter.y.toFixed(1)}, ${profileCenter.z.toFixed(1)})`);
+
+			return profileCenter;
+		}
+
+		// ✅ CASO MULTIPLI PROFILI: Calcola il baricentro di tutti i punti estremi
 		const extremePoints: Vector3[] = [];
 
 		for (const profile of profiles) {
@@ -994,10 +1026,8 @@ export class Renderer {
 			const lineJuncts = profile.getCatalogEntry().line_juncts;
 			if (lineJuncts.length === 0) continue;
 
-			// Per ogni profilo, prendi i punti estremi della prima line junction
 			const lineJunct = lineJuncts[0];
 			
-			// Converti i punti estremi nello spazio mondiale
 			const point1World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point1));
 			const point2World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point2));
 			
@@ -1008,10 +1038,6 @@ export class Renderer {
 			console.log(`   Point2: (${point2World.x.toFixed(1)}, ${point2World.y.toFixed(1)}, ${point2World.z.toFixed(1)})`);
 		}
 
-		if (extremePoints.length === 0) {
-			return new Vector3(0, 0, 0);
-		}
-
 		// Calcola il baricentro di tutti i punti estremi
 		const barycenter = new Vector3();
 		for (const point of extremePoints) {
@@ -1019,7 +1045,7 @@ export class Renderer {
 		}
 		barycenter.divideScalar(extremePoints.length);
 
-		console.log(`🎯 Baricentro calcolato da ${extremePoints.length} punti estremi:`);
+		console.log(`🎯 Baricentro multipli profili calcolato da ${extremePoints.length} punti estremi:`);
 		console.log(`   Baricentro: (${barycenter.x.toFixed(1)}, ${barycenter.y.toFixed(1)}, ${barycenter.z.toFixed(1)})`);
 
 		return barycenter;

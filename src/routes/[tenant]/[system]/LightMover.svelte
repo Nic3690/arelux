@@ -25,17 +25,17 @@
     let suggestedPosition = $state(position);
 
     $effect(() => {
-    if (active && selectedLight && renderer) {
-        const parentProfile = renderer.findParentProfileForLight(selectedLight);
-        if (parentProfile) {
-            isValidPosition = renderer.isValidLightPosition(parentProfile, selectedLight, position);
-            
-            if (!isValidPosition) {
-                suggestedPosition = renderer.findNearestValidLightPosition(parentProfile, selectedLight, position);
+        if (active && selectedLight && renderer) {
+            const parentProfile = renderer.findParentProfileForLight(selectedLight);
+            if (parentProfile) {
+                isValidPosition = renderer.isValidLightPosition(parentProfile, selectedLight, position);
+                
+                if (!isValidPosition) {
+                    suggestedPosition = renderer.findNearestValidLightPosition(parentProfile, selectedLight, position);
+                }
             }
         }
-    }
-});
+    });
 
     $effect(() => {
         return () => {
@@ -46,11 +46,11 @@
     });
 
     function handleMove(increment: number) {
-    const adjustedIncrement = invertedControls ? -increment : increment;
-    let newPosition = Math.max(0.01, Math.min(0.99, position + adjustedIncrement));
-    
-    onMove(newPosition);
-}
+        const adjustedIncrement = invertedControls ? -increment : increment;
+        let newPosition = Math.max(0.01, Math.min(0.99, position + adjustedIncrement));
+        
+        onMove(newPosition);
+    }
 
     function handleSliderChange(e: Event) {
         const input = e.target as HTMLInputElement;
@@ -86,21 +86,9 @@
     }
 </script>
 
-<div class="flex flex-col gap-2">
-    <button 
-        class={cn(
-            button({ class: 'flex items-center justify-center gap-2' }),
-            active && 'bg-yellow-300'
-        )}
-        onclick={onToggle as MouseEventHandler<HTMLButtonElement>}
-        {disabled}
-    >
-        <LightbulbFilament size={20} />
-        <span>Move Lights</span>
-    </button>
-
+<div class="relative flex flex-col gap-2">
     {#if active && selectedLightId}
-        <div class="flex flex-col gap-2 rounded bg-box p-3">
+        <div class="absolute bottom-full mb-2 flex flex-col gap-2 rounded bg-box p-3 shadow-lg border min-w-64">
             <div class="flex items-center justify-center">
                 <button 
                     onclick={() => handleMove(-0.05)}
@@ -125,8 +113,8 @@
                         class={cn(
                             "w-full h-2 rounded-lg appearance-none cursor-pointer",
                             isValidPosition ? "bg-green-200" : "bg-red-200 invalid"
-                    )}
-                />
+                        )}
+                    />
                 </div>
 
                 <button 
@@ -176,10 +164,22 @@
             {/if}
         </div>
     {:else if active}
-        <div class="text-center px-3 py-2 bg-box rounded">
+        <div class="absolute bottom-full mb-2 text-center px-3 py-2 bg-box rounded shadow-lg border min-w-64">
             Clicca su una luce per selezionarla e spostarla
         </div>
     {/if}
+
+    <button 
+        class={cn(
+            button({ class: 'flex items-center justify-center gap-2' }),
+            active && 'bg-yellow-300'
+        )}
+        onclick={onToggle as MouseEventHandler<HTMLButtonElement>}
+        {disabled}
+    >
+        <LightbulbFilament size={20} />
+        <span>Move Lights</span>
+    </button>
 </div>
 
 <style>

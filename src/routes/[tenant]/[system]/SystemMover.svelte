@@ -79,22 +79,9 @@
     }
 </script>
 
-<div class="flex flex-col gap-2">
-    <button 
-        class={cn(
-            button({ class: 'flex items-center justify-center gap-2' }),
-            active && 'bg-yellow-300'
-        )}
-        onclick={onToggle as MouseEventHandler<HTMLButtonElement>}
-        {disabled}
-        title={active ? 'Disattiva modalità sposta oggetti' : 'Attiva modalità sposta oggetti'}
-    >
-        <ArrowsOutCardinal size={20} />
-        <span>Move Objects</span>
-    </button>
-
+<div class="relative flex flex-col gap-2">
     {#if active}
-        <div class="flex flex-col gap-3 rounded bg-box p-4 min-w-64">
+        <div class="absolute bottom-full mb-2 flex flex-col gap-3 rounded bg-box p-4 min-w-64 shadow-lg border">
             <div class="text-center">
                 <div class="text-sm font-medium">Sposta Oggetti</div>
                 <div class="text-xs text-gray-600">Incrementi di 10cm</div>
@@ -152,4 +139,17 @@
             </div>
         </div>
     {/if}
+
+    <button 
+        class={cn(
+            button({ class: 'flex items-center justify-center gap-2' }),
+            active && 'bg-yellow-300'
+        )}
+        onclick={onToggle as MouseEventHandler<HTMLButtonElement>}
+        {disabled}
+        title={active ? 'Disattiva modalità sposta oggetti' : 'Attiva modalità sposta oggetti'}
+    >
+        <ArrowsOutCardinal size={20} />
+        <span>Move Objects</span>
+    </button>
 </div>
