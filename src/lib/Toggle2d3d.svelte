@@ -4,6 +4,7 @@
 	import { flyAndScale } from '$shad/utils';
 	import X from 'phosphor-svelte/lib/X';
 	import House from 'phosphor-svelte/lib/House';
+	import ArrowsHorizontal from 'phosphor-svelte/lib/ArrowsHorizontal';
 	import { button } from '$lib';
 	import { page } from '$app/state';
 	import { Renderer } from './renderer/renderer';
@@ -20,10 +21,13 @@
 	} = $props();
 
 	let showVirtualRoom = $state(false);
-	// Cambiato da metri a decimetri (1 decimetro = 10cm)
-	let roomWidth = $state(30);   // 3m = 30 decimetri
-	let roomHeight = $state(30);  // 3m = 30 decimetri  
-	let roomDepth = $state(30);   // 3m = 30 decimetri
+	let showRoomSettings = $state(false);
+	let roomWidth = $state(30);
+	let roomHeight = $state(30);
+	let roomDepth = $state(30);
+	let tempRoomWidth = $state(30);
+	let tempRoomHeight = $state(30);
+	let tempRoomDepth = $state(30);
 	
 	function toggleVirtualRoom() {
 		if (virtualRoomDisabled) return;
@@ -34,7 +38,6 @@
 		if (renderer) {
 			renderer.debugRoomAndProfiles();
 			if (showVirtualRoom) {
-				// Converti da decimetri a metri per il renderer
 				renderer.resizeVirtualRoom({ 
 					width: roomWidth / 10, 
 					height: roomHeight / 10, 
@@ -45,9 +48,41 @@
 		}
 	}
 
+	function openRoomSettings() {
+		tempRoomWidth = roomWidth;
+		tempRoomHeight = roomHeight;
+		tempRoomDepth = roomDepth;
+		showRoomSettings = true;
+	}
+
+	function confirmRoomSettings() {
+		roomWidth = tempRoomWidth;
+		roomHeight = tempRoomHeight;
+		roomDepth = tempRoomDepth;
+		
+		if (renderer) {
+			const dimensions = {
+				width: roomWidth / 10,
+				height: roomHeight / 10,
+				depth: roomDepth / 10
+			};
+
+			renderer.setCurrentRoomDimensions(dimensions);
+
+			if (showVirtualRoom) {
+				renderer.resizeVirtualRoom(dimensions);
+			}
+		}
+		
+		showRoomSettings = false;
+	}
+
+	function cancelRoomSettings() {
+		showRoomSettings = false;
+	}
+
 	function updateRoomSize() {
 		if (renderer) {
-			// Converti da decimetri a metri
 			const dimensions = {
 				width: roomWidth / 10,
 				height: roomHeight / 10,
@@ -101,6 +136,17 @@
 	>
 		<House size={20} />
 	</button>
+
+	<button 
+		class={button({ 
+			size: 'square', 
+			class: 'font-bold flex items-center justify-center'
+		})}
+		onclick={openRoomSettings}
+		title="Modifica dimensioni stanza"
+	>
+		<ArrowsHorizontal size={20} />
+	</button>
 	{/if}
 
 	<Dialog.Root>
@@ -145,57 +191,100 @@
 
 					<h2 class="mb-2 mt-4 text-xl font-bold">Stanza virtuale:</h2>
 					<p>La stanza virtuale è un riferimento visivo che aiuta a visualizzare le dimensioni reali degli elementi. Può essere attivata o disattivata con il pulsante della casa.</p>
-					
-					{#if is3d && renderer && !virtualRoomDisabled}
-						<div class="mt-4 flex flex-col gap-3">
-							<div class="flex items-center">
-								<label for="roomWidth" class="mr-2 w-24">Larghezza:</label>
-								<input 
-									id="roomWidth" 
-									type="range" 
-									min="10" 
-									max="100" 
-									step="1" 
-									class="w-40"
-									bind:value={roomWidth}
-									onchange={updateRoomSize}
-								/>
-								<span class="ml-2 w-16 text-right">{(roomWidth / 10).toFixed(1)}m</span>
-							</div>
-							<div class="flex items-center">
-								<label for="roomHeight" class="mr-2 w-24">Altezza:</label>
-								<input 
-									id="roomHeight" 
-									type="range" 
-									min="20" 
-									max="50" 
-									step="1" 
-									class="w-40"
-									bind:value={roomHeight}
-									onchange={updateRoomSize}
-								/>
-								<span class="ml-2 w-16 text-right">{(roomHeight / 10).toFixed(1)}m</span>
-							</div>
-							<div class="flex items-center">
-								<label for="roomDepth" class="mr-2 w-24">Profondità:</label>
-								<input 
-									id="roomDepth" 
-									type="range" 
-									min="10" 
-									max="100" 
-									step="1" 
-									class="w-40"
-									bind:value={roomDepth}
-									onchange={updateRoomSize}
-								/>
-								<span class="ml-2 w-16 text-right">{(roomDepth / 10).toFixed(1)}m</span>
-							</div>
-						</div>
-					{/if}
 				</Dialog.Description>
 
 				<Dialog.Close
 					class="absolute right-5 top-5 rounded-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-98"
+				>
+					<div>
+						<X class="size-5 text-foreground" />
+						<span class="sr-only">Close</span>
+					</div>
+				</Dialog.Close>
+			</Dialog.Content>
+		</Dialog.Portal>
+	</Dialog.Root>
+
+	<Dialog.Root bind:open={showRoomSettings}>
+		<Dialog.Portal>
+			<Dialog.Overlay
+				transition={fade}
+				transitionConfig={{ duration: 150 }}
+				class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+			/>
+			<Dialog.Content
+				transition={flyAndScale}
+				class="fixed left-[50%] top-[50%] z-50 w-full max-w-[94%] translate-x-[-50%] translate-y-[-50%] rounded bg-background p-5 shadow-popover outline-none lg:w-2/5"
+			>
+				<Dialog.Title class="flex w-full items-center text-left text-2xl font-bold">
+					Impostazioni Stanza Virtuale
+				</Dialog.Title>
+				<Separator.Root class="-mx-5 mb-3 mt-3 block h-px bg-muted" />
+
+				<Dialog.Description>
+					<p class="mb-4">Modifica le dimensioni della stanza virtuale per adattarla al tuo progetto:</p>
+					
+					<div class="flex flex-col gap-4">
+						<div class="flex items-center">
+							<label for="tempRoomWidth" class="mr-2 w-24">Larghezza:</label>
+							<input 
+								id="tempRoomWidth" 
+								type="range" 
+								min="10" 
+								max="100" 
+								step="1" 
+								class="w-40"
+								bind:value={tempRoomWidth}
+							/>
+							<span class="ml-2 w-16 text-right">{(tempRoomWidth / 10).toFixed(1)}m</span>
+						</div>
+						<div class="flex items-center">
+							<label for="tempRoomHeight" class="mr-2 w-24">Altezza:</label>
+							<input 
+								id="tempRoomHeight" 
+								type="range" 
+								min="20" 
+								max="50" 
+								step="1" 
+								class="w-40"
+								bind:value={tempRoomHeight}
+							/>
+							<span class="ml-2 w-16 text-right">{(tempRoomHeight / 10).toFixed(1)}m</span>
+						</div>
+						<div class="flex items-center">
+							<label for="tempRoomDepth" class="mr-2 w-24">Profondità:</label>
+							<input 
+								id="tempRoomDepth" 
+								type="range" 
+								min="10" 
+								max="100" 
+								step="1" 
+								class="w-40"
+								bind:value={tempRoomDepth}
+							/>
+							<span class="ml-2 w-16 text-right">{(tempRoomDepth / 10).toFixed(1)}m</span>
+						</div>
+					</div>
+
+					<div class="mt-6 flex gap-3">
+						<button 
+							class={button({ color: 'secondary', class: 'flex-1' })}
+							onclick={cancelRoomSettings}
+						>
+							Annulla
+						</button>
+						<button 
+							class={button({ class: 'flex-1' })}
+							onclick={confirmRoomSettings}
+						>
+							Conferma
+						</button>
+					</div>
+				</Dialog.Description>
+
+				<Dialog.Close
+					class="absolute right-5 top-5 rounded-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-98"
+					onclick={cancelRoomSettings}
 				>
 					<div>
 						<X class="size-5 text-foreground" />
