@@ -8,7 +8,7 @@
     };
 
     let { 
-        standardLength = 1000,
+        standardLength = 2500,
         value = $bindable(standardLength), 
         onsubmit 
     }: Props = $props();

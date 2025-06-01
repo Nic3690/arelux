@@ -7,6 +7,7 @@
 	import { button } from '$lib';
 	import { page } from '$app/state';
 	import { Renderer } from './renderer/renderer';
+	import { render } from 'svelte/server';
 
 	let { 
 		is3d = $bindable(page.data.settings.allow3d), 
@@ -27,8 +28,10 @@
 		if (virtualRoomDisabled) return;
 		
 		showVirtualRoom = !showVirtualRoom;
+
 		
 		if (renderer) {
+			renderer.debugRoomAndProfiles();
 			if (showVirtualRoom) {
 				renderer.resizeVirtualRoom({ 
 					width: roomWidth, 

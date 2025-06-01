@@ -14,7 +14,7 @@
 
     let valueInvalid = $state(false);
     let isCustomLength = $state(false);
-    let valueLen = $state(1000);
+    let valueLen = $state(2500);
     let items: { code: string; len: number }[] = $state([]);
     let debugInfo = $state("");
 

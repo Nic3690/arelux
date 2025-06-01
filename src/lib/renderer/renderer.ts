@@ -1008,4 +1008,73 @@ export class Renderer {
 	setCurrentRoomDimensions(dimensions: RoomDimensions): void {
 		this.#currentRoomDimensions = dimensions;
 	}
+
+	debugRoomAndProfiles(): void {
+		console.log("🏠 === DEBUG STANZA VIRTUALE ===");
+		
+		// Debug dimensioni stanza (convertite in mm)
+		const roomDimensions = {
+			larghezza: this.#currentRoomDimensions.width * 1000, // da metri a mm
+			altezza: this.#currentRoomDimensions.height * 1000,
+			profondità: this.#currentRoomDimensions.depth * 1000
+		};
+		
+		console.log("📏 Dimensioni stanza (mm):", roomDimensions);
+		console.log(`   - Larghezza: ${roomDimensions.larghezza}mm`);
+		console.log(`   - Altezza: ${roomDimensions.altezza}mm`);
+		console.log(`   - Profondità: ${roomDimensions.profondità}mm`);
+		
+		// Debug profili presenti
+		const profiles = this.#objects.filter(obj => {
+			const catalogEntry = obj.getCatalogEntry();
+			const isProfile = catalogEntry.line_juncts && catalogEntry.line_juncts.length > 0;
+			return isProfile;
+		});
+		
+		console.log(`🔧 Profili presenti: ${profiles.length}`);
+		
+		profiles.forEach((profile, index) => {
+			const catalogEntry = profile.getCatalogEntry();
+			console.log(`   ${index + 1}. Codice: ${catalogEntry.code}`);
+			
+			// Cerca le dimensioni nella famiglia
+			for (const [familyCode, family] of Object.entries(this.families)) {
+				const familyItem = family.items.find(item => item.code === catalogEntry.code);
+				if (familyItem) {
+					console.log(`      - Sistema: ${family.system}`);
+					console.log(`      - Lunghezza: ${familyItem.len}mm`);
+					console.log(`      - Raggio: ${familyItem.radius}mm`);
+					console.log(`      - Angolo: ${familyItem.deg}°`);
+					if (familyItem.total_length) {
+						console.log(`      - Lunghezza totale: ${familyItem.total_length.toFixed(2)}mm`);
+					}
+					break;
+				}
+			}
+			
+			// Debug posizione del profilo nello spazio 3D
+			if (profile.mesh) {
+				const position = profile.mesh.position;
+				console.log(`      - Posizione: x=${position.x.toFixed(1)}, y=${position.y.toFixed(1)}, z=${position.z.toFixed(1)}`);
+			}
+		});
+		
+		// Debug rapporto scala stanza/profili
+		if (profiles.length > 0) {
+			const maxProfileLength = Math.max(...profiles.map(p => {
+				for (const family of Object.values(this.families)) {
+					const item = family.items.find(i => i.code === p.getCatalogEntry().code);
+					if (item) return item.len || 0;
+				}
+				return 0;
+			}));
+			
+			console.log("📊 Analisi scala:");
+			console.log(`   - Profilo più lungo: ${maxProfileLength}mm`);
+			console.log(`   - Larghezza stanza: ${roomDimensions.larghezza}mm`);
+			console.log(`   - Rapporto profilo/stanza: ${((maxProfileLength / roomDimensions.larghezza) * 100).toFixed(1)}%`);
+		}
+		
+		console.log("🏠 === FINE DEBUG ===");
+	}
 }
