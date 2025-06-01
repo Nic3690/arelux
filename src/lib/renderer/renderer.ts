@@ -1037,18 +1037,49 @@ export class Renderer {
 			const catalogEntry = profile.getCatalogEntry();
 			console.log(`   ${index + 1}. Codice: ${catalogEntry.code}`);
 			
-			// Cerca le dimensioni nella famiglia
+			// ✅ TROVA L'OGGETTO SALVATO CORRISPONDENTE
+			const savedObjects = this.getSavedObjects();
+			const savedObject = savedObjects.find(obj => obj.object?.id === profile.id);
+			
+			// ✅ TROVA LA LUNGHEZZA DALLA FAMIGLIA
+			let catalogLength = 0;
+			let familyInfo = null;
+			
 			for (const [familyCode, family] of Object.entries(this.families)) {
 				const familyItem = family.items.find(item => item.code === catalogEntry.code);
 				if (familyItem) {
-					console.log(`      - Sistema: ${family.system}`);
-					console.log(`      - Lunghezza: ${familyItem.len}mm`);
-					console.log(`      - Raggio: ${familyItem.radius}mm`);
-					console.log(`      - Angolo: ${familyItem.deg}°`);
-					if (familyItem.total_length) {
-						console.log(`      - Lunghezza totale: ${familyItem.total_length.toFixed(2)}mm`);
-					}
+					catalogLength = familyItem.len || 0;
+					familyInfo = {
+						system: family.system,
+						radius: familyItem.radius,
+						angle: familyItem.deg
+					};
 					break;
+				}
+			}
+			
+			if (savedObject) {
+				// Usa la lunghezza effettiva dall'oggetto salvato
+				const effectiveLength = savedObject.length || catalogLength;
+				const isCustomLength = savedObject.customLength || false;
+				
+				console.log(`      - Lunghezza effettiva: ${effectiveLength}mm ${isCustomLength ? '(personalizzata)' : '(standard)'}`);
+				
+				if (familyInfo) {
+					console.log(`      - Sistema: ${familyInfo.system}`);
+					if (isCustomLength) {
+						console.log(`      - Lunghezza catalogo: ${catalogLength}mm`);
+					}
+					console.log(`      - Raggio: ${familyInfo.radius}mm`);
+					console.log(`      - Angolo: ${familyInfo.angle}°`);
+				}
+			} else {
+				// Fallback al catalogo se non trova l'oggetto salvato
+				if (familyInfo) {
+					console.log(`      - Sistema: ${familyInfo.system}`);
+					console.log(`      - Lunghezza (catalogo): ${catalogLength}mm`);
+					console.log(`      - Raggio: ${familyInfo.radius}mm`);
+					console.log(`      - Angolo: ${familyInfo.angle}°`);
 				}
 			}
 			
@@ -1059,22 +1090,36 @@ export class Renderer {
 			}
 		});
 		
-		// Debug rapporto scala stanza/profili
+		// ✅ DEBUG CON LUNGHEZZE EFFETTIVE
 		if (profiles.length > 0) {
-			const maxProfileLength = Math.max(...profiles.map(p => {
+			const savedObjects = this.getSavedObjects();
+			const effectiveLengths = profiles.map(p => {
+				const savedObject = savedObjects.find(obj => obj.object?.id === p.id);
+				if (savedObject && savedObject.length) {
+					return savedObject.length;
+				}
+				// Fallback alla famiglia
 				for (const family of Object.values(this.families)) {
 					const item = family.items.find(i => i.code === p.getCatalogEntry().code);
 					if (item) return item.len || 0;
 				}
 				return 0;
-			}));
+			});
 			
-			console.log("📊 Analisi scala:");
+			const maxProfileLength = Math.max(...effectiveLengths);
+			
+			console.log("📊 Analisi scala (con lunghezze effettive):");
 			console.log(`   - Profilo più lungo: ${maxProfileLength}mm`);
 			console.log(`   - Larghezza stanza: ${roomDimensions.larghezza}mm`);
 			console.log(`   - Rapporto profilo/stanza: ${((maxProfileLength / roomDimensions.larghezza) * 100).toFixed(1)}%`);
 		}
 		
 		console.log("🏠 === FINE DEBUG ===");
+	}
+
+	// ✅ AGGIUNGI QUESTO METODO AL RENDERER
+	getSavedObjects() {
+		// Importa il store objects e restituisce il suo valore
+		return get(objects);
 	}
 }

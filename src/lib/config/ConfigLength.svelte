@@ -77,6 +77,7 @@
         if (matchingItem) {
             value = matchingItem.code;
             isCustomLength = false;
+            console.log('🔧 ConfigLength: lunghezza standard', { code: value, length: valueLen });
             if (onsubmit) onsubmit(value, valueLen, false);
         } else {
             isCustomLength = true;
@@ -84,6 +85,12 @@
             
             if (closestModel && onsubmit) {
                 value = closestModel.code;
+                console.log('🔧 ConfigLength: lunghezza personalizzata', { 
+                    code: closestModel.code, 
+                    customLength: valueLen, 
+                    closestStandardLength: closestModel.len,
+                    chiamandoOnsubmit: true
+                });
                 onsubmit(closestModel.code, valueLen, true);
             }
         }

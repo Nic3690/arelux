@@ -272,10 +272,32 @@
 				<Button.Root
 					class={button({ class: 'mt-auto' })}
 					on:click={() => {
+						console.log('🔧 PULSANTE CLICCATO - page.state completo:', {
+							chosenFamily: page.state.chosenFamily,
+							chosenItem: page.state.chosenItem,
+							reference: page.state.reference,
+							length: page.state.length,
+							isCustomLength: page.state.isCustomLength,
+							led: page.state.led,
+						});
+						
 						if (temporary) {
 							const oldTemporary = temporary;
 							temporary = null;
-							finishEdit(rend, oldTemporary, group);
+							
+							// ✅ AGGIUNGI QUESTO DEBUG PROPRIO PRIMA DI FINISHEDIT
+							const stateToPass = {
+								chosenFamily: page.state.chosenFamily!,
+								chosenItem: page.state.chosenItem!,
+								reference: page.state.reference,
+								length: page.state.length,
+								isCustomLength: page.state.isCustomLength,
+								led: page.state.led,
+							};
+							
+							console.log('🔧 PARAMETRI CHE PASSO A FINISHEDIT:', stateToPass);
+							
+							finishEdit(rend, oldTemporary, group, stateToPass);
 						}
 					}}
 				>
@@ -305,6 +327,12 @@
                 {family}
                 onsubmit={(objectCode, length, isCustom) => {
                     configLength = length;
+					console.log('🔧 ADD PAGE - ConfigLength onsubmit ricevuto:', {
+						objectCode,
+						length,
+						isCustom,
+						currentPageState: page.state
+					});
                     
                     replaceState('', {
                     chosenItem: objectCode,
@@ -313,6 +341,7 @@
                     length: length,
                     isCustomLength: isCustom
                     });
+					console.log('🔧 ADD PAGE - Subito dopo replaceState:', page.state);
                 }}
                 />
         {:else if family.needsLengthConfig && !family.arbitraryLength}
