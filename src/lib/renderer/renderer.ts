@@ -920,26 +920,45 @@ export class Renderer {
 	}
 
 	/**
-	 * Centra il sistema nella stanza virtuale (la stanza rimane fissa)
+	 * Centra il sistema nella stanza virtuale calcolando il baricentro dei profili
 	 */
 	centerSystemInRoom(): void {
 		if (!this.#virtualRoom) return;
 
-		// Calcola il bounding box di tutti gli oggetti
-		const bbox = new Box3();
-		let hasObjects = false;
+		// Separa profili da altri oggetti
+		const profiles: TemporaryObject[] = [];
+		const otherObjects: TemporaryObject[] = [];
 
 		for (const obj of this.#objects) {
 			if (obj.mesh) {
-				bbox.expandByObject(obj.mesh);
-				hasObjects = true;
+				const isProfile = obj.getCatalogEntry().line_juncts && 
+								obj.getCatalogEntry().line_juncts.length > 0;
+				
+				if (isProfile) {
+					profiles.push(obj);
+				} else {
+					otherObjects.push(obj);
+				}
 			}
 		}
 
-		if (!hasObjects) return;
+		if (profiles.length === 0 && otherObjects.length === 0) return;
 
-		// Calcola il centro del sistema corrente
-		const systemCenter = bbox.getCenter(new Vector3());
+		let systemCenter: Vector3;
+
+		if (profiles.length > 0) {
+			// Calcola il baricentro dei profili usando i loro punti estremi
+			systemCenter = this.calculateProfilesBarycenter(profiles);
+		} else {
+			// Fallback al bounding box per oggetti non-profilo
+			const bbox = new Box3();
+			for (const obj of otherObjects) {
+				if (obj.mesh) {
+					bbox.expandByObject(obj.mesh);
+				}
+			}
+			systemCenter = bbox.getCenter(new Vector3());
+		}
 
 		// Il centro della stanza virtuale è sempre all'origine (0, 0, 0)
 		const roomCenter = new Vector3(0, 0, 0);
@@ -960,7 +979,50 @@ export class Renderer {
 		// Aggiorna l'offset del sistema
 		this.#systemOffset.add(offset);
 
-		// NON aggiornare la stanza virtuale - deve rimanere fissa
+		console.log(`✅ Sistema centrato: offset applicato (${offset.x.toFixed(1)}, ${offset.y.toFixed(1)}, ${offset.z.toFixed(1)})`);
+	}
+
+	/**
+	 * Calcola il baricentro dei profili considerando i loro punti estremi
+	 */
+	private calculateProfilesBarycenter(profiles: TemporaryObject[]): Vector3 {
+		const extremePoints: Vector3[] = [];
+
+		for (const profile of profiles) {
+			if (!profile.mesh) continue;
+
+			const lineJuncts = profile.getCatalogEntry().line_juncts;
+			if (lineJuncts.length === 0) continue;
+
+			// Per ogni profilo, prendi i punti estremi della prima line junction
+			const lineJunct = lineJuncts[0];
+			
+			// Converti i punti estremi nello spazio mondiale
+			const point1World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point1));
+			const point2World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point2));
+			
+			extremePoints.push(point1World, point2World);
+
+			console.log(`📏 Profilo ${profile.getCatalogEntry().code}:`);
+			console.log(`   Point1: (${point1World.x.toFixed(1)}, ${point1World.y.toFixed(1)}, ${point1World.z.toFixed(1)})`);
+			console.log(`   Point2: (${point2World.x.toFixed(1)}, ${point2World.y.toFixed(1)}, ${point2World.z.toFixed(1)})`);
+		}
+
+		if (extremePoints.length === 0) {
+			return new Vector3(0, 0, 0);
+		}
+
+		// Calcola il baricentro di tutti i punti estremi
+		const barycenter = new Vector3();
+		for (const point of extremePoints) {
+			barycenter.add(point);
+		}
+		barycenter.divideScalar(extremePoints.length);
+
+		console.log(`🎯 Baricentro calcolato da ${extremePoints.length} punti estremi:`);
+		console.log(`   Baricentro: (${barycenter.x.toFixed(1)}, ${barycenter.y.toFixed(1)}, ${barycenter.z.toFixed(1)})`);
+
+		return barycenter;
 	}
 
 	/**
