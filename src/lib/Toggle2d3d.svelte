@@ -20,9 +20,10 @@
 	} = $props();
 
 	let showVirtualRoom = $state(false);
-	let roomWidth = $state(3);
-	let roomHeight = $state(3);
-	let roomDepth = $state(3);
+	// Cambiato da metri a decimetri (1 decimetro = 10cm)
+	let roomWidth = $state(30);   // 3m = 30 decimetri
+	let roomHeight = $state(30);  // 3m = 30 decimetri  
+	let roomDepth = $state(30);   // 3m = 30 decimetri
 	
 	function toggleVirtualRoom() {
 		if (virtualRoomDisabled) return;
@@ -33,10 +34,11 @@
 		if (renderer) {
 			renderer.debugRoomAndProfiles();
 			if (showVirtualRoom) {
+				// Converti da decimetri a metri per il renderer
 				renderer.resizeVirtualRoom({ 
-					width: roomWidth, 
-					height: roomHeight, 
-					depth: roomDepth 
+					width: roomWidth / 10, 
+					height: roomHeight / 10, 
+					depth: roomDepth / 10 
 				});
 			}
 			renderer.setVirtualRoomVisible(showVirtualRoom);
@@ -45,10 +47,11 @@
 
 	function updateRoomSize() {
 		if (renderer) {
+			// Converti da decimetri a metri
 			const dimensions = {
-				width: roomWidth,
-				height: roomHeight,
-				depth: roomDepth
+				width: roomWidth / 10,
+				height: roomHeight / 10,
+				depth: roomDepth / 10
 			};
 
 			renderer.setCurrentRoomDimensions(dimensions);
@@ -150,42 +153,42 @@
 								<input 
 									id="roomWidth" 
 									type="range" 
-									min="3" 
-									max="20" 
+									min="10" 
+									max="100" 
 									step="1" 
 									class="w-40"
 									bind:value={roomWidth}
 									onchange={updateRoomSize}
 								/>
-								<span class="ml-2 w-12 text-right">{roomWidth}m</span>
+								<span class="ml-2 w-16 text-right">{(roomWidth / 10).toFixed(1)}m</span>
 							</div>
 							<div class="flex items-center">
 								<label for="roomHeight" class="mr-2 w-24">Altezza:</label>
 								<input 
 									id="roomHeight" 
 									type="range" 
-									min="3" 
-									max="20" 
+									min="20" 
+									max="50" 
 									step="1" 
 									class="w-40"
 									bind:value={roomHeight}
 									onchange={updateRoomSize}
 								/>
-								<span class="ml-2 w-12 text-right">{roomHeight}m</span>
+								<span class="ml-2 w-16 text-right">{(roomHeight / 10).toFixed(1)}m</span>
 							</div>
 							<div class="flex items-center">
 								<label for="roomDepth" class="mr-2 w-24">Profondità:</label>
 								<input 
 									id="roomDepth" 
 									type="range" 
-									min="3" 
-									max="20" 
+									min="10" 
+									max="100" 
 									step="1" 
 									class="w-40"
 									bind:value={roomDepth}
 									onchange={updateRoomSize}
 								/>
-								<span class="ml-2 w-12 text-right">{roomDepth}m</span>
+								<span class="ml-2 w-16 text-right">{(roomDepth / 10).toFixed(1)}m</span>
 							</div>
 						</div>
 					{/if}
