@@ -868,7 +868,7 @@ export class Renderer {
 		});
 	
 		let center = new Vector3(0, 0, 0);
-		const scaleFactor = 60;
+		const scaleFactor = 24;
 		
 		let roomWidth: number, roomHeight: number, roomDepth: number;
 		

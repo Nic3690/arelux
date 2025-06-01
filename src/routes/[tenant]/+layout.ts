@@ -149,6 +149,35 @@ async function loadFamilies(
 				catalog[element.objectcode].askForLeds = true;
 			}
 
+			let adjustedLength = element.len;
+			let adjustedRadius = element.radius;
+			
+			if (res[familycode].system.toLowerCase() === 'xnet') {
+				const isProfile = res[familycode].group.toLowerCase().includes('profil') || 
+								res[familycode].displayName.toLowerCase().includes('profil');
+				
+				const isStraightProfile = isProfile && 
+										(element.angle === 0 || element.angle === -1 || element.angle === null) &&
+										!element.objectcode.toLowerCase().includes('c');
+				
+				if (isStraightProfile && element.len === 1000) {
+					adjustedLength = 2500; // ✅ Il profilo è REALMENTE 2500mm
+					console.log(`✅ Corretta lunghezza ${element.objectcode}: ${element.len}mm → ${adjustedLength}mm`);
+				}
+				
+				if (isStraightProfile && element.radius === 1000) {
+					adjustedRadius = 2500; // ✅ Anche il radius per profili dritti
+				}
+			}
+
+			// Ricalcola total_length con valori corretti
+			if (element.angle && adjustedRadius) {
+				total_length = (element.angle * Math.PI * adjustedRadius) / 180;
+			}
+			if ((element.angle === 0 || element.angle === -1) && adjustedRadius) {
+				total_length = adjustedRadius;
+			}
+
 			res[familycode].items.push({
 				code: element.objectcode,
 				deg: element.angle ?? -1,
