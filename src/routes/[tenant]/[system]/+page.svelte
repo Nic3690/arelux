@@ -16,6 +16,7 @@
 	import { Vector2, Object3D } from 'three';
 	import type { TemporaryObject } from '$lib/renderer/objects';
 	import LightMover from './LightMover.svelte';
+	import SystemMover from './SystemMover.svelte';
 	import { Vector3 } from 'three';
 
 	let { data } = $props();
@@ -37,6 +38,9 @@
 	let lights = $state<TemporaryObject[]>([]);
 	let pointer = $state(new Vector2());
 	let invertedControls = $state(false);
+
+	// Nuova variabile per SystemMover
+	let systemMoverMode = $state(false);
 
 	import { sidebarRefs, focusSidebarElement } from '$lib/index';
 
@@ -66,11 +70,43 @@
 				toast.info('Non sono state trovate luci. Aggiungi prima una luce al progetto.');
 				lightMoverMode = false;
 			} else {
+				// Disattiva la modalità system mover se è attiva
+				if (systemMoverMode) {
+					systemMoverMode = false;
+				}
 				toast.info('Modalità spostamento luci attivata. Clicca su una luce per selezionarla.');
 			}
 		} else {
 			renderer?.setOpacity(1);
 		}
+	}
+
+	// Nuova funzione per SystemMover
+	function toggleSystemMoverMode() {
+		systemMoverMode = !systemMoverMode;
+		
+		if (systemMoverMode) {
+			if ($objects.length === 0) {
+				toast.info('Non ci sono oggetti da spostare. Aggiungi prima degli elementi al progetto.');
+				systemMoverMode = false;
+			} else {
+				// Disattiva la modalità light mover se è attiva
+				if (lightMoverMode) {
+					lightMoverMode = false;
+					selectedLight = null;
+					renderer?.setOpacity(1);
+				}
+				toast.info('Modalità spostamento sistema attivata. Usa le frecce per spostare tutto il sistema di 10cm.');
+			}
+		} else {
+			toast.info('Modalità spostamento sistema disattivata.');
+		}
+	}
+
+	// Nuova funzione per gestire il movimento del sistema
+	function handleSystemMove() {
+		// La stanza virtuale rimane fissa, non serve aggiornarla
+		// Solo per eventuali future estensioni
 	}
 
 	function handleLightMove(position: number) {
@@ -317,7 +353,16 @@ function handleLightPositionPreview(position: number) {
 
 	<div bind:this={controlsEl}></div>
 
+	<!-- Controlli modificati per includere SystemMover -->
 	<div class="absolute bottom-5 left-80 right-80 flex justify-center gap-3">
+		<SystemMover
+			active={systemMoverMode}
+			disabled={$objects.length === 0}
+			{renderer}
+			onToggle={toggleSystemMoverMode}
+			onMove={handleSystemMove}
+		/>
+		
 		<LightMover
 			active={lightMoverMode}
 			disabled={$objects.length === 0}

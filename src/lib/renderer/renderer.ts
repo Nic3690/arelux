@@ -85,7 +85,9 @@ export class Renderer {
 	#helpers: ArrowHelper[] = [];
 	#virtualRoom: Group | null = null;
 	#currentRoomDimensions: RoomDimensions = { width: 3, height: 3, depth: 3 };
-	#lightFeedbackIndicator: Mesh | null = null; // <-- SPOSTA QUI
+	#lightFeedbackIndicator: Mesh | null = null;
+	#systemOffset: Vector3 = new Vector3(0, 0, 0); // Offset per il movimento del sistema
+	#originalPositions: Map<string, Vector3> = new Map(); // Posizioni originali degli oggetti
 
 	#objects: TemporaryObject[] = [];
 	#clickCallback: ((_: HandleMesh | LineHandleMesh) => any) | undefined;
@@ -760,6 +762,12 @@ export class Renderer {
 	async addObject(code: string): Promise<TemporaryObject> {
 		const obj = await RendererObject.init(this, code);
 		this.#objects.push(obj);
+		
+		// Salva la posizione originale quando aggiungiamo un nuovo oggetto
+		if (obj.mesh) {
+			this.#originalPositions.set(obj.id, obj.mesh.position.clone());
+		}
+		
 		this.frameObject(obj);
 		this.updateVirtualRoom();
 		
@@ -803,6 +811,10 @@ export class Renderer {
 	removeObject(obj: TemporaryObject) {
 		obj.detachAll();
 		obj.dispose(this.#scene);
+		
+		// Rimuovi la posizione salvata
+		this.#originalPositions.delete(obj.id);
+		
 		if (this.#objects.indexOf(obj) > -1) this.#objects.splice(this.#objects.indexOf(obj), 1);
 		this.updateVirtualRoom();
 	}
@@ -844,6 +856,121 @@ export class Renderer {
 	setOpacity(opacity: number) {
 		for (const obj of this.#objects) obj.setOpacity(opacity);
 	}
+
+	// METODI AGGIUNTI PER SYSTEM MOVER
+
+	/**
+	 * Sposta tutti gli oggetti del sistema di un delta specificato (in incrementi di 10cm)
+	 */
+	moveAllObjects(deltaX: number, deltaY: number, deltaZ: number): void {
+		const delta = new Vector3(deltaX, deltaY, deltaZ);
+		this.#systemOffset.add(delta);
+
+		// Sposta tutti gli oggetti
+		for (const obj of this.#objects) {
+			if (obj.mesh) {
+				obj.mesh.position.add(delta);
+			}
+		}
+
+		// NON aggiornare la stanza virtuale - deve rimanere fissa
+		// La stanza virtuale rimane nella sua posizione originale
+	}
+
+	/**
+	 * Salva le posizioni originali di tutti gli oggetti
+	 */
+	private saveOriginalPositions(): void {
+		this.#originalPositions.clear();
+		for (const obj of this.#objects) {
+			if (obj.mesh) {
+				this.#originalPositions.set(obj.id, obj.mesh.position.clone());
+			}
+		}
+	}
+
+	/**
+	 * Ripristina tutti gli oggetti alle loro posizioni originali
+	 */
+	resetAllObjectsPosition(): void {
+		// Se non abbiamo posizioni salvate, salviamo quelle attuali sottraendo l'offset
+		if (this.#originalPositions.size === 0) {
+			for (const obj of this.#objects) {
+				if (obj.mesh) {
+					const originalPos = obj.mesh.position.clone().sub(this.#systemOffset);
+					this.#originalPositions.set(obj.id, originalPos);
+				}
+			}
+		}
+
+		// Ripristina le posizioni originali
+		for (const obj of this.#objects) {
+			if (obj.mesh) {
+				const originalPos = this.#originalPositions.get(obj.id);
+				if (originalPos) {
+					obj.mesh.position.copy(originalPos);
+				}
+			}
+		}
+
+		// Reset dell'offset
+		this.#systemOffset.set(0, 0, 0);
+
+		// NON aggiornare la stanza virtuale - deve rimanere fissa
+	}
+
+	/**
+	 * Centra il sistema nella stanza virtuale (la stanza rimane fissa)
+	 */
+	centerSystemInRoom(): void {
+		if (!this.#virtualRoom) return;
+
+		// Calcola il bounding box di tutti gli oggetti
+		const bbox = new Box3();
+		let hasObjects = false;
+
+		for (const obj of this.#objects) {
+			if (obj.mesh) {
+				bbox.expandByObject(obj.mesh);
+				hasObjects = true;
+			}
+		}
+
+		if (!hasObjects) return;
+
+		// Calcola il centro del sistema corrente
+		const systemCenter = bbox.getCenter(new Vector3());
+
+		// Il centro della stanza virtuale è sempre all'origine (0, 0, 0)
+		const roomCenter = new Vector3(0, 0, 0);
+
+		// Calcola quanto spostare per centrare il sistema nella stanza fissa
+		const offset = roomCenter.clone().sub(systemCenter);
+		
+		// Mantieni l'altezza Y del sistema come è, centra solo su X e Z
+		offset.y = 0;
+
+		// Sposta tutti gli oggetti
+		for (const obj of this.#objects) {
+			if (obj.mesh) {
+				obj.mesh.position.add(offset);
+			}
+		}
+
+		// Aggiorna l'offset del sistema
+		this.#systemOffset.add(offset);
+
+		// NON aggiornare la stanza virtuale - deve rimanere fissa
+	}
+
+	/**
+	 * Ottiene l'offset corrente del sistema
+	 */
+	getSystemOffset(): Vector3 {
+		return this.#systemOffset.clone();
+	}
+
+	// FINE METODI SYSTEM MOVER
 
 	createVirtualRoom(
 		dimensions: number | RoomDimensions = 3, 
@@ -982,7 +1109,9 @@ export class Renderer {
 
 	updateVirtualRoom(): Renderer {
 		if (this.#virtualRoom && this.#objects.length > 0) {
-			this.createVirtualRoom(this.#currentRoomDimensions, true, this.#virtualRoom.visible);
+			// Mantieni la stanza centrata sull'origine, non sugli oggetti
+			// In questo modo la stanza rimane fissa anche quando gli oggetti si muovono
+			this.createVirtualRoom(this.#currentRoomDimensions, false, this.#virtualRoom.visible);
 		}
 		return this;
 	}
