@@ -83,7 +83,7 @@
     <button 
         class={cn(
             button({ class: 'flex items-center justify-center gap-2' }),
-            active && 'bg-blue-300'
+            active && 'bg-yellow-300'
         )}
         onclick={onToggle as MouseEventHandler<HTMLButtonElement>}
         {disabled}
@@ -104,7 +104,7 @@
                 <div></div>
                 <button 
                     onclick={() => handleMove('up')}
-                    class="flex h-12 w-12 items-center justify-center rounded bg-blue-200 hover:bg-blue-300 transition-colors"
+                    class="flex h-12 w-12 items-center justify-center rounded bg-gray-200 hover:bg-gray-300 transition-colors"
                     title={hasVerticalProfiles() ? "Sposta in alto (+10cm)" : "Sposta avanti (+10cm)"}
                 >
                     <ArrowUp size={20} />
@@ -132,7 +132,7 @@
                 <div></div>
                 <button 
                     onclick={() => handleMove('down')}
-                    class="flex h-12 w-12 items-center justify-center rounded bg-blue-200 hover:bg-blue-300 transition-colors"
+                    class="flex h-12 w-12 items-center justify-center rounded bg-gray-200 hover:bg-gray-300 transition-colors"
                     title={hasVerticalProfiles() ? "Sposta in basso (+10cm)" : "Sposta indietro (+10cm)"}
                 >
                     <ArrowDown size={20} />
