@@ -176,14 +176,4 @@
         />
         <span class="ml-0.5">mm</span>
     </div>
-
-    <!-- Debug info per profili compositi -->
-    {#if isCompositeProfile && compositeConfig}
-        <div class="mt-2 text-xs text-gray-600">
-            <div>Profilo composito:</div>
-            {#each compositeConfig.segments as segment}
-                <div>• {segment.count}x {segment.code} ({segment.length}mm)</div>
-            {/each}
-        </div>
-    {/if}
 </div>
