@@ -1081,7 +1081,7 @@ export class Renderer {
 			new MeshStandardMaterial({
 				color: 0xf5f5f5,
 				transparent: true,
-				opacity: 0.3,
+				opacity: 0.15,
 				side: DoubleSide
 			})
 		);

@@ -354,14 +354,15 @@
 							length: page.state.length,
 							isCustomLength: page.state.isCustomLength,
 							led: page.state.led,
-							compositeConfig: currentCompositeConfig, // USA LA VARIABILE LOCALE
+							compositeConfig: currentCompositeConfig,
 						});
 						
+						// NUOVA LOGICA: Gestisci sia oggetti normali che profili compositi
 						if (temporary) {
+							// Oggetto normale
 							const oldTemporary = temporary;
 							temporary = null;
 							
-							// ✅ AGGIUNGI QUESTO DEBUG PROPRIO PRIMA DI FINISHEDIT
 							const stateToPass = {
 								chosenFamily: page.state.chosenFamily!,
 								chosenItem: page.state.chosenItem!,
@@ -369,12 +370,40 @@
 								length: page.state.length,
 								isCustomLength: page.state.isCustomLength,
 								led: page.state.led,
-								compositeConfig: currentCompositeConfig, // USA LA VARIABILE LOCALE
+								compositeConfig: currentCompositeConfig,
 							};
 							
-							console.log('🔧 PARAMETRI CHE PASSO A FINISHEDIT:', stateToPass);
-							
+							console.log('🔧 PARAMETRI OGGETTO NORMALE:', stateToPass);
 							finishEdit(rend, oldTemporary, group, stateToPass);
+							
+						} else if (temporaryComposite.length > 0 && currentCompositeConfig) {
+							// Profilo composito
+							console.log('🔧 GESTENDO PROFILO COMPOSITO con', temporaryComposite.length, 'pezzetti');
+							
+							// Rimuovi gli oggetti temporanei dal renderer (saranno ricreati in finishEdit)
+							for (const obj of temporaryComposite) {
+								renderer?.removeObject(obj);
+							}
+							temporaryComposite = [];
+							
+							// Crea un oggetto temporaneo fittizio per finishEdit
+							const dummyObject = renderer?.addTemporaryObject();
+							if (dummyObject) {
+								const stateToPass = {
+									chosenFamily: page.state.chosenFamily!,
+									chosenItem: page.state.chosenItem!,
+									reference: page.state.reference,
+									length: page.state.length,
+									isCustomLength: page.state.isCustomLength,
+									led: page.state.led,
+									compositeConfig: currentCompositeConfig,
+								};
+								
+								console.log('🔧 PARAMETRI PROFILO COMPOSITO:', stateToPass);
+								finishEdit(rend, dummyObject, group, stateToPass);
+							}
+						} else {
+							console.error('❌ Nessun oggetto temporaneo o profilo composito trovato');
 						}
 					}}
 				>
