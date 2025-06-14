@@ -47,6 +47,38 @@
         if (onsubmit) onsubmit(value, len, false);
     }
 
+    function handleSliderChange() {
+        // Reset errori
+        hasError = false;
+        errorMessage = '';
+        valueInvalid = false;
+        
+        // Lo slider garantisce già valori validi (multipli di 10, range corretto)
+        const matchingItem = items.find(i => i.len === Number(valueLen));
+        
+        if (matchingItem) {
+            // Lunghezza standard trovata
+            value = matchingItem.code;
+            isCustomLength = false;
+            console.log('🔧 ConfigLength: lunghezza standard da slider', { code: value, length: valueLen });
+            if (onsubmit) onsubmit(value, valueLen, false);
+        } else {
+            // Lunghezza personalizzata - usa il primo item della famiglia come base
+            isCustomLength = true;
+            value = items[0].code;
+            
+            console.log('🔧 ConfigLength: lunghezza personalizzata da slider', { 
+                baseCode: value, 
+                customLength: valueLen, 
+                standardLength: items[0].len
+            });
+            
+            if (onsubmit) {
+                onsubmit(value, valueLen, true);
+            }
+        }
+    }
+
     function handleCustomLength() {
         // Reset errori
         hasError = false;
@@ -72,6 +104,14 @@
         if (valueLen > 2500) {
             hasError = true;
             errorMessage = 'La lunghezza massima è di 2500mm';
+            valueInvalid = true;
+            return;
+        }
+        
+        // Validazione: minimo 10mm
+        if (valueLen < 10) {
+            hasError = true;
+            errorMessage = 'La lunghezza minima è di 10mm';
             valueInvalid = true;
             return;
         }
@@ -103,39 +143,43 @@
 </script>
 
 <div class="flex flex-col rounded-md bg-box px-6 py-1">
-    <div class="flex flex-row items-center justify-center">
-        <!-- Barra grafica con i pallini selezionabili -->
+    <div class="flex flex-col gap-2">
+        <!-- Slider giallo con pallini cliccabili -->
         <div class="relative flex w-full items-center justify-center">
-            <svg height="20" width="120" viewBox="0 0 100 20">
-                <line x1="5" y1="10" x2="95" y2="10" stroke-width="1.5" class="stroke-primary" />
-                
-                {#if items.length > 0}
+            <input
+                bind:value={valueLen}
+                type="range"
+                min="10"
+                max="2500"
+                step="10"
+                class="slider-yellow w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                oninput={handleSliderChange}
+            />
+            
+            <!-- Pallini cliccabili per le lunghezze standard -->
+            {#if items.length > 0}
+                <div class="absolute top-0 w-full h-2 flex items-center">
                     {#each items as { code, len }, i}
-                        {@const position = items.length > 1 
-                            ? 5 + (i * 90 / (items.length - 1))
-                            : 50}
-                        
-                        <circle
-                            cx={position}
-                            cy="10"
-                            r={valueLen === len && !isCustomLength ? 7 : 5}
+                        {@const position = ((len - 10) / (2500 - 10)) * 100}
+                        <button
                             class={cn(
-                                'cursor-pointer fill-primary stroke-primary', 
-                                valueLen === len && !isCustomLength && 'brightness-95'
+                                'absolute w-3 h-3 rounded-full border-2 border-white transform -translate-x-1.5 cursor-pointer transition-all hover:scale-110',
+                                valueLen === len && !isCustomLength 
+                                    ? 'bg-yellow-600 scale-125 z-10' 
+                                    : 'bg-gray-400 hover:bg-gray-500'
                             )}
-                            role="button"
-                            tabindex={i + 1}
-                            aria-label={`${len}mm`}
+                            style="left: {position}%"
                             onclick={() => selectLength(code, len)}
-                            onkeyup={(e) => (e.key === ' ' || e.key === 'Enter') && selectLength(code, len)}
-                        />
+                            title="{len}mm (standard)"
+                            aria-label={`${len}mm`}
+                        ></button>
                     {/each}
-                {/if}
-            </svg>
+                </div>
+            {/if}
         </div>
 
         <!-- Input manuale -->
-        <div class="mt-2 flex items-center">
+        <div class="flex items-center justify-center">
             <input
                 bind:value={valueLen}
                 type="number"
@@ -143,7 +187,7 @@
                 max="2500"
                 step="10"
                 class={cn(
-                    'font-input w-16 appearance-none rounded-md border-2 border-black/40 bg-transparent',
+                    'font-input w-16 appearance-none rounded-md border-2 border-black/40 bg-transparent text-center',
                     (valueInvalid || hasError) && 'border-red-500',
                     isCustomLength && !hasError && 'border-primary',
                 )}
@@ -152,7 +196,7 @@
                     if (e.key === 'Enter') handleCustomLength();
                 }}
                 oninput={() => {
-                    // Reset errori quando l'utente sta digitando
+                    // Reset errori quando l'utente sta digitando nell'input
                     if (hasError) {
                         hasError = false;
                         errorMessage = '';
@@ -171,3 +215,60 @@
         </div>
     {/if}
 </div>
+
+<style>
+    .slider-yellow {
+        -webkit-appearance: none;
+        appearance: none;
+        background: #e5e7eb;
+        outline: none;
+        border-radius: 0.5rem;
+    }
+
+    .slider-yellow::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #fbbf24;
+        cursor: pointer;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .slider-yellow::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #fbbf24;
+        cursor: pointer;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .slider-yellow::-webkit-slider-track {
+        background: linear-gradient(to right, #fbbf24 0%, #fbbf24 100%);
+        height: 8px;
+        border-radius: 0.5rem;
+    }
+
+    .slider-yellow::-moz-range-track {
+        background: linear-gradient(to right, #fbbf24 0%, #fbbf24 100%);
+        height: 8px;
+        border-radius: 0.5rem;
+        border: none;
+    }
+
+    .slider-yellow::-webkit-slider-thumb:hover {
+        background: #f59e0b;
+        transform: scale(1.1);
+        transition: all 0.2s ease;
+    }
+
+    .slider-yellow::-moz-range-thumb:hover {
+        background: #f59e0b;
+        transform: scale(1.1);
+        transition: all 0.2s ease;
+    }
+</style>
