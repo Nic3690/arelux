@@ -3,11 +3,12 @@
     import _ from 'lodash';
     import type { Family } from '../../app';
     import { onMount } from 'svelte';
+    import { calculateProfileComposition, isCompositeProfileSupported, extractBaseCode, type CompositeProfileConfig } from '$lib/compositeProfiles';
 
     type Props = {
         family: Family;
         value?: string;
-        onsubmit?: (value: string, length: number, isCustom?: boolean) => any;
+        onsubmit?: (value: string, length: number, isCustom?: boolean, compositeConfig?: CompositeProfileConfig | null) => any;
     };
 
     let { family, value = $bindable(), onsubmit }: Props = $props();
@@ -17,6 +18,8 @@
     let valueLen = $state(2500);
     let items: { code: string; len: number }[] = $state([]);
     let debugInfo = $state("");
+    let compositeConfig: CompositeProfileConfig | null = $state(null);
+    let isCompositeProfile = $state(false);
 
     function debug(msg: string) {
         console.log(msg);
@@ -40,10 +43,11 @@
     });
 
     function selectLength(code: string, len: number) {
-
         value = code;
         valueLen = len;
         isCustomLength = false;
+        isCompositeProfile = false;
+        compositeConfig = null;
         valueInvalid = false;
         if (onsubmit) onsubmit(value, len, false);
     }
@@ -75,23 +79,49 @@
         const matchingItem = items.find(i => i.len === Number(valueLen));
         
         if (matchingItem) {
+            // Lunghezza standard trovata
             value = matchingItem.code;
             isCustomLength = false;
+            isCompositeProfile = false;
+            compositeConfig = null;
             console.log('🔧 ConfigLength: lunghezza standard', { code: value, length: valueLen });
             if (onsubmit) onsubmit(value, valueLen, false);
         } else {
+            // Lunghezza personalizzata
             isCustomLength = true;
             const closestModel = findClosestModelLength(valueLen);
             
-            if (closestModel && onsubmit) {
-                value = closestModel.code;
-                console.log('🔧 ConfigLength: lunghezza personalizzata', { 
-                    code: closestModel.code, 
-                    customLength: valueLen, 
-                    closestStandardLength: closestModel.len,
-                    chiamandoOnsubmit: true
-                });
-                onsubmit(closestModel.code, valueLen, true);
+            if (closestModel) {
+                // Verifica se il profilo supporta la composizione
+                if (isCompositeProfileSupported(closestModel.code)) {
+                    const baseCode = extractBaseCode(closestModel.code);
+                    compositeConfig = calculateProfileComposition(baseCode, valueLen);
+                    isCompositeProfile = true;
+                    value = baseCode; // Usa il codice base
+                    
+                    console.log('🔧 ConfigLength: profilo composito', { 
+                        baseCode,
+                        customLength: valueLen, 
+                        composition: compositeConfig,
+                        chiamandoOnsubmit: true
+                    });
+                } else {
+                    // Profilo normale personalizzato
+                    isCompositeProfile = false;
+                    compositeConfig = null;
+                    value = closestModel.code;
+                    
+                    console.log('🔧 ConfigLength: lunghezza personalizzata normale', { 
+                        code: closestModel.code, 
+                        customLength: valueLen, 
+                        closestStandardLength: closestModel.len,
+                        chiamandoOnsubmit: true
+                    });
+                }
+
+                if (onsubmit) {
+                    onsubmit(value, valueLen, true, compositeConfig);
+                }
             }
         }
     }
@@ -146,4 +176,14 @@
         />
         <span class="ml-0.5">mm</span>
     </div>
+
+    <!-- Debug info per profili compositi -->
+    {#if isCompositeProfile && compositeConfig}
+        <div class="mt-2 text-xs text-gray-600">
+            <div>Profilo composito:</div>
+            {#each compositeConfig.segments as segment}
+                <div>• {segment.count}x {segment.code} ({segment.length}mm)</div>
+            {/each}
+        </div>
+    {/if}
 </div>

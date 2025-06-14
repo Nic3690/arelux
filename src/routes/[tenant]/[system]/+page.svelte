@@ -130,11 +130,30 @@ function handleLightPositionPreview(position: number) {
 }
 
 	function remove(item: SavedObject) {
+		console.log('🗑️ Rimuovendo oggetto:', item.code, item);
+		
 		let i = $objects.indexOf(item);
 		if (i > -1) {
 			$objects = $objects.toSpliced(i, 1);
 		}
-		if (item.object && renderer) renderer.removeObject(item.object);
+		
+		// Gestione profili compositi
+		if (item.compositeObjects && item.compositeObjects.length > 0) {
+			console.log('Rimuovendo profilo composito con', item.compositeObjects.length, 'pezzetti');
+			
+			// Rimuovi tutti i pezzetti del profilo composito
+			for (const compositeObj of item.compositeObjects) {
+				if (renderer) {
+					renderer.removeObject(compositeObj);
+				}
+			}
+			
+			console.log('✅ Profilo composito rimosso completamente');
+		} else if (item.object && renderer) {
+			// Gestione oggetti normali
+			renderer.removeObject(item.object);
+			console.log('✅ Oggetto normale rimosso');
+		}
 	}
 
 	let canvas: HTMLCanvasElement;

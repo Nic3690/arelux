@@ -19,8 +19,10 @@
 	import type { LineHandleMesh } from '$lib/renderer/handles';
 	import ArrowsClockwise from 'phosphor-svelte/lib/ArrowsClockwise';
 	import { SvelteSet } from 'svelte/reactivity';
-	import type { RendererObject } from '$lib/renderer/objects';
+	import type { RendererObject, TemporaryObject } from '$lib/renderer/objects'; // AGGIUNTO TemporaryObject
 	import ConfigLengthSelector from '$lib/config/ConfigLengthSelector.svelte';
+	import { type CompositeProfileConfig } from '$lib/compositeProfiles'; // NUOVO IMPORT
+	import { Vector3 } from 'three';
 
 	let { data }: { data: PageData } = $props();
 	let canvas: HTMLCanvasElement;
@@ -38,6 +40,17 @@
 
 	let configShape = $state<{ angle: number; radius: number }>();
 	let configLength = $state<number>();
+	let currentCompositeConfig = $state<CompositeProfileConfig | null>(null);
+
+	// Reset compositeConfig quando cambia la famiglia o l'item
+	$effect(() => {
+		if (page.state.chosenFamily || page.state.chosenItem) {
+			// Reset quando cambia la selezione se non è una lunghezza personalizzata
+			if (!page.state.isCustomLength) {
+				currentCompositeConfig = null;
+			}
+		}
+	}); // NUOVO: memorizza compositeConfig localmente
 
 	onMount(() => {
 		renderer = Renderer.get(data, canvas, controlsEl);
@@ -85,35 +98,97 @@
 	});
 
 	let temporary: RendererObject | null = null;
+	let temporaryComposite: TemporaryObject[] = []; // NUOVO: per profili compositi temporanei
 	let group: string | null = $state(null);
 	$effect(() => {
+		// Pulisci oggetti temporanei esistenti
 		if (temporary !== null) {
 			renderer?.removeObject(temporary);
 			temporary = null;
+		}
+		
+		// Pulisci profili compositi temporanei
+		if (temporaryComposite.length > 0) {
+			for (const obj of temporaryComposite) {
+				renderer?.removeObject(obj);
+			}
+			temporaryComposite = [];
 		}
 
 		if (page.state.chosenFamily !== undefined && page.state.chosenItem !== undefined) {
 			renderer?.setOpacity(0.2);
 
-			renderer?.addObject(page.state.chosenItem).then((o) => {
-				if (junctionId !== undefined) o.markJunction(junctionId);
+			// NUOVA LOGICA: Controlla se è un profilo composito
+			if (currentCompositeConfig && page.state.isCustomLength) {
+				console.log('👁️ Creando preview profilo composito temporaneo...');
+				
+				// Crea preview del profilo composito
+				import('$lib/compositeProfiles').then(async ({ createCompositeProfile }) => {
+					if (renderer && currentCompositeConfig) {
+						try {
+							const compositeObjects = await createCompositeProfile(renderer, currentCompositeConfig);
+							temporaryComposite = compositeObjects;
+							
+							// Per il preview, posiziona il profilo composito vicino al punto di attachment
+							// ma NON collegarlo effettivamente (è solo un preview)
+							if (page.state.reference && compositeObjects.length > 0) {
+								const firstObject = compositeObjects[0];
+								
+								if (page.state.reference.typ === 'junction') {
+									const parentObj = renderer?.getObjectById(page.state.reference.id);
+									if (parentObj && parentObj.mesh) {
+										// Posiziona vicino ma non collegare
+										const junctionPos = parentObj.getCatalogEntry().juncts[page.state.reference.junction];
+										if (junctionPos && firstObject.mesh) {
+											const worldPos = parentObj.mesh.localToWorld(new Vector3().copy(junctionPos));
+											firstObject.mesh.position.copy(worldPos);
+										}
+									}
+								} else {
+									// Per line junction, posiziona al punto specificato
+									if (firstObject.mesh) {
+										firstObject.mesh.position.copy(page.state.reference.pos);
+									}
+								}
+							}
+							
+							console.log('✅ Preview profilo composito creato');
+						} catch (error) {
+							console.error('❌ Errore creazione preview composito:', error);
+						}
+					}
+				});
+			} else {
+				// LOGICA ORIGINALE: Oggetto singolo normale
+				renderer?.addObject(page.state.chosenItem).then((o) => {
+					if (junctionId !== undefined) o.markJunction(junctionId);
 
-				if (page.state.reference)
-					if (page.state.reference.typ === 'junction')
-						renderer?.getObjectById(page.state.reference.id)?.attach(o);
-					else
-						renderer
-							?.getObjectById(page.state.reference.id)
-							?.attachLine(o, page.state.reference.pos);
+					if (page.state.reference) {
+						if (page.state.reference.typ === 'junction') {
+							renderer?.getObjectById(page.state.reference.id)?.attach(o);
+						} else {
+							renderer?.getObjectById(page.state.reference.id)?.attachLine(o, page.state.reference.pos);
+						}
+					}
 
-				temporary = o;
-			});
+					temporary = o;
+				});
+			}
 		} else {
 			renderer?.setOpacity(1);
 		}
 	});
 	beforeNavigate(() => {
+		// Pulisci oggetto temporaneo normale
 		if (temporary) renderer?.removeObject(temporary);
+		
+		// Pulisci profili compositi temporanei
+		if (temporaryComposite.length > 0) {
+			for (const obj of temporaryComposite) {
+				renderer?.removeObject(obj);
+			}
+		}
+		
 		renderer?.setOpacity(1);
 	});
 
@@ -279,6 +354,7 @@
 							length: page.state.length,
 							isCustomLength: page.state.isCustomLength,
 							led: page.state.led,
+							compositeConfig: currentCompositeConfig, // USA LA VARIABILE LOCALE
 						});
 						
 						if (temporary) {
@@ -293,6 +369,7 @@
 								length: page.state.length,
 								isCustomLength: page.state.isCustomLength,
 								led: page.state.led,
+								compositeConfig: currentCompositeConfig, // USA LA VARIABILE LOCALE
 							};
 							
 							console.log('🔧 PARAMETRI CHE PASSO A FINISHEDIT:', stateToPass);
@@ -325,12 +402,14 @@
         {#if family.system === "XNet" || family.system === "XFree s"}
             <ConfigLength
                 {family}
-                onsubmit={(objectCode, length, isCustom) => {
+                onsubmit={(objectCode, length, isCustom, compositeConfig) => {
                     configLength = length;
+                    currentCompositeConfig = compositeConfig || null; // MEMORIZZA LOCALMENTE
 					console.log('🔧 ADD PAGE - ConfigLength onsubmit ricevuto:', {
 						objectCode,
 						length,
 						isCustom,
+						compositeConfig,
 						currentPageState: page.state
 					});
                     
@@ -340,6 +419,7 @@
                     reference: page.state.reference,
                     length: length,
                     isCustomLength: isCustom
+                    // compositeConfig rimosso da qui - ora è in currentCompositeConfig
                     });
 					console.log('🔧 ADD PAGE - Subito dopo replaceState:', page.state);
                 }}
@@ -347,8 +427,9 @@
         {:else if family.needsLengthConfig && !family.arbitraryLength}
             <ConfigLength
             {family}
-            onsubmit={(objectCode, length, isCustom) => {
+            onsubmit={(objectCode, length, isCustom, compositeConfig) => {
                 configLength = length;
+                currentCompositeConfig = compositeConfig || null; // MEMORIZZA LOCALMENTE
                 let displayCode = objectCode;
                 
                 replaceState('', {
@@ -357,6 +438,7 @@
                 reference: page.state.reference,
                 length: length,
                 isCustomLength: isCustom === true
+                // compositeConfig rimosso da qui
                 });
             }}
             />

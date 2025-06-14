@@ -11,6 +11,7 @@ import type { Renderer } from './renderer/renderer';
 import { writable, type Writable } from 'svelte/store';
 import { storable } from './storable';
 import Handlebars from 'handlebars';
+import { createCompositeProfile, type CompositeProfileConfig } from './compositeProfiles';
 import type { Vector3Like } from 'three';
 import type { RendererObject } from './renderer/objects';
 import _ from 'lodash';
@@ -60,6 +61,7 @@ export async function finishEdit(
 		led?: string;
 		length?: number;
 		isCustomLength?: boolean;
+		compositeConfig?: CompositeProfileConfig | null; // NUOVO PARAMETRO
 	},
 ) {
 	renderer.setScene('normal');
@@ -72,6 +74,7 @@ export async function finishEdit(
 		return;
 	}
 
+	// Gestione joiners
 	if (group && page.data.joiners[group]) {
 		for (const j of page.data.joiners[group]) {
 			objects.update((objs) =>
@@ -87,6 +90,7 @@ export async function finishEdit(
 		}
 	}
 
+	// Gestione LED subobjects
 	const subobjects: SavedObject[] = [];
 	if (state.led) {
 		const led = page.data.families[family.ledFamily ?? ''].items.find((x) => x.code == state.led);
@@ -103,18 +107,78 @@ export async function finishEdit(
 			length: state.length ? state.length - led.radius : undefined,
 		});
 	}
-			objects.update((objs) =>
-				objs.concat({
-					code: state.chosenItem,
-					desc1: item?.desc1 ?? '',
-					desc2: item?.desc2 ?? '',
-					subobjects,
-					length: state.length,
-					customLength: state.isCustomLength === true,
-					object: obj,
-				}),
-			);
-			lastAdded.set(obj.id);
+
+	// NUOVA LOGICA: Gestione profili compositi
+	if (stateOverride?.compositeConfig && stateOverride?.isCustomLength) {
+		console.log('🏗️ Creando profilo composito...', stateOverride.compositeConfig);
+		
+		try {
+			// Rimuovi l'oggetto temporaneo dalla scena
+			renderer.removeObject(obj);
+			
+			// Crea il profilo composito
+			const compositeObjects = await createCompositeProfile(renderer, stateOverride.compositeConfig);
+			
+			if (compositeObjects.length > 0) {
+				// Gestisci l'attachment se c'è un riferimento
+				if (state.reference) {
+					const firstObject = compositeObjects[0]; // Il primo pezzetto del profilo composito
+					
+					if (state.reference.typ === 'junction') {
+						const parentObj = renderer.getObjectById(state.reference.id);
+						if (parentObj) {
+							parentObj.attach(firstObject, state.reference.junction);
+						}
+					} else if (state.reference.typ === 'line') {
+						const parentObj = renderer.getObjectById(state.reference.id);
+						if (parentObj) {
+							parentObj.attachLine(firstObject, state.reference.pos);
+						}
+					}
+				}
+
+				// Aggiungi tutti i pezzetti come oggetti salvati
+				// Ma rappresentali come un singolo oggetto nel saved state per l'interfaccia
+				const mainObject = compositeObjects[0]; // Il primo pezzetto sarà il "rappresentante"
+				
+				objects.update((objs) =>
+					objs.concat({
+						code: state.chosenItem,
+						desc1: item?.desc1 ?? '',
+						desc2: item?.desc2 ?? '',
+						subobjects,
+						length: state.length,
+						customLength: state.isCustomLength === true,
+						object: mainObject, // Usa il primo oggetto come riferimento
+						compositeObjects: compositeObjects, // NUOVO: memorizza tutti gli oggetti del composito
+						compositeConfig: stateOverride.compositeConfig, // NUOVO: memorizza la configurazione
+					}),
+				);
+				
+				lastAdded.set(mainObject.id);
+				console.log('✅ Profilo composito creato con successo');
+			}
+		} catch (error) {
+			console.error('❌ Errore nella creazione del profilo composito:', error);
+			toast.error('Errore nella creazione del profilo composito');
+			return;
+		}
+	} else {
+		// LOGICA ORIGINALE: Gestione oggetti normali
+		objects.update((objs) =>
+			objs.concat({
+				code: state.chosenItem,
+				desc1: item?.desc1 ?? '',
+				desc2: item?.desc2 ?? '',
+				subobjects,
+				length: state.length,
+				customLength: state.isCustomLength === true,
+				object: obj,
+			}),
+		);
+		lastAdded.set(obj.id);
+	}
+
 	goto(`/${page.data.tenant}/${page.data.system}`);
 }
 
