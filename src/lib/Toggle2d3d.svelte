@@ -8,7 +8,7 @@
 	import { button } from '$lib';
 	import { page } from '$app/state';
 	import { Renderer } from './renderer/renderer';
-	import { render } from 'svelte/server';
+	import { browser } from '$app/environment';
 
 	let { 
 		is3d = $bindable(page.data.settings.allow3d), 
@@ -22,33 +22,91 @@
 
 	let showVirtualRoom = $state(false);
 	let showRoomSettings = $state(false);
-	let roomWidth = $state(30);
-	let roomHeight = $state(30);
-	let roomDepth = $state(30);
-	let tempRoomWidth = $state(30);
-	let tempRoomHeight = $state(30);
-	let tempRoomDepth = $state(30);
+	
+	const STORAGE_KEY = 'virtual_room_dimensions';
+	const DEFAULT_DIMENSIONS = { width: 30, height: 30, depth: 30 };
+	
+	function loadSavedDimensions() {
+		if (!browser) return DEFAULT_DIMENSIONS;
+		
+		try {
+			const saved = localStorage.getItem(STORAGE_KEY);
+			if (saved) {
+				const parsed = JSON.parse(saved);
+				if (parsed.width > 0 && parsed.height > 0 && parsed.depth > 0) {
+					return parsed;
+				}
+			}
+		} catch (e) {
+			console.warn('Errore caricamento dimensioni stanza:', e);
+		}
+		
+		return DEFAULT_DIMENSIONS;
+	}
+	
+	function saveDimensions(dimensions: { width: number; height: number; depth: number }) {
+		if (!browser) return;
+		
+		try {
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(dimensions));
+		} catch (e) {
+			console.warn('Errore salvataggio dimensioni stanza:', e);
+		}
+	}
+
+	const savedDimensions = loadSavedDimensions();
+	let roomWidth = $state(savedDimensions.width);
+	let roomHeight = $state(savedDimensions.height);
+	let roomDepth = $state(savedDimensions.depth);
+	
+	let tempRoomWidth = $state(roomWidth);
+	let tempRoomHeight = $state(roomHeight);
+	let tempRoomDepth = $state(roomDepth);
+	
+	$effect(() => {
+		if (renderer) {
+			const dimensions = {
+				width: roomWidth / 10,
+				height: roomHeight / 10,
+				depth: roomDepth / 10
+			};
+			
+			renderer.setCurrentRoomDimensions(dimensions);
+			
+			if (renderer.isVirtualRoomVisible()) {
+				renderer.resizeVirtualRoom(dimensions);
+			}
+		}
+	});
 	
 	function toggleVirtualRoom() {
 		if (virtualRoomDisabled) return;
 		
 		showVirtualRoom = !showVirtualRoom;
 
-		
 		if (renderer) {
 			renderer.debugRoomAndProfiles();
 			if (showVirtualRoom) {
-				renderer.resizeVirtualRoom({ 
+				const dimensions = { 
 					width: roomWidth / 10, 
 					height: roomHeight / 10, 
 					depth: roomDepth / 10 
-				});
+				};
+				renderer.setCurrentRoomDimensions(dimensions);
+				renderer.resizeVirtualRoom(dimensions);
 			}
 			renderer.setVirtualRoomVisible(showVirtualRoom);
 		}
 	}
 
 	function openRoomSettings() {
+		if (renderer) {
+			const current = renderer.getCurrentRoomDimensions();
+			roomWidth = current.width * 10;
+			roomHeight = current.height * 10;
+			roomDepth = current.depth * 10;
+		}
+		
 		tempRoomWidth = roomWidth;
 		tempRoomHeight = roomHeight;
 		tempRoomDepth = roomDepth;
@@ -60,13 +118,15 @@
 		roomHeight = tempRoomHeight;
 		roomDepth = tempRoomDepth;
 		
-		if (renderer) {
-			const dimensions = {
-				width: roomWidth / 10,
-				height: roomHeight / 10,
-				depth: roomDepth / 10
-			};
+		const dimensions = {
+			width: roomWidth / 10,
+			height: roomHeight / 10,
+			depth: roomDepth / 10
+		};
 
+		saveDimensions({ width: roomWidth, height: roomHeight, depth: roomDepth });
+		
+		if (renderer) {
 			renderer.setCurrentRoomDimensions(dimensions);
 
 			if (showVirtualRoom) {
@@ -78,23 +138,10 @@
 	}
 
 	function cancelRoomSettings() {
+		tempRoomWidth = roomWidth;
+		tempRoomHeight = roomHeight;
+		tempRoomDepth = roomDepth;
 		showRoomSettings = false;
-	}
-
-	function updateRoomSize() {
-		if (renderer) {
-			const dimensions = {
-				width: roomWidth / 10,
-				height: roomHeight / 10,
-				depth: roomDepth / 10
-			};
-
-			renderer.setCurrentRoomDimensions(dimensions);
-
-			if (showVirtualRoom) {
-				renderer.resizeVirtualRoom(dimensions);
-			}
-		}
 	}
 
 	$effect(() => {

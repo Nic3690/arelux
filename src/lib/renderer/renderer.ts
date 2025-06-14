@@ -86,8 +86,8 @@ export class Renderer {
 	#virtualRoom: Group | null = null;
 	#currentRoomDimensions: RoomDimensions = { width: 3, height: 3, depth: 3 };
 	#lightFeedbackIndicator: Mesh | null = null;
-	#systemOffset: Vector3 = new Vector3(0, 0, 0); // Offset per il movimento del sistema
-	#originalPositions: Map<string, Vector3> = new Map(); // Posizioni originali degli oggetti
+	#systemOffset: Vector3 = new Vector3(0, 0, 0);
+	#originalPositions: Map<string, Vector3> = new Map();
 
 	#objects: TemporaryObject[] = [];
 	#clickCallback: ((_: HandleMesh | LineHandleMesh) => any) | undefined;
@@ -164,6 +164,10 @@ export class Renderer {
 		};
 
 		this.createVirtualRoom();
+	}
+
+	getCurrentRoomDimensions(): RoomDimensions {
+		return { ...this.#currentRoomDimensions };
 	}
 
 	reinitWebgl(canvas: HTMLCanvasElement) {
@@ -683,7 +687,9 @@ export class Renderer {
 		}
 
 		this.handles.clear();
-		this.createVirtualRoom();
+		
+		const isVisible = this.#virtualRoom?.visible ?? false;
+		this.createVirtualRoom(this.#currentRoomDimensions, false, isVisible);
 
 		return this;
 	}
@@ -763,7 +769,6 @@ export class Renderer {
 		const obj = await RendererObject.init(this, code);
 		this.#objects.push(obj);
 		
-		// Salva la posizione originale quando aggiungiamo un nuovo oggetto
 		if (obj.mesh) {
 			this.#originalPositions.set(obj.id, obj.mesh.position.clone());
 		}
@@ -812,7 +817,6 @@ export class Renderer {
 		obj.detachAll();
 		obj.dispose(this.#scene);
 		
-		// Rimuovi la posizione salvata
 		this.#originalPositions.delete(obj.id);
 		
 		if (this.#objects.indexOf(obj) > -1) this.#objects.splice(this.#objects.indexOf(obj), 1);
@@ -857,29 +861,17 @@ export class Renderer {
 		for (const obj of this.#objects) obj.setOpacity(opacity);
 	}
 
-	// METODI AGGIUNTI PER SYSTEM MOVER
-
-	/**
-	 * Sposta tutti gli oggetti del sistema di un delta specificato (in incrementi di 10cm)
-	 */
 	moveAllObjects(deltaX: number, deltaY: number, deltaZ: number): void {
 		const delta = new Vector3(deltaX, deltaY, deltaZ);
 		this.#systemOffset.add(delta);
 
-		// Sposta tutti gli oggetti
 		for (const obj of this.#objects) {
 			if (obj.mesh) {
 				obj.mesh.position.add(delta);
 			}
 		}
-
-		// NON aggiornare la stanza virtuale - deve rimanere fissa
-		// La stanza virtuale rimane nella sua posizione originale
 	}
 
-	/**
-	 * Salva le posizioni originali di tutti gli oggetti
-	 */
 	private saveOriginalPositions(): void {
 		this.#originalPositions.clear();
 		for (const obj of this.#objects) {
@@ -889,11 +881,7 @@ export class Renderer {
 		}
 	}
 
-	/**
-	 * Ripristina tutti gli oggetti alle loro posizioni originali
-	 */
 	resetAllObjectsPosition(): void {
-		// Se non abbiamo posizioni salvate, salviamo quelle attuali sottraendo l'offset
 		if (this.#originalPositions.size === 0) {
 			for (const obj of this.#objects) {
 				if (obj.mesh) {
@@ -903,7 +891,6 @@ export class Renderer {
 			}
 		}
 
-		// Ripristina le posizioni originali
 		for (const obj of this.#objects) {
 			if (obj.mesh) {
 				const originalPos = this.#originalPositions.get(obj.id);
@@ -913,17 +900,12 @@ export class Renderer {
 			}
 		}
 
-		// Reset dell'offset
 		this.#systemOffset.set(0, 0, 0);
-
-		// NON aggiornare la stanza virtuale - deve rimanere fissa
 	}
-
 
 	centerSystemInRoom(): void {
 		if (!this.#virtualRoom) return;
 
-		// Separa profili da altri oggetti
 		const profiles: TemporaryObject[] = [];
 		const otherObjects: TemporaryObject[] = [];
 
@@ -945,10 +927,8 @@ export class Renderer {
 		let systemCenter: Vector3;
 
 		if (profiles.length > 0) {
-			// Calcola il centro del sistema di profili
 			systemCenter = this.calculateProfilesCenter(profiles);
 		} else {
-			// Fallback al bounding box per oggetti non-profilo
 			const bbox = new Box3();
 			for (const obj of otherObjects) {
 				if (obj.mesh) {
@@ -958,40 +938,32 @@ export class Renderer {
 			systemCenter = bbox.getCenter(new Vector3());
 		}
 
-		// Il centro della stanza virtuale è sempre all'origine (0, 0, 0)
 		const roomCenter = new Vector3(0, 0, 0);
 
-		// Calcola quanto spostare per centrare il sistema nella stanza fissa
 		const offset = roomCenter.clone().sub(systemCenter);
 		
-		// Mantieni l'altezza Y del sistema come è, centra solo su X e Z
 		offset.y = 0;
 
-		// Sposta tutti gli oggetti
 		for (const obj of this.#objects) {
 			if (obj.mesh) {
 				obj.mesh.position.add(offset);
 			}
 		}
 
-		// Aggiorna l'offset del sistema
 		this.#systemOffset.add(offset);
 
-		// Assicurati che la stanza virtuale rimanga centrata a (0,0,0)
 		this.createVirtualRoom(this.#currentRoomDimensions, false, this.#virtualRoom.visible);
 
 		console.log(`✅ Sistema centrato: offset applicato (${offset.x.toFixed(1)}, ${offset.y.toFixed(1)}, ${offset.z.toFixed(1)})`);
 		console.log(`🎯 Centro calcolato: (${systemCenter.x.toFixed(1)}, ${systemCenter.y.toFixed(1)}, ${systemCenter.z.toFixed(1)})`);
 	}
 
-	// Sostituisci anche la funzione calculateProfilesBarycenter con questa versione migliorata:
 	private calculateProfilesCenter(profiles: TemporaryObject[]): Vector3 {
 		if (profiles.length === 0) {
 			return new Vector3(0, 0, 0);
 		}
 
 		if (profiles.length === 1) {
-			// ✅ CASO SPECIALE: Singolo profilo - calcola il centro esatto del profilo
 			const profile = profiles[0];
 			if (!profile.mesh) return new Vector3(0, 0, 0);
 
@@ -1000,11 +972,9 @@ export class Renderer {
 
 			const lineJunct = lineJuncts[0];
 			
-			// Converti i punti estremi nello spazio mondiale
 			const point1World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point1));
 			const point2World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point2));
 			
-			// Il centro del profilo è esattamente a metà tra i due punti estremi
 			const profileCenter = new Vector3()
 				.addVectors(point1World, point2World)
 				.multiplyScalar(0.5);
@@ -1017,7 +987,6 @@ export class Renderer {
 			return profileCenter;
 		}
 
-		// ✅ CASO MULTIPLI PROFILI: Calcola il baricentro di tutti i punti estremi
 		const extremePoints: Vector3[] = [];
 
 		for (const profile of profiles) {
@@ -1038,7 +1007,6 @@ export class Renderer {
 			console.log(`   Point2: (${point2World.x.toFixed(1)}, ${point2World.y.toFixed(1)}, ${point2World.z.toFixed(1)})`);
 		}
 
-		// Calcola il baricentro di tutti i punti estremi
 		const barycenter = new Vector3();
 		for (const point of extremePoints) {
 			barycenter.add(point);
@@ -1051,17 +1019,12 @@ export class Renderer {
 		return barycenter;
 	}
 
-	/**
-	 * Ottiene l'offset corrente del sistema
-	 */
 	getSystemOffset(): Vector3 {
 		return this.#systemOffset.clone();
 	}
 
-	// FINE METODI SYSTEM MOVER
-
 	createVirtualRoom(
-		dimensions: number | RoomDimensions = 3, 
+		dimensions: number | RoomDimensions = this.#currentRoomDimensions, 
 		centered: boolean = true, 
 		visible: boolean = false
 	): Renderer {
@@ -1093,6 +1056,8 @@ export class Renderer {
 			roomWidth = dimensions.width * scaleFactor;
 			roomHeight = dimensions.height * scaleFactor;
 			roomDepth = dimensions.depth * scaleFactor;
+			
+			this.#currentRoomDimensions = { ...dimensions };
 		}
 		
 		if (centered && this.#objects.length > 0) {
@@ -1197,8 +1162,6 @@ export class Renderer {
 
 	updateVirtualRoom(): Renderer {
 		if (this.#virtualRoom && this.#objects.length > 0) {
-			// Mantieni la stanza centrata sull'origine, non sugli oggetti
-			// In questo modo la stanza rimane fissa anche quando gli oggetti si muovono
 			this.createVirtualRoom(this.#currentRoomDimensions, false, this.#virtualRoom.visible);
 		}
 		return this;
@@ -1229,9 +1192,8 @@ export class Renderer {
 	debugRoomAndProfiles(): void {
 		console.log("🏠 === DEBUG STANZA VIRTUALE ===");
 		
-		// Debug dimensioni stanza (convertite in mm)
 		const roomDimensions = {
-			larghezza: this.#currentRoomDimensions.width * 1000, // da metri a mm
+			larghezza: this.#currentRoomDimensions.width * 1000,
 			altezza: this.#currentRoomDimensions.height * 1000,
 			profondità: this.#currentRoomDimensions.depth * 1000
 		};
@@ -1241,7 +1203,6 @@ export class Renderer {
 		console.log(`   - Altezza: ${roomDimensions.altezza}mm`);
 		console.log(`   - Profondità: ${roomDimensions.profondità}mm`);
 		
-		// Debug profili presenti
 		const profiles = this.#objects.filter(obj => {
 			const catalogEntry = obj.getCatalogEntry();
 			const isProfile = catalogEntry.line_juncts && catalogEntry.line_juncts.length > 0;
@@ -1254,11 +1215,9 @@ export class Renderer {
 			const catalogEntry = profile.getCatalogEntry();
 			console.log(`   ${index + 1}. Codice: ${catalogEntry.code}`);
 			
-			// ✅ TROVA L'OGGETTO SALVATO CORRISPONDENTE
 			const savedObjects = this.getSavedObjects();
 			const savedObject = savedObjects.find(obj => obj.object?.id === profile.id);
 			
-			// ✅ TROVA LA LUNGHEZZA DALLA FAMIGLIA
 			let catalogLength = 0;
 			let familyInfo = null;
 			
@@ -1276,7 +1235,6 @@ export class Renderer {
 			}
 			
 			if (savedObject) {
-				// Usa la lunghezza effettiva dall'oggetto salvato
 				const effectiveLength = savedObject.length || catalogLength;
 				const isCustomLength = savedObject.customLength || false;
 				
@@ -1291,7 +1249,6 @@ export class Renderer {
 					console.log(`      - Angolo: ${familyInfo.angle}°`);
 				}
 			} else {
-				// Fallback al catalogo se non trova l'oggetto salvato
 				if (familyInfo) {
 					console.log(`      - Sistema: ${familyInfo.system}`);
 					console.log(`      - Lunghezza (catalogo): ${catalogLength}mm`);
@@ -1300,14 +1257,12 @@ export class Renderer {
 				}
 			}
 			
-			// Debug posizione del profilo nello spazio 3D
 			if (profile.mesh) {
 				const position = profile.mesh.position;
 				console.log(`      - Posizione: x=${position.x.toFixed(1)}, y=${position.y.toFixed(1)}, z=${position.z.toFixed(1)}`);
 			}
 		});
 		
-		// ✅ DEBUG CON LUNGHEZZE EFFETTIVE
 		if (profiles.length > 0) {
 			const savedObjects = this.getSavedObjects();
 			const effectiveLengths = profiles.map(p => {
@@ -1315,7 +1270,6 @@ export class Renderer {
 				if (savedObject && savedObject.length) {
 					return savedObject.length;
 				}
-				// Fallback alla famiglia
 				for (const family of Object.values(this.families)) {
 					const item = family.items.find(i => i.code === p.getCatalogEntry().code);
 					if (item) return item.len || 0;
@@ -1334,9 +1288,7 @@ export class Renderer {
 		console.log("🏠 === FINE DEBUG ===");
 	}
 
-	// ✅ AGGIUNGI QUESTO METODO AL RENDERER
 	getSavedObjects() {
-		// Importa il store objects e restituisce il suo valore
 		return get(objects);
 	}
 }
