@@ -80,14 +80,19 @@ export async function createCompositeProfile(
         console.log(`📦 Segmento: ${segment.count}x ${segment.code} (${segment.length}mm each)`);
         
         for (let i = 0; i < segment.count; i++) {
-            console.log(`  - Aggiungendo ${segment.code} #${i+1} alla posizione ${currentPositionX}mm`);
+            console.log(`  - Aggiungendo ${config.baseCode} #${i+1} alla posizione ${currentPositionX}mm`);
             
-            const obj = await renderer.addObject(segment.code);
+            // USA SEMPRE IL CODICE BASE per avere le junctions corrette
+            const obj = await renderer.addObject(config.baseCode);
             objects.push(obj);
 
-            // Posiziona il pezzetto lungo l'asse X con spaziatura visibile
-            currentPositionX += segment.length * (62.5 / 2500);
+            // Scala il mesh per adattarlo alla lunghezza del segmento
             if (obj.mesh) {
+                const scaleFactor = segment.length / 2500; // 2500mm è la lunghezza standard
+                obj.mesh.scale.setX(scaleFactor);
+                
+                // Posiziona il pezzetto lungo l'asse X con spaziatura visibile
+                currentPositionX += segment.length * (62.5 / 2500);
                 const xPosition = currentPositionX;
                 
                 obj.mesh.position.set(xPosition, 0, 0);
@@ -104,69 +109,69 @@ export async function createCompositeProfile(
     return objects;
 }
 
-// Funzione migliorata per nascondere le giunzioni intermedie
+// Funzione migliorata per nascondere solo le junctions intermedie, mantenendo TUTTE le line junctions
 function hideIntermediateJunctions(objects: TemporaryObject[]) {
-    console.log(`🙈 Gestendo giunzioni per ${objects.length} oggetti...`);
+    console.log(`🙈 Gestendo junctions per ${objects.length} oggetti...`);
     
     if (objects.length <= 1) {
         console.log(`  - Solo ${objects.length} oggetto/i, nessuna giunzione da nascondere`);
         return;
     }
 
-    // Per tutti gli oggetti tranne il primo e l'ultimo, nascondi tutte le giunzioni
+    // Per tutti gli oggetti tranne il primo e l'ultimo, nascondi solo le junctions normali
     for (let i = 1; i < objects.length - 1; i++) {
         const obj = objects[i];
         const catalogEntry = obj.getCatalogEntry();
         
-        console.log(`  - Nascondendo giunzioni per oggetto intermedio ${i} (${catalogEntry.code})`);
+        console.log(`  - Nascondendo junctions normali per oggetto intermedio ${i} (${catalogEntry.code})`);
         
-        // Crea una copia dell'entry del catalogo con giunzioni ridotte
+        // Crea una copia dell'entry del catalogo rimuovendo solo le junctions normali
         const modifiedEntry = {
             ...catalogEntry,
-            juncts: [], // Rimuove tutte le giunzioni intermedie
-            line_juncts: [] // Rimuove tutte le line junctions intermedie
+            juncts: [], // Rimuove tutte le junctions intermedie
+            line_juncts: catalogEntry.line_juncts // MANTIENI tutte le line junctions per attaccare luci
         };
         
         obj.setCatalogEntry(modifiedEntry);
     }
 
-    // Gestisci le giunzioni del primo oggetto (mantieni solo quella "destra")
+    // Gestisci le junctions del primo oggetto (mantieni solo quella "sinistra" per le junctions normali)
     if (objects.length > 0) {
         const firstObj = objects[0];
         const firstEntry = firstObj.getCatalogEntry();
         
-        console.log(`  - Primo oggetto (${firstEntry.code}): gestendo giunzioni`);
+        console.log(`  - Primo oggetto (${firstEntry.code}): gestendo junctions normali`);
         
         if (firstEntry.juncts.length > 1) {
             // Per profili lineari, mantieni solo la giunzione di uscita (destra)
             const modifiedFirstEntry = {
                 ...firstEntry,
                 juncts: [firstEntry.juncts[firstEntry.juncts.length - 1]], // Ultima junction (destra)
-                line_juncts: firstEntry.line_juncts // Mantieni le line junctions
+                line_juncts: firstEntry.line_juncts // MANTIENI tutte le line junctions
             };
             firstObj.setCatalogEntry(modifiedFirstEntry);
         }
     }
 
-    // Gestisci le giunzioni dell'ultimo oggetto (mantieni solo quella "sinistra")
+    // Gestisci le junctions dell'ultimo oggetto (mantieni solo quella "sinistra" per le junctions normali)
     if (objects.length > 1) {
         const lastObj = objects[objects.length - 1];
         const lastEntry = lastObj.getCatalogEntry();
         
-        console.log(`  - Ultimo oggetto (${lastEntry.code}): gestendo giunzioni`);
+        console.log(`  - Ultimo oggetto (${lastEntry.code}): gestendo junctions normali`);
         
         if (lastEntry.juncts.length > 1) {
             // Per profili lineari, mantieni solo la giunzione di ingresso (sinistra)
             const modifiedLastEntry = {
                 ...lastEntry,
                 juncts: [lastEntry.juncts[0]], // Prima junction (sinistra)
-                line_juncts: lastEntry.line_juncts // Mantieni le line junctions
+                line_juncts: lastEntry.line_juncts // MANTIENI tutte le line junctions
             };
             lastObj.setCatalogEntry(modifiedLastEntry);
         }
     }
     
-    console.log(`✅ Gestione giunzioni completata`);
+    console.log(`✅ Gestione junctions completata - line junctions mantenute su tutti i pezzetti`);
 }
 
 
