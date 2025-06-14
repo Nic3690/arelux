@@ -135,8 +135,6 @@ export type SavedObject = {
 
 	/** Empty unless the object is actually two or more objects */
 	subobjects: SavedObject[];
-	compositeObjects?: TemporaryObject[];
-	compositeConfig?: CompositeProfileConfig;
 };
 
 /** The settings of a tenant */

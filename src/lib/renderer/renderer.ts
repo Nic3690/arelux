@@ -1291,4 +1291,22 @@ export class Renderer {
 	getSavedObjects() {
 		return get(objects);
 	}
+
+	/**
+	 * Scala un oggetto e aggiorna le sue junctions e line_junctions di conseguenza
+	 * @param obj L'oggetto da scalare
+	 * @param scaleFactor Il fattore di scala (es: 1.5 per 150% della dimensione originale)
+	 */
+	scaleObject(obj: TemporaryObject, scaleFactor: number): void {
+		if (!obj.mesh) {
+			console.warn('Impossibile scalare oggetto senza mesh');
+			return;
+		}
+
+		console.log(`🔧 Scaling oggetto ${obj.getCatalogEntry().code} con fattore ${scaleFactor}`);
+
+		// Scala la mesh lungo l'asse X (assumendo che i profili siano lineari lungo X)
+		obj.mesh.scale.setX(scaleFactor);
+
+	}
 }

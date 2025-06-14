@@ -3,12 +3,11 @@
     import _ from 'lodash';
     import type { Family } from '../../app';
     import { onMount } from 'svelte';
-    import { calculateProfileComposition, isCompositeProfileSupported, extractBaseCode, type CompositeProfileConfig } from '$lib/compositeProfiles';
 
     type Props = {
         family: Family;
         value?: string;
-        onsubmit?: (value: string, length: number, isCustom?: boolean, compositeConfig?: CompositeProfileConfig | null) => any;
+        onsubmit?: (value: string, length: number, isCustom?: boolean) => any;
     };
 
     let { family, value = $bindable(), onsubmit }: Props = $props();
@@ -17,14 +16,6 @@
     let isCustomLength = $state(false);
     let valueLen = $state(2500);
     let items: { code: string; len: number }[] = $state([]);
-    let debugInfo = $state("");
-    let compositeConfig: CompositeProfileConfig | null = $state(null);
-    let isCompositeProfile = $state(false);
-
-    function debug(msg: string) {
-        console.log(msg);
-        debugInfo = msg;
-    }
 
     onMount(() => {
         const validItems = family.items
@@ -46,30 +37,10 @@
         value = code;
         valueLen = len;
         isCustomLength = false;
-        isCompositeProfile = false;
-        compositeConfig = null;
         valueInvalid = false;
         if (onsubmit) onsubmit(value, len, false);
     }
 
-    function findClosestModelLength(customLength: number) {
-        if (items.length === 0) return null;
-
-        let closestItem = items[0];
-        let minDiff = Math.abs(customLength - closestItem.len);
-        
-        for (let i = 1; i < items.length; i++) {
-            const diff = Math.abs(customLength - items[i].len);
-            if (diff < minDiff) {
-                minDiff = diff;
-                closestItem = items[i];
-            }
-        }
-        
-        debug(`Lunghezza personalizzata: ${customLength}mm, modello più vicino: ${closestItem.code} (${closestItem.len}mm)`);
-        return closestItem;
-    }
-    
     function handleCustomLength() {
         if (!valueLen || valueLen <= 0) {
             valueInvalid = true;
@@ -82,46 +53,21 @@
             // Lunghezza standard trovata
             value = matchingItem.code;
             isCustomLength = false;
-            isCompositeProfile = false;
-            compositeConfig = null;
             console.log('🔧 ConfigLength: lunghezza standard', { code: value, length: valueLen });
             if (onsubmit) onsubmit(value, valueLen, false);
         } else {
-            // Lunghezza personalizzata
+            // Lunghezza personalizzata - usa il primo item della famiglia come base
             isCustomLength = true;
-            const closestModel = findClosestModelLength(valueLen);
+            value = items[0].code;
             
-            if (closestModel) {
-                // Verifica se il profilo supporta la composizione
-                if (isCompositeProfileSupported(closestModel.code)) {
-                    const baseCode = extractBaseCode(closestModel.code);
-                    compositeConfig = calculateProfileComposition(baseCode, valueLen);
-                    isCompositeProfile = true;
-                    value = baseCode; // Usa il codice base
-                    
-                    console.log('🔧 ConfigLength: profilo composito', { 
-                        baseCode,
-                        customLength: valueLen, 
-                        composition: compositeConfig,
-                        chiamandoOnsubmit: true
-                    });
-                } else {
-                    // Profilo normale personalizzato
-                    isCompositeProfile = false;
-                    compositeConfig = null;
-                    value = closestModel.code;
-                    
-                    console.log('🔧 ConfigLength: lunghezza personalizzata normale', { 
-                        code: closestModel.code, 
-                        customLength: valueLen, 
-                        closestStandardLength: closestModel.len,
-                        chiamandoOnsubmit: true
-                    });
-                }
-
-                if (onsubmit) {
-                    onsubmit(value, valueLen, true, compositeConfig);
-                }
+            console.log('🔧 ConfigLength: lunghezza personalizzata con scaling', { 
+                baseCode: value, 
+                customLength: valueLen, 
+                standardLength: items[0].len
+            });
+            
+            if (onsubmit) {
+                onsubmit(value, valueLen, true);
             }
         }
     }

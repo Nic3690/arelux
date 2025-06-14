@@ -11,7 +11,6 @@ import type { Renderer } from './renderer/renderer';
 import { writable, type Writable } from 'svelte/store';
 import { storable } from './storable';
 import Handlebars from 'handlebars';
-import { createCompositeProfile, type CompositeProfileConfig } from './compositeProfiles';
 import type { Vector3Like } from 'three';
 import type { RendererObject } from './renderer/objects';
 import _ from 'lodash';
@@ -47,6 +46,8 @@ export function findClosestCatalogLength(family: Family, customLength: number): 
 	return closestItem;
 }
 
+// SOSTITUIRE finishEdit in src/lib/index.ts per evitare doppio attachment:
+
 export async function finishEdit(
 	renderer: Renderer,
 	obj: RendererObject,
@@ -61,7 +62,6 @@ export async function finishEdit(
 		led?: string;
 		length?: number;
 		isCustomLength?: boolean;
-		compositeConfig?: CompositeProfileConfig | null; // NUOVO PARAMETRO
 	},
 ) {
 	renderer.setScene('normal');
@@ -108,77 +108,51 @@ export async function finishEdit(
 		});
 	}
 
-	// NUOVA LOGICA: Gestione profili compositi
-	if (stateOverride?.compositeConfig && stateOverride?.isCustomLength) {
-		console.log('🏗️ Creando profilo composito...', stateOverride.compositeConfig);
-		
-		try {
-			// Rimuovi l'oggetto temporaneo dalla scena
-			renderer.removeObject(obj);
-			
-			// Crea il profilo composito
-			const compositeObjects = await createCompositeProfile(renderer, stateOverride.compositeConfig);
-			
-			if (compositeObjects.length > 0) {
-				// Gestisci l'attachment se c'è un riferimento
-				if (state.reference) {
-					const firstObject = compositeObjects[0]; // Il primo pezzetto del profilo composito
-					
-					if (state.reference.typ === 'junction') {
-						const parentObj = renderer.getObjectById(state.reference.id);
-						if (parentObj) {
-							parentObj.attach(firstObject, state.reference.junction);
-						}
-					} else if (state.reference.typ === 'line') {
-						const parentObj = renderer.getObjectById(state.reference.id);
-						if (parentObj) {
-							parentObj.attachLine(firstObject, state.reference.pos);
-						}
-					}
-				}
+	// Controlla se l'oggetto è già attaccato dal preview
+	const isAlreadyAttached = obj.getJunctions().some(j => j !== null) || 
+							obj.getLineJunctions().some(j => j !== null);
 
-				// Aggiungi tutti i pezzetti come oggetti salvati
-				// Ma rappresentali come un singolo oggetto nel saved state per l'interfaccia
-				const mainObject = compositeObjects[0]; // Il primo pezzetto sarà il "rappresentante"
-				
-				objects.update((objs) =>
-					objs.concat({
-						code: state.chosenItem,
-						desc1: item?.desc1 ?? '',
-						desc2: item?.desc2 ?? '',
-						subobjects,
-						length: state.length,
-						customLength: state.isCustomLength === true,
-						object: mainObject, // Usa il primo oggetto come riferimento
-						compositeObjects: compositeObjects, // NUOVO: memorizza tutti gli oggetti del composito
-						compositeConfig: stateOverride.compositeConfig, // NUOVO: memorizza la configurazione
-					}),
-				);
-				
-				lastAdded.set(mainObject.id);
-				console.log('✅ Profilo composito creato con successo');
+	// Solo se NON è già attaccato, fai l'attachment
+	if (state.reference && !isAlreadyAttached) {
+		if (state.reference.typ === 'junction') {
+			const parentObj = renderer.getObjectById(state.reference.id);
+			if (parentObj) {
+				parentObj.attach(obj, state.reference.junction);
 			}
-		} catch (error) {
-			console.error('❌ Errore nella creazione del profilo composito:', error);
-			toast.error('Errore nella creazione del profilo composito');
-			return;
+		} else if (state.reference.typ === 'line') {
+			const parentObj = renderer.getObjectById(state.reference.id);
+			if (parentObj) {
+				parentObj.attachLine(obj, state.reference.pos);
+			}
 		}
-	} else {
-		// LOGICA ORIGINALE: Gestione oggetti normali
-		objects.update((objs) =>
-			objs.concat({
-				code: state.chosenItem,
-				desc1: item?.desc1 ?? '',
-				desc2: item?.desc2 ?? '',
-				subobjects,
-				length: state.length,
-				customLength: state.isCustomLength === true,
-				object: obj,
-			}),
-		);
-		lastAdded.set(obj.id);
 	}
 
+	// Applica scaling se necessario (DOPO eventuale attachment)
+	if (stateOverride?.isCustomLength && stateOverride?.length && item?.len) {
+		console.log('🔧 Applicando scaling per lunghezza personalizzata:', {
+			lunghezzaOriginale: item.len,
+			lunghezzaPersonalizzata: stateOverride.length,
+			fattoreScala: stateOverride.length / item.len
+		});
+		
+		// Scala l'oggetto (solo la mesh)
+		renderer.scaleObject(obj, stateOverride.length / item.len);
+	}
+
+	// Aggiungi l'oggetto come salvato
+	objects.update((objs) =>
+		objs.concat({
+			code: state.chosenItem,
+			desc1: item?.desc1 ?? '',
+			desc2: item?.desc2 ?? '',
+			subobjects,
+			length: state.length,
+			customLength: state.isCustomLength === true,
+			object: obj,
+		}),
+	);
+
+	lastAdded.set(obj.id);
 	goto(`/${page.data.tenant}/${page.data.system}`);
 }
 
