@@ -10,7 +10,7 @@
 	import { page } from '$app/state';
 	import { Renderer } from './renderer/renderer';
 	import { browser } from '$app/environment';
-	import { Vector3 } from 'three';
+	import { QuadraticBezierCurve3, Vector3 } from 'three';
 
 	let { 
 		is3d = $bindable(page.data.settings.allow3d), 
@@ -183,10 +183,11 @@
 				return;
 			}
 
-			// Raccogliamo i dati dei profili
+			// Raccogliamo i dati dei profili e calcoliamo il fattore di scala
 			const profileData = [];
 			let minX = Infinity, maxX = -Infinity;
 			let minZ = Infinity, maxZ = -Infinity;
+			let scaleFactor = 1; // Fattore di scala da modello 3D a misure reali
 
 			for (const profile of profiles) {
 				const rendererObj = profile.object;
@@ -195,150 +196,77 @@
 				const catalogEntry = rendererObj.getCatalogEntry();
 				const lineJunct = catalogEntry.line_juncts[0];
 				
-				// Convertiamo i punti in coordinate mondo solo per la disposizione visiva
+				// Convertiamo i punti di controllo della curva in coordinate mondo
 				const point1World = rendererObj.mesh.localToWorld(new Vector3().copy(lineJunct.point1));
 				const point2World = rendererObj.mesh.localToWorld(new Vector3().copy(lineJunct.point2));
-				
-				// Vista dall'alto: usiamo X e Z, ignoriamo Y
-				const start = { x: point1World.x, z: point1World.z };
-				const end = { x: point2World.x, z: point2World.z };
+				const pointCWorld = rendererObj.mesh.localToWorld(new Vector3().copy(lineJunct.pointC));
 				
 				// Usa SEMPRE la lunghezza reale salvata nell'oggetto
 				const effectiveLength = profile.length || 2500; // fallback se non c'è length
 				
-				// Controlliamo se è un profilo curvo
-				const familyData = Object.values(page.data.families).find(family => 
-					family.items.some(item => item.code === profile.code)
-				);
-				const familyItem = familyData?.items.find(item => item.code === profile.code);
+				// Calcola il fattore di scala confrontando la lunghezza 3D con quella reale
+				if (scaleFactor === 1) {
+					const model3DLength = point1World.distanceTo(point2World);
+					if (model3DLength > 0) {
+						// scaleFactor = lunghezza_reale_mm / lunghezza_modello_3D_mm
+						scaleFactor = effectiveLength / (model3DLength * 1000); // *1000 perché model3D è in metri
+						console.log(`📏 Fattore di scala calcolato: ${scaleFactor} (${effectiveLength}mm reali / ${(model3DLength * 1000).toFixed(1)}mm modello)`);
+					}
+				}
 				
-				const isCurved = familyItem && familyItem.deg !== undefined && familyItem.deg !== 0 && familyItem.deg !== -1;
-				const angle = familyItem?.deg || 0;
-				const radius = familyItem?.radius || 0;
-				
+				// Determina se è un profilo curvo controllando se il punto di controllo
+				// è significativamente diverso dal punto medio tra point1 e point2
+				const midPoint = new Vector3().addVectors(point1World, point2World).multiplyScalar(0.5);
+				const distanceFromMid = pointCWorld.distanceTo(midPoint);
+				const isCurved = distanceFromMid > 0.1; // soglia di tolleranza
+
 				profileData.push({
-					start,
-					end,
+					point1: { x: point1World.x, z: point1World.z },
+					point2: { x: point2World.x, z: point2World.z },
+					pointC: { x: pointCWorld.x, z: pointCWorld.z },
 					length: effectiveLength,
 					code: profile.code,
-					isCurved,
-					angle,
-					radius
+					isCurved
 				});
 
-				// Per i profili curvi, dobbiamo calcolare i bounds dell'arco
-				if (isCurved && radius > 0) {
-					// Calcola i bounds dell'arco basandosi su centro, raggio e angolo
-					const centerX = (start.x + end.x) / 2;
-					const centerZ = (start.z + end.z) / 2;
-					const arcRadius = radius / 1000; // converti da mm a unità renderer
-					
-					minX = Math.min(minX, centerX - arcRadius, centerX + arcRadius);
-					maxX = Math.max(maxX, centerX - arcRadius, centerX + arcRadius);
-					minZ = Math.min(minZ, centerZ - arcRadius, centerZ + arcRadius);
-					maxZ = Math.max(maxZ, centerZ - arcRadius, centerZ + arcRadius);
+				if (isCurved) {
+					// Per profili curvi, calcoliamo i bounds campionando punti lungo la curva
+					const curve = new QuadraticBezierCurve3(point1World, pointCWorld, point2World);
+					const samples = 20;
+					for (let i = 0; i <= samples; i++) {
+						const t = i / samples;
+						const point = curve.getPointAt(t);
+						minX = Math.min(minX, point.x);
+						maxX = Math.max(maxX, point.x);
+						minZ = Math.min(minZ, point.z);
+						maxZ = Math.max(maxZ, point.z);
+					}
 				} else {
-					// Bounds normali per profili dritti
-					minX = Math.min(minX, start.x, end.x);
-					maxX = Math.max(maxX, start.x, end.x);
-					minZ = Math.min(minZ, start.z, end.z);
-					maxZ = Math.max(maxZ, start.z, end.z);
+					// Per profili dritti, bounds normali
+					minX = Math.min(minX, point1World.x, point2World.x);
+					maxX = Math.max(maxX, point1World.x, point2World.x);
+					minZ = Math.min(minZ, point1World.z, point2World.z);
+					maxZ = Math.max(maxZ, point1World.z, point2World.z);
 				}
 			}
 
-			// Dimensioni totali della configurazione
-			// Calcoliamo basandoci SOLO sui profili reali e la loro disposizione logica
+			// Dimensioni totali della configurazione (bounding box reale)
 			let totalWidth = 0;
 			let totalLength = 0;
 			
-			if (profiles.length === 1) {
-				// Per un singolo profilo, le dimensioni sono la sua lunghezza reale
-				const effectiveLength = profileData[0].length;
+			if (minX !== Infinity && maxX !== -Infinity && minZ !== Infinity && maxZ !== -Infinity) {
+				// Calcola le dimensioni del bounding box in coordinate mondo e applica il fattore di scala
+				const boundingBoxWidth = (maxX - minX) * 1000 * scaleFactor; // converti da metri a mm e applica fattore scala
+				const boundingBoxLength = (maxZ - minZ) * 1000 * scaleFactor; // converti da metri a mm e applica fattore scala
 				
-				// Determiniamo l'orientamento dal renderer (ma solo per capire l'orientamento)
-				const startPt = profileData[0].start;
-				const endPt = profileData[0].end;
-				const deltaX = Math.abs(endPt.x - startPt.x);
-				const deltaZ = Math.abs(endPt.z - startPt.z);
+				totalWidth = Math.max(boundingBoxWidth, 50);
+				totalLength = Math.max(boundingBoxLength, 50);
 				
-				if (deltaX > deltaZ) {
-					// Profilo prevalentemente orizzontale
-					totalWidth = effectiveLength;
-					totalLength = 50; // spessore profilo stimato
-				} else {
-					// Profilo prevalentemente verticale  
-					totalLength = effectiveLength;
-					totalWidth = 50; // spessore profilo stimato
-				}
+				console.log(`📐 Bounding box: ${boundingBoxWidth.toFixed(1)}mm × ${boundingBoxLength.toFixed(1)}mm`);
 			} else {
-				// Per più profili, usiamo un approccio semplificato
-				// Analizziamo l'orientamento dai dati 3D per capire la disposizione
-				
-				let horizontalProfiles = [];
-				let verticalProfiles = [];
-				let curvedProfiles = [];
-				
-				for (const profile of profileData) {
-					if (profile.isCurved) {
-						curvedProfiles.push(profile);
-						continue;
-					}
-					
-					const startPt = profile.start;
-					const endPt = profile.end;
-					const deltaX = Math.abs(endPt.x - startPt.x);
-					const deltaZ = Math.abs(endPt.z - startPt.z);
-					
-					if (deltaX > deltaZ) {
-						// Profilo prevalentemente orizzontale
-						horizontalProfiles.push(profile);
-					} else {
-						// Profilo prevalentemente verticale
-						verticalProfiles.push(profile);
-					}
-				}
-				
-				// Calcola le dimensioni dei profili curvi
-				let curvedWidth = 0;
-				let curvedLength = 0;
-				
-				for (const curved of curvedProfiles) {
-					// Per un profilo curvo, la dimensione dipende dal raggio e dall'angolo
-					const radiusMM = curved.radius;
-					const angleDeg = curved.angle;
-					const angleRad = angleDeg * Math.PI / 180;
-					
-					// Calcola le dimensioni dell'arco
-					const arcWidth = radiusMM * Math.sin(angleRad);
-					const arcLength = radiusMM * (1 - Math.cos(angleRad));
-					
-					curvedWidth = Math.max(curvedWidth, arcWidth);
-					curvedLength = Math.max(curvedLength, arcLength);
-				}
-				
-				// Se tutti i profili hanno lo stesso orientamento, probabilmente sono in serie
-				if (horizontalProfiles.length === profiles.length) {
-					// Tutti orizzontali - sommali
-					totalWidth = horizontalProfiles.reduce((sum, p) => sum + p.length, 0);
-					totalLength = 50; // spessore stimato
-				} else if (verticalProfiles.length === profiles.length) {
-					// Tutti verticali - sommali
-					totalLength = verticalProfiles.reduce((sum, p) => sum + p.length, 0);
-					totalWidth = 50; // spessore stimato
-				} else if (curvedProfiles.length === profiles.length) {
-					// Tutti curvi
-					totalWidth = curvedWidth;
-					totalLength = curvedLength;
-				} else {
-					// Mix di orientamenti - configurazione complessa
-					const maxHorizontal = horizontalProfiles.length > 0 ? 
-						Math.max(...horizontalProfiles.map(p => p.length)) : 0;
-					const maxVertical = verticalProfiles.length > 0 ? 
-						Math.max(...verticalProfiles.map(p => p.length)) : 0;
-					
-					totalWidth = Math.max(maxHorizontal, curvedWidth, 50);
-					totalLength = Math.max(maxVertical, curvedLength, 50);
-				}
+				// Fallback se non riusciamo a calcolare il bounding box
+				totalWidth = 50;
+				totalLength = 50;
 			}
 
 			// Impostazioni canvas
@@ -360,7 +288,7 @@
 			const offsetY = margin + (drawArea.height - (maxZ - minZ) * scale) / 2;
 
 			// Funzione per convertire coordinate mondo in coordinate PDF
-			function worldToPDF(worldX: number, worldZ: number) {
+			function worldToPDF(worldX: number, worldZ: number): { x: number; y: number } {
 				return {
 					x: offsetX + (worldX - minX) * scale,
 					y: offsetY + (worldZ - minZ) * scale
@@ -374,48 +302,42 @@
 			pdf.setFontSize(8);
 
 			for (const profile of profileData) {
-				if (profile.isCurved && profile.radius > 0 && profile.angle > 0) {
-					// Disegna profilo curvo come arco usando segmenti di linea
-					const centerX = (profile.start.x + profile.end.x) / 2;
-					const centerZ = (profile.start.z + profile.end.z) / 2;
-					const centerPDF = worldToPDF(centerX, centerZ);
+				if (profile.isCurved) {
+					// Disegna profilo curvo campionando punti lungo la curva
+					const point1_3d = new Vector3(profile.point1.x, 0, profile.point1.z);
+					const point2_3d = new Vector3(profile.point2.x, 0, profile.point2.z);
+					const pointC_3d = new Vector3(profile.pointC.x, 0, profile.pointC.z);
 					
-					// Calcola il raggio in scala PDF
-					const radiusPDF = (profile.radius / 1000) * scale; // converti da mm a unità PDF
+					const curve = new QuadraticBezierCurve3(point1_3d, pointC_3d, point2_3d);
+					const segments = 50;
 					
-					// Calcola angoli di inizio e fine dell'arco in radianti
-					const startAngleRad = Math.atan2(profile.start.z - centerZ, profile.start.x - centerX);
-					const endAngleRad = startAngleRad + (profile.angle * Math.PI / 180);
-					
-					// Disegna l'arco usando segmenti di linea
-					const steps = Math.max(16, Math.abs(profile.angle) / 5); // più segmenti per angoli grandi
-					
-					for (let i = 0; i < steps; i++) {
-						const angle1 = startAngleRad + (endAngleRad - startAngleRad) * i / steps;
-						const angle2 = startAngleRad + (endAngleRad - startAngleRad) * (i + 1) / steps;
+					for (let i = 0; i < segments; i++) {
+						const t1 = i / segments;
+						const t2 = (i + 1) / segments;
 						
-						const x1 = centerPDF.x + radiusPDF * Math.cos(angle1);
-						const y1 = centerPDF.y + radiusPDF * Math.sin(angle1);
-						const x2 = centerPDF.x + radiusPDF * Math.cos(angle2);
-						const y2 = centerPDF.y + radiusPDF * Math.sin(angle2);
+						const p1 = curve.getPointAt(t1);
+						const p2 = curve.getPointAt(t2);
 						
-						pdf.line(x1, y1, x2, y2);
+						const pdf1 = worldToPDF(p1.x, p1.z);
+						const pdf2 = worldToPDF(p2.x, p2.z);
+						
+						pdf.line(pdf1.x, pdf1.y, pdf2.x, pdf2.y);
 					}
 					
-					// Calcola posizione per il testo (punto medio dell'arco)
-					const midAngleRad = (startAngleRad + endAngleRad) / 2;
-					const textRadius = radiusPDF * 1.3; // leggermente più lontano dall'arco
-					const textX = centerPDF.x + textRadius * Math.cos(midAngleRad);
-					const textY = centerPDF.y + textRadius * Math.sin(midAngleRad);
+					// Posiziona il testo al punto medio della curva
+					const midPoint = curve.getPointAt(0.5);
+					const midPDF = worldToPDF(midPoint.x, midPoint.z);
 					
-					// Testo con lunghezza e angolo
-					const curveText = `${Math.round(profile.length)}mm (${profile.angle}°)`;
-					pdf.text(curveText, textX, textY, { align: 'center' });
+					// Usa la lunghezza reale del profilo invece di calcolarla dalla geometria 3D
+					const realLength = profile.length;
+					
+					const curveText = `${Math.round(realLength)}mm (curvo)`;
+					pdf.text(curveText, midPDF.x, midPDF.y - 3, { align: 'center' });
 					
 				} else {
 					// Disegna profilo dritto come linea
-					const startPDF = worldToPDF(profile.start.x, profile.start.z);
-					const endPDF = worldToPDF(profile.end.x, profile.end.z);
+					const startPDF = worldToPDF(profile.point1.x, profile.point1.z);
+					const endPDF = worldToPDF(profile.point2.x, profile.point2.z);
 
 					// Disegniamo la linea del profilo
 					pdf.line(startPDF.x, startPDF.y, endPDF.x, endPDF.y);
