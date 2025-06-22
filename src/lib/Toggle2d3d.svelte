@@ -10,7 +10,8 @@
 	import { page } from '$app/state';
 	import { Renderer } from './renderer/renderer';
 	import { browser } from '$app/environment';
-	import { QuadraticBezierCurve3, Vector3 } from 'three';
+	import { QuadraticBezierCurve3, Vector3, Scene, Group, Mesh } from 'three';
+	import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 
 	let { 
 		is3d = $bindable(page.data.settings.allow3d), 
@@ -390,7 +391,136 @@
 	function handleDownload3D() {
 		console.log('Download configurazione in formato 3D');
 		showDownloadDialog = false;
-		// TODO: Implementare download 3D
+		
+		if (!renderer) {
+			console.error('Renderer non disponibile');
+			return;
+		}
+
+		generate3DGLTF();
+	}
+
+	async function generate3DGLTF() {
+		try {
+			// Crea una nuova scena per l'export
+			const exportScene = new Scene();
+			
+			// Ottieni tutti gli oggetti dalla configurazione corrente
+			const objects = renderer!.getObjects();
+			
+			if (objects.length === 0) {
+				console.warn('Nessun oggetto nella configurazione');
+				return;
+			}
+
+			console.log(`🔄 Esportando ${objects.length} oggetti in formato GLTF...`);
+
+			// Gruppo principale per contenere tutti gli oggetti
+			const mainGroup = new Group();
+			mainGroup.name = 'Configurazione_Arelux';
+
+			// Processa ogni oggetto
+			for (let i = 0; i < objects.length; i++) {
+				const obj = objects[i];
+				
+				if (!obj.mesh) {
+					console.warn(`Oggetto ${i} non ha una mesh, saltato`);
+					continue;
+				}
+
+				// Clona la mesh dell'oggetto
+				const clonedMesh = obj.mesh.clone();
+				clonedMesh.name = `${obj.getCatalogEntry().code}_${i}`;
+				
+				// Assicurati che tutti i materiali siano clonati
+				clonedMesh.traverse((child) => {
+					if (child instanceof Mesh && child.material) {
+						if (Array.isArray(child.material)) {
+							child.material = child.material.map(mat => mat.clone());
+						} else {
+							child.material = child.material.clone();
+						}
+					}
+				});
+
+				// Applica le trasformazioni correnti (posizione, rotazione, scala)
+				clonedMesh.position.copy(obj.mesh.position);
+				clonedMesh.rotation.copy(obj.mesh.rotation);
+				clonedMesh.scale.copy(obj.mesh.scale);
+				
+				// Aggiungi metadati come userData
+				clonedMesh.userData = {
+					originalCode: obj.getCatalogEntry().code,
+					objectType: 'configuration_item',
+					power: obj.getCatalogEntry().power,
+					system: obj.getCatalogEntry().system,
+					exportTimestamp: new Date().toISOString()
+				};
+
+				mainGroup.add(clonedMesh);
+			}
+
+			// Aggiungi metadati alla configurazione completa
+			mainGroup.userData = {
+				configurationType: 'arelux_configuration',
+				totalObjects: objects.length,
+				exportedBy: 'Arelux_Configurator',
+				exportDate: new Date().toISOString(),
+				version: '1.0'
+			};
+
+			exportScene.add(mainGroup);
+
+			// Configura l'esportatore GLTF
+			const exporter = new GLTFExporter();
+			
+			const options = {
+				binary: false, // Esporta in formato .gltf (JSON) invece di .glb
+				embedImages: true, // Includi le texture nel file
+				animations: [], // Nessuna animazione
+				includeCustomExtensions: false,
+				onlyVisible: true, // Solo oggetti visibili
+				truncateDrawRange: true,
+				forcePowerOfTwoTextures: false,
+				maxTextureSize: 2048
+			};
+
+			// Esporta la scena
+			exporter.parse(
+				exportScene,
+				(gltfData) => {
+					// Crea il file e scaricalo
+					const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+					const filename = `configurazione-3d-${timestamp}.gltf`;
+					
+					// Converti in Blob e scarica
+					const jsonString = JSON.stringify(gltfData, null, 2);
+					const blob = new Blob([jsonString], { type: 'application/json' });
+					
+					const url = URL.createObjectURL(blob);
+					const link = document.createElement('a');
+					link.href = url;
+					link.download = filename;
+					document.body.appendChild(link);
+					link.click();
+					document.body.removeChild(link);
+					URL.revokeObjectURL(url);
+					
+					console.log(`✅ File GLTF esportato: ${filename}`);
+					
+					// Pulizia
+					exportScene.clear();
+					mainGroup.clear();
+				},
+				(error) => {
+					console.error('❌ Errore durante l\'esportazione GLTF:', error);
+				},
+				options
+			);
+
+		} catch (error) {
+			console.error('❌ Errore durante la generazione del file 3D:', error);
+		}
 	}
 
 	$effect(() => {
@@ -501,7 +631,7 @@
 		</Dialog.Portal>
 	</Dialog.Root>
 
-	<!-- Nuovo pulsante Download -->
+	<!-- Pulsante Download -->
 	<Dialog.Root bind:open={showDownloadDialog}>
 		<Dialog.Trigger class={button({ size: 'square', class: 'font-bold flex items-center justify-center' })}>
 			<Download size={20} />
@@ -542,7 +672,7 @@
 						>
 							📦 Scarica in formato 3D
 							<span class="block text-sm text-gray-600 mt-1">
-								Modello tridimensionale interattivo
+								Modello tridimensionale GLTF
 							</span>
 						</button>
 					</div>
