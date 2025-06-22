@@ -89,7 +89,6 @@
 	let group: string | null = $state(null);
 	
 	$effect(() => {
-		// Pulisci oggetti temporanei esistenti
 		if (temporary !== null) {
 			renderer?.removeObject(temporary);
 			temporary = null;
@@ -98,11 +97,9 @@
 		if (page.state.chosenFamily !== undefined && page.state.chosenItem !== undefined) {
 			renderer?.setOpacity(0.2);
 
-			// LOGICA SEMPLIFICATA: Crea sempre un oggetto normale
 			renderer?.addObject(page.state.chosenItem).then((o) => {
 				if (junctionId !== undefined) o.markJunction(junctionId);
 
-				// Se è una lunghezza personalizzata, scala l'oggetto
 				if (page.state.isCustomLength && page.state.length) {
 					const family = data.families[page.state.chosenFamily!];
 					const item = family.items.find(i => i.code === page.state.chosenItem);
@@ -117,7 +114,6 @@
 					}
 				}
 
-				// Gestisci attachment per preview
 				if (page.state.reference) {
 					if (page.state.reference.typ === 'junction') {
 						renderer?.getObjectById(page.state.reference.id)?.attach(o);
@@ -134,7 +130,6 @@
 	});
 	
 	beforeNavigate(() => {
-		// Pulisci oggetto temporaneo normale
 		if (temporary) renderer?.removeObject(temporary);
 		
 		renderer?.setOpacity(1);
@@ -183,7 +178,6 @@
 					</DropdownMenu.Content>
 				</DropdownMenu.Root>
 
-				<!-- Item list -->
 				<RadioGroup.Root
 					class="flex h-full min-h-0 shrink flex-col gap-6 overflow-y-scroll rounded bg-box p-6"
 					bind:value={chosenFamily}
@@ -196,14 +190,22 @@
 
 					{#each Object.values(data.families)
 						.sort((a, b) => {
-							// TODO: remove this
 							if (a.displayName === 'ATS24.60IP44') return -1;
 							if (b.displayName === 'ATS24.60IP44') return 1;
 							return a.displayName.localeCompare(b.displayName);
 						})
 						.filter((fam) => fam.system === data.system)
 						.filter((fam) => fam.group === mode)
-						.filter((fam) => fam.visible) as item}
+						.filter((fam) => fam.visible)
+						.filter((fam) => {
+							if (data.system.toLowerCase() === 'xfree_s' || data.system.toLowerCase() === 'xfrees') {
+								const isNWProfile = fam.displayName.toLowerCase().includes('nw') || 
+												   fam.code.toLowerCase().includes('nw') ||
+												   fam.items.some(item => item.code.toLowerCase().includes('nw'));
+								return !isNWProfile;
+							}
+							return true;
+						}) as item}
 						{@const isDisabled =
 							hasPowerSupply && item.items.some((obj) => data.catalog[obj.code].power > 0)}
 
