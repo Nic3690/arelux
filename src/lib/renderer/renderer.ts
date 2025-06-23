@@ -89,6 +89,8 @@ export class Renderer {
 	#systemOffset: Vector3 = new Vector3(0, 0, 0);
 	#originalPositions: Map<string, Vector3> = new Map();
 
+	#hasBeenCentered: boolean = false;
+
 	#objects: TemporaryObject[] = [];
 	#clickCallback: ((_: HandleMesh | LineHandleMesh) => any) | undefined;
 
@@ -119,9 +121,16 @@ export class Renderer {
 				controls,
 			);
 		else {
+			const wasVirtualRoomVisible = RENDERER.#virtualRoom?.visible ?? false;
+			const currentDimensions = RENDERER.#currentRoomDimensions;
+			
 			RENDERER.#webgl.dispose();
 			RENDERER.reinitWebgl(canvas);
 			RENDERER.reinitControls(controls);
+
+			if (wasVirtualRoomVisible) {
+				RENDERER.createVirtualRoom(currentDimensions, true, true);
+			}
 		}
 
 		return RENDERER;
@@ -756,6 +765,7 @@ export class Renderer {
 	addTemporaryObject(): TemporaryObject {
 		this.#objects.push(new TemporaryObject(this));
 		this.frameObject(this.#objects[this.#objects.length - 1]);
+
 		return this.#objects[this.#objects.length - 1];
 	}
 
@@ -774,7 +784,15 @@ export class Renderer {
 		}
 		
 		this.frameObject(obj);
-		this.updateVirtualRoom();
+		
+		// Centering automatico SOLO per il primo oggetto
+		if (this.#objects.length === 1 && !this.#hasBeenCentered) {
+			this.updateVirtualRoomWithCentering();
+			this.#hasBeenCentered = true;
+		} else {
+			// Per gli oggetti successivi, aggiorna solo senza centering
+			// this.updateVirtualRoom();
+		}
 		
 		return obj;
 	}
@@ -819,7 +837,14 @@ export class Renderer {
 		
 		this.#originalPositions.delete(obj.id);
 		
-		if (this.#objects.indexOf(obj) > -1) this.#objects.splice(this.#objects.indexOf(obj), 1);
+		if (this.#objects.indexOf(obj) > -1) {
+			this.#objects.splice(this.#objects.indexOf(obj), 1);
+		}
+		
+		if (this.#objects.length === 0) {
+			this.#hasBeenCentered = false;
+		}
+		
 		this.updateVirtualRoom();
 	}
 
@@ -952,10 +977,6 @@ export class Renderer {
 
 		this.#systemOffset.add(offset);
 
-		this.createVirtualRoom(this.#currentRoomDimensions, false, this.#virtualRoom.visible);
-
-		console.log(`✅ Sistema centrato: offset applicato (${offset.x.toFixed(1)}, ${offset.y.toFixed(1)}, ${offset.z.toFixed(1)})`);
-		console.log(`🎯 Centro calcolato: (${systemCenter.x.toFixed(1)}, ${systemCenter.y.toFixed(1)}, ${systemCenter.z.toFixed(1)})`);
 	}
 
 	private calculateProfilesCenter(profiles: TemporaryObject[]): Vector3 {
@@ -1167,11 +1188,18 @@ export class Renderer {
 		return this;
 	}
 
+	updateVirtualRoomWithCentering(): Renderer {
+		if (this.#virtualRoom && this.#objects.length > 0) {
+			this.createVirtualRoom(this.#currentRoomDimensions, true, this.#virtualRoom.visible);
+		}
+		return this;
+	}
+
 	setVirtualRoomVisible(visible: boolean): Renderer {
 	  if (this.#virtualRoom) {
 		this.#virtualRoom.visible = visible;
 	  } else if (visible) {
-		this.createVirtualRoom();
+		this.createVirtualRoom(this.#currentRoomDimensions, false, true);
 	  }
 	  return this;
 	}
@@ -1182,7 +1210,7 @@ export class Renderer {
 
 	resizeVirtualRoom(dimensions: number | RoomDimensions): Renderer {
 		const isVisible = this.#virtualRoom?.visible ?? false;
-		return this.createVirtualRoom(dimensions, true, isVisible);
+		return this.createVirtualRoom(dimensions, false, isVisible);
 	}
 
 	setCurrentRoomDimensions(dimensions: RoomDimensions): void {

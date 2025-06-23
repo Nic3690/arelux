@@ -279,3 +279,5 @@ export async function invoiceTemplate(
 		totale,
 	});
 }
+
+export { virtualRoomVisible, virtualRoomDimensions } from './virtualRoomStore';

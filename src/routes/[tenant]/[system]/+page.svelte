@@ -30,7 +30,7 @@
 	let codeRight = $state(false);
 	
 	let downloadDisabled = $derived($objects.length === 0 || (data.settings.password.length !== 0 && !codeRight));
-	let virtualRoomDisabled = $derived($objects.length === 0);
+	let virtualRoomDisabled = $state(false);
 	
 	let lightMoverMode = $state(false);
 	let selectedLight = $state<TemporaryObject | null>(null);

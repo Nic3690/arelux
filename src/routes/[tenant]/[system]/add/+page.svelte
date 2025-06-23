@@ -10,7 +10,7 @@
 	import { page } from '$app/state';
 	import ConfigColor from '$lib/config/ConfigColor.svelte';
 	import type { PageData } from './$types';
-	import { button, finishEdit, getPowerBudget, objects } from '$lib';
+	import { button, finishEdit, getPowerBudget, objects, virtualRoomVisible } from '$lib';
 	import ConfigCurveShape from '$lib/config/ConfigCurveShape.svelte';
 	import ConfigLength from '$lib/config/ConfigLength.svelte';
 	import ConfigLed from '$lib/config/ConfigLed.svelte';
@@ -35,7 +35,7 @@
 	let renderer: Renderer | undefined = $state();
 	let loaded: SvelteSet<string> = $state(new SvelteSet());
 
-	let virtualRoomDisabled = $state(true);
+	let virtualRoomDisabled = $derived($objects.length === 0 && !$virtualRoomVisible);
 
 	let configShape = $state<{ angle: number; radius: number }>();
 	let configLength = $state<number>();
@@ -297,15 +297,6 @@
 				<Button.Root
 					class={button({ class: 'mt-auto' })}
 					on:click={() => {
-						console.log('🔧 PULSANTE CLICCATO - page.state completo:', {
-							chosenFamily: page.state.chosenFamily,
-							chosenItem: page.state.chosenItem,
-							reference: page.state.reference,
-							length: page.state.length,
-							isCustomLength: page.state.isCustomLength,
-							led: page.state.led,
-						});
-						
 						if (temporary) {
 							const oldTemporary = temporary;
 							temporary = null;
@@ -319,7 +310,6 @@
 								led: page.state.led,
 							};
 							
-							console.log('🔧 PARAMETRI FINALI:', stateToPass);
 							finishEdit(rend, oldTemporary, group, stateToPass);
 						} else {
 							console.error('❌ Nessun oggetto temporaneo trovato');
@@ -352,12 +342,6 @@
                 {family}
                 onsubmit={(objectCode, length, isCustom) => {
                     configLength = length;
-                    console.log('🔧 ADD PAGE - ConfigLength onsubmit ricevuto:', {
-                        objectCode,
-                        length,
-                        isCustom,
-                        currentPageState: page.state
-                    });
                     
                     replaceState('', {
                         chosenItem: objectCode,
@@ -366,7 +350,6 @@
                         length: length,
                         isCustomLength: isCustom
                     });
-                    console.log('🔧 ADD PAGE - Dopo replaceState:', page.state);
                 }}
             />
         {:else if family.needsLengthConfig && !family.arbitraryLength}
@@ -374,12 +357,6 @@
                 {family}
                 onsubmit={(objectCode, length, isCustom) => {
                     configLength = length;
-                    console.log('🔧 ADD PAGE - ConfigLength onsubmit ricevuto:', {
-                        objectCode,
-                        length,
-                        isCustom,
-                        currentPageState: page.state
-                    });
                     
                     replaceState('', {
                         chosenItem: objectCode,
@@ -388,7 +365,6 @@
                         length: length,
                         isCustomLength: isCustom
                     });
-                    console.log('🔧 ADD PAGE - Dopo replaceState:', page.state);
                 }}
             />
         {:else if family.needsLengthConfig && family.arbitraryLength}

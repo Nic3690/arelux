@@ -13,6 +13,7 @@
 	import { browser } from '$app/environment';
 	import { QuadraticBezierCurve3, Vector3, Scene, Group, Mesh } from 'three';
 	import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+	import { virtualRoomVisible, virtualRoomDimensions } from './virtualRoomStore';
 
 	let { 
 		is3d = $bindable(page.data.settings.allow3d), 
@@ -24,51 +25,34 @@
 		virtualRoomDisabled?: boolean;
 	} = $props();
 
-	let showVirtualRoom = $state(false);
+	let showVirtualRoom = $state($virtualRoomVisible);
 	let showRoomSettings = $state(false);
 	let showDownloadDialog = $state(false);
 	let showHelpDialog = $state(false);
 	
-	const STORAGE_KEY = 'virtual_room_dimensions';
-	const DEFAULT_DIMENSIONS = { width: 30, height: 30, depth: 30 };
-	
-	function loadSavedDimensions() {
-		if (!browser) return DEFAULT_DIMENSIONS;
-		
-		try {
-			const saved = localStorage.getItem(STORAGE_KEY);
-			if (saved) {
-				const parsed = JSON.parse(saved);
-				if (parsed.width > 0 && parsed.height > 0 && parsed.depth > 0) {
-					return parsed;
-				}
-			}
-		} catch (e) {
-			console.warn('Errore caricamento dimensioni stanza:', e);
-		}
-		
-		return DEFAULT_DIMENSIONS;
-	}
-	
-	function saveDimensions(dimensions: { width: number; height: number; depth: number }) {
-		if (!browser) return;
-		
-		try {
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(dimensions));
-		} catch (e) {
-			console.warn('Errore salvataggio dimensioni stanza:', e);
-		}
-	}
-
-	const savedDimensions = loadSavedDimensions();
-	let roomWidth = $state(savedDimensions.width);
-	let roomHeight = $state(savedDimensions.height);
-	let roomDepth = $state(savedDimensions.depth);
+	// Usa SOLO il store per le dimensioni (elimina il doppio salvataggio)
+	let roomWidth = $state($virtualRoomDimensions.width);
+	let roomHeight = $state($virtualRoomDimensions.height);
+	let roomDepth = $state($virtualRoomDimensions.depth);
 	
 	let tempRoomWidth = $state(roomWidth);
 	let tempRoomHeight = $state(roomHeight);
 	let tempRoomDepth = $state(roomDepth);
 	
+	// Sincronizza con i store
+	$effect(() => {
+		virtualRoomVisible.set(showVirtualRoom);
+	});
+
+	$effect(() => {
+		virtualRoomDimensions.set({
+			width: roomWidth,
+			height: roomHeight,
+			depth: roomDepth
+		});
+	});
+	
+	// Effect per aggiornare le dimensioni SOLO quando cambiano le dimensioni, non per ogni aggiunta oggetto
 	$effect(() => {
 		if (renderer) {
 			const dimensions = {
@@ -79,9 +63,31 @@
 			
 			renderer.setCurrentRoomDimensions(dimensions);
 			
+			// SOLO ridimensiona se la stanza è visibile, NON ricrearla (niente centering)
 			if (renderer.isVirtualRoomVisible()) {
 				renderer.resizeVirtualRoom(dimensions);
 			}
+		}
+	});
+	
+	// Effect per inizializzare il renderer SOLO al primo avvio
+	let rendererInitialized = $state(false);
+	$effect(() => {
+		if (renderer && !rendererInitialized) {
+			const initialDimensions = {
+				width: roomWidth / 10,
+				height: roomHeight / 10,
+				depth: roomDepth / 10
+			};
+			
+			renderer.setCurrentRoomDimensions(initialDimensions);
+			
+			// Se la stanza virtuale era già attiva, attivala senza centering forzato
+			if (showVirtualRoom) {
+				renderer.setVirtualRoomVisible(true);
+			}
+			
+			rendererInitialized = true;
 		}
 	});
 	
@@ -89,6 +95,7 @@
 		if (virtualRoomDisabled) return;
 		
 		showVirtualRoom = !showVirtualRoom;
+		virtualRoomVisible.set(showVirtualRoom);
 
 		if (renderer) {
 			renderer.debugRoomAndProfiles();
@@ -130,7 +137,11 @@
 			depth: roomDepth / 10
 		};
 
-		saveDimensions({ width: roomWidth, height: roomHeight, depth: roomDepth });
+		virtualRoomDimensions.set({
+			width: roomWidth,
+			height: roomHeight,
+			depth: roomDepth
+		});
 		
 		if (renderer) {
 			renderer.setCurrentRoomDimensions(dimensions);
