@@ -163,10 +163,10 @@
                         {@const position = ((len - 10) / (2500 - 10)) * 100}
                         <button
                             class={cn(
-                                'absolute w-3 h-3 rounded-full border-2 border-white transform -translate-x-1.5 cursor-pointer transition-all hover:scale-110',
+                                'absolute w-2 h-2 rounded-full transform -translate-x-1.5 cursor-pointer transition-all hover:scale-110',
                                 valueLen === len && !isCustomLength 
-                                    ? 'bg-yellow-600 scale-125 z-10' 
-                                    : 'bg-gray-400 hover:bg-gray-500'
+                                    ? 'bg-black scale-125 z-1' 
+                                    : 'bg-black z-1'
                             )}
                             style="left: {position}%"
                             onclick={() => selectLength(code, len)}

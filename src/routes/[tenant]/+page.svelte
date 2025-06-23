@@ -137,7 +137,7 @@
 					<img 
 						src={selectedSystem.mainImage}
 						alt="Esempio sistema" 
-						class="w-full h-full object-cover object-[85%_35%] rounded-t-[25px]"
+						class="w-full h-full object-cover object-[0%_0%] rounded-t-[25px]"
 						transition:slide={{ duration: 1000 }}
 					/>
 
