@@ -56,7 +56,6 @@
         const input = e.target as HTMLInputElement;
         const newPosition = parseFloat(input.value);
         position = newPosition;
-        onPreview(newPosition);
     }
 
     function handleSliderMouseUp() {
@@ -134,14 +133,8 @@
             
             {#if !isValidPosition}
                 <div class="text-center text-sm text-red-600 bg-red-50 rounded p-2">
-                    <div>⚠️ Posizione occupata da un'altra luce</div>
+                    <div>Posizione occupata</div>
                     <div class="flex gap-2 mt-2">
-                        <button 
-                            onclick={applySuggestedPosition}
-                            class="flex-1 text-xs bg-blue-100 hover:bg-blue-200 px-3 py-1 rounded"
-                        >
-                            Auto-posiziona ({Math.round(suggestedPosition * 100)}%)
-                        </button>
                         <button 
                             onclick={confirmPosition}
                             disabled={!isValidPosition}
@@ -153,7 +146,7 @@
                 </div>
             {:else}
                 <div class="text-center">
-                    <div class="text-sm text-green-600 mb-2">✅ Posizione libera</div>
+                    <div class="text-sm text-green-600 mb-2">Posizione libera</div>
                     <button 
                         onclick={confirmPosition}
                         class="text-sm bg-green-100 hover:bg-green-200 px-4 py-2 rounded font-medium"
