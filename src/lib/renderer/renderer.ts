@@ -791,7 +791,7 @@ export class Renderer {
 			this.#hasBeenCentered = true;
 		} else {
 			// Per gli oggetti successivi, aggiorna solo senza centering
-			// this.updateVirtualRoom();
+			this.updateVirtualRoom();
 		}
 		
 		return obj;
