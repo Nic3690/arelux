@@ -700,7 +700,6 @@
 		</Dialog.Portal>
 	</Dialog.Root>
 
-	<!-- Dialog per impostazioni stanza virtuale -->
 	<Dialog.Root bind:open={showRoomSettings}>
 		<Dialog.Portal>
 			<Dialog.Overlay
@@ -729,7 +728,7 @@
 								min="10" 
 								max="100" 
 								step="1" 
-								class="w-40"
+								class="slider-yellow w-40 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
 								bind:value={tempRoomWidth}
 							/>
 							<span class="ml-2 w-16 text-right">{(tempRoomWidth / 10).toFixed(1)}m</span>
@@ -742,7 +741,7 @@
 								min="20" 
 								max="50" 
 								step="1" 
-								class="w-40"
+								class="slider-yellow w-40 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
 								bind:value={tempRoomHeight}
 							/>
 							<span class="ml-2 w-16 text-right">{(tempRoomHeight / 10).toFixed(1)}m</span>
@@ -755,7 +754,7 @@
 								min="10" 
 								max="100" 
 								step="1" 
-								class="w-40"
+								class="slider-yellow w-40 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
 								bind:value={tempRoomDepth}
 							/>
 							<span class="ml-2 w-16 text-right">{(tempRoomDepth / 10).toFixed(1)}m</span>
@@ -861,4 +860,58 @@
 		color: hsl(var(--primary));
 		transition: color 0.2s;
 	}
+	.slider-yellow {
+        -webkit-appearance: none;
+        appearance: none;
+        background: #e5e7eb;
+        outline: none;
+        border-radius: 0.5rem;
+    }
+
+    .slider-yellow::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #fbbf24;
+        cursor: pointer;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .slider-yellow::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #fbbf24;
+        cursor: pointer;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .slider-yellow::-webkit-slider-track {
+        background: linear-gradient(to right, #fbbf24 0%, #fbbf24 100%);
+        height: 8px;
+        border-radius: 0.5rem;
+    }
+
+    .slider-yellow::-moz-range-track {
+        background: linear-gradient(to right, #fbbf24 0%, #fbbf24 100%);
+        height: 8px;
+        border-radius: 0.5rem;
+        border: none;
+    }
+
+    .slider-yellow::-webkit-slider-thumb:hover {
+        background: #f59e0b;
+        transform: scale(1.1);
+        transition: all 0.2s ease;
+    }
+
+    .slider-yellow::-moz-range-thumb:hover {
+        background: #f59e0b;
+        transform: scale(1.1);
+        transition: all 0.2s ease;
+    }
 </style>
