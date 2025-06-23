@@ -132,17 +132,15 @@
             </div>
             
             {#if !isValidPosition}
-                <div class="text-center text-sm text-red-600 bg-red-50 rounded p-2">
-                    <div>Posizione occupata</div>
-                    <div class="flex gap-2 mt-2">
-                        <button 
-                            onclick={confirmPosition}
-                            disabled={!isValidPosition}
-                            class="flex-1 text-xs bg-green-100 hover:bg-green-200 px-3 py-1 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            Conferma posizione
-                        </button>
-                    </div>
+                <div class="text-center">
+                    <div class="text-sm text-red-600 mb-2">Posizione occupata</div>
+                    <button 
+                        onclick={confirmPosition}
+                        disabled={!isValidPosition}
+                        class="text-sm bg-green-100 hover:bg-green-200 px-4 py-2 rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Conferma posizione
+                    </button>
                 </div>
             {:else}
                 <div class="text-center">
