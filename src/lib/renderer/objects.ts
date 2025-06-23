@@ -149,7 +149,7 @@ export class TemporaryObject {
 		if (!isLight || !this.mesh) {
 		  return null;
 		}
-	
+
 		let parentObject: TemporaryObject | null = null;
 		let parentJunctionId = -1;
 		
@@ -166,11 +166,11 @@ export class TemporaryObject {
 			if (parentObject) break;
 		  }
 		}
-	
+
 		if (!parentObject || parentJunctionId === -1 || !parentObject.mesh) {
 		  return null;
 		}
-	
+
 		this._curvePosition = position;
 		
 		const j1 = parentObject.getCatalogEntry().line_juncts[parentJunctionId];
@@ -184,7 +184,7 @@ export class TemporaryObject {
 			parentObject.mesh.localToWorld(new Vector3().copy(j1.pointC)),
 			parentObject.mesh.localToWorld(new Vector3().copy(j1.point2))
 		  );
-	
+
 		  const attachPoint = curve.getPointAt(position);
 		  const tan = curve.getTangentAt(position);
 		  
@@ -194,30 +194,32 @@ export class TemporaryObject {
 		  if (!j2) {
 			return null;
 		  }
-	
+
 		  this.mesh.rotation.set(0, 0, 0);
 		  const profileDir = tan.clone().normalize();
 		  const isCurvedProfile = parentObject.getCatalogEntry().code.includes('C');
-	
+
 		  let angleY;
-		  if (isCurvedProfile) angleY = Math.atan2(profileDir.x, profileDir.z) + Math.PI;
-		  else angleY = Math.atan2(profileDir.z, profileDir.x);
+		  if (isCurvedProfile) angleY = Math.atan2(profileDir.x, profileDir.z) + Math.PI - Math.PI/2;
+		  else angleY = Math.atan2(profileDir.x, profileDir.z);
+		  
 		  this.mesh.rotation.set(0, angleY, 0);
 		  const junctionAngle = this.getCatalogEntry().juncts[junctionIndex].angle * (Math.PI/180);
 		  this.mesh.rotateY(junctionAngle);
-	
+
 		  const pos2 = this.mesh.localToWorld(new Vector3().copy(j2));
 		  this.mesh.position.copy({
 			x: this.mesh.position.x + attachPoint.x - pos2.x,
 			y: this.mesh.position.y + attachPoint.y - pos2.y,
 			z: this.mesh.position.z + attachPoint.z - pos2.z,
 		  });
-	
+
 		  return j1.group;
 		} catch (error) {
 		  return null;
 		}
 	}
+
 	setAngle(angle: number) {
 		this.#angle = angle;
 	}
@@ -422,11 +424,11 @@ export class TemporaryObject {
 		if (isLight) {
 			other.mesh.rotation.set(0, 0, 0);
 			const profileDir = tan.clone().normalize();
-			const isCurvedProfile = this.getCatalogEntry().code.includes('C');
 	
-			let angleY;
-			if (isCurvedProfile) angleY = Math.atan2(profileDir.x, profileDir.z) + Math.PI;
-			else angleY = Math.atan2(profileDir.z, profileDir.x);
+			// Usa la direzione della tangente per tutti i tipi di profilo
+			const isCurvedProfile = this.getCatalogEntry().code.includes('C');
+			let angleY = Math.atan2(profileDir.x, profileDir.z) + (isCurvedProfile ? Math.PI : Math.PI / 2);
+			
 			other.mesh.rotation.set(0, angleY, 0);
 			const junctionAngle = other.getCatalogEntry().juncts[0].angle * (Math.PI/180);
 			other.mesh.rotateY(junctionAngle);
