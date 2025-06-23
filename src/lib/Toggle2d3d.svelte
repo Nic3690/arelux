@@ -660,20 +660,14 @@
 							class={button({ class: 'w-full py-4 text-lg' })}
 							onclick={handleDownload2D}
 						>
-							📄 Scarica in formato 2D
-							<span class="block text-sm text-gray-600 mt-1">
-								Schema tecnico bidimensionale
-							</span>
+							Scarica schema tecnico PDF in 2D
 						</button>
 
 						<button 
 							class={button({ class: 'w-full py-4 text-lg' })}
 							onclick={handleDownload3D}
 						>
-							📦 Scarica in formato 3D
-							<span class="block text-sm text-gray-600 mt-1">
-								Modello tridimensionale GLTF
-							</span>
+							Scarica modello tridimensionale GLTF in 3D
 						</button>
 					</div>
 
