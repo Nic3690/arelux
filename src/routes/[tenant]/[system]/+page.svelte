@@ -38,8 +38,6 @@
 	let lights = $state<TemporaryObject[]>([]);
 	let pointer = $state(new Vector2());
 	let invertedControls = $state(false);
-
-	// Nuova variabile per SystemMover
 	let systemMoverMode = $state(false);
 
 	import { sidebarRefs, focusSidebarElement } from '$lib/index';
@@ -70,18 +68,15 @@
 				toast.info('Non sono state trovate luci. Aggiungi prima una luce al progetto.');
 				lightMoverMode = false;
 			} else {
-				// Disattiva la modalità system mover se è attiva
 				if (systemMoverMode) {
 					systemMoverMode = false;
 				}
-				toast.info('Modalità spostamento luci attivata. Clicca su una luce per selezionarla.');
 			}
 		} else {
 			renderer?.setOpacity(1);
 		}
 	}
 
-	// Nuova funzione per SystemMover
 	function toggleSystemMoverMode() {
 		systemMoverMode = !systemMoverMode;
 		
@@ -90,36 +85,30 @@
 				toast.info('Non ci sono oggetti da spostare. Aggiungi prima degli elementi al progetto.');
 				systemMoverMode = false;
 			} else {
-				// Disattiva la modalità light mover se è attiva
 				if (lightMoverMode) {
 					lightMoverMode = false;
 					selectedLight = null;
 					renderer?.setOpacity(1);
 				}
-				toast.info('Modalità spostamento sistema attivata. Usa le frecce per spostare tutto il sistema di 10cm.');
 			}
 		} else {
-			toast.info('Modalità spostamento sistema disattivata.');
 		}
 	}
 
-	// Nuova funzione per gestire il movimento del sistema
 	function handleSystemMove() {
 		// La stanza virtuale rimane fissa, non serve aggiornarla
 		// Solo per eventuali future estensioni
 	}
 
 	function handleLightMove(position: number) {
-    if (selectedLight && renderer) {
-        lightPosition = position;
-        const success = renderer.moveLight(selectedLight, position);
-        
-        if (success) {
-            toast.success(`Luce spostata alla posizione ${Math.round(position * 100)}%`);
-        } else {
-            toast.error("Impossibile spostare la luce alla posizione specificata");
-        }
-    }
+		if (selectedLight && renderer) {
+			lightPosition = position;
+			const success = renderer.moveLight(selectedLight, position);
+			
+			if (!success) {
+				toast.error("Impossibile spostare la luce alla posizione specificata");
+			}
+		}
 }
 
 function handleLightPositionPreview(position: number) {
@@ -136,8 +125,7 @@ function handleLightPositionPreview(position: number) {
 		if (i > -1) {
 			$objects = $objects.toSpliced(i, 1);
 		}
-		
-		// LOGICA SEMPLIFICATA: rimuovi solo l'oggetto normale
+
 		if (item.object && renderer) {
 			renderer.removeObject(item.object);
 			console.log('✅ Oggetto rimosso completamente');
@@ -362,16 +350,7 @@ function handleLightPositionPreview(position: number) {
 
 	<div bind:this={controlsEl}></div>
 
-	<!-- Controlli modificati per includere SystemMover -->
-	<div class="absolute bottom-5 left-80 right-80 flex justify-center gap-3">
-		<SystemMover
-			active={systemMoverMode}
-			disabled={$objects.length === 0}
-			{renderer}
-			onToggle={toggleSystemMoverMode}
-			onMove={handleSystemMove}
-		/>
-		
+	<div class="absolute bottom-5 right-5 flex flex-col gap-3">
 		<LightMover
 			active={lightMoverMode}
 			disabled={$objects.length === 0}
@@ -383,6 +362,14 @@ function handleLightPositionPreview(position: number) {
 			onToggle={toggleLightMoverMode}
 			onMove={handleLightMove}
 			onPreview={handleLightPositionPreview}
+		/>
+
+		<SystemMover
+			active={systemMoverMode}
+			disabled={$objects.length === 0}
+			{renderer}
+			onToggle={toggleSystemMoverMode}
+			onMove={handleSystemMove}
 		/>
 	</div>
 

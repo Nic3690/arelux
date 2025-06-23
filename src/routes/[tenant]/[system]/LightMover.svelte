@@ -78,16 +78,11 @@
             onMove(position);
         }
     }
-
-    function applySuggestedPosition() {
-        position = suggestedPosition;
-        onMove(position);
-    }
 </script>
 
 <div class="relative flex flex-col gap-2">
     {#if active && selectedLightId}
-        <div class="absolute bottom-full mb-2 flex flex-col gap-2 rounded bg-box p-3 shadow-lg border min-w-64">
+        <div class="absolute bottom-full mb-2 right-0 flex flex-col gap-2 rounded bg-box p-3 shadow-lg border min-w-64">
             <div class="flex items-center justify-center">
                 <button 
                     onclick={() => handleMove(-0.05)}
@@ -155,7 +150,7 @@
             {/if}
         </div>
     {:else if active}
-        <div class="absolute bottom-full mb-2 text-center px-3 py-2 bg-box rounded shadow-lg border min-w-64">
+        <div class="absolute bottom-full mb-2 right-0 text-center px-3 py-2 bg-box rounded shadow-lg border min-w-64">
             Clicca su una luce per selezionarla e spostarla
         </div>
     {/if}

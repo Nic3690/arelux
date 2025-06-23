@@ -60,29 +60,20 @@
         }
 
         renderer.moveAllObjects(deltaX, deltaY, deltaZ);
-        
-        const directionNames = {
-            'x+': 'destra',
-            'x-': 'sinistra', 
-            'up': isVertical ? 'alto' : 'avanti',
-            'down': isVertical ? 'basso' : 'indietro'
-        };
-        
-        toast.success(`Oggetti spostati di 10cm verso ${directionNames[direction]}`);
         onMove();
     }
 
     function centerInRoom() {
         if (!renderer) return;
         renderer.centerSystemInRoom();
-        toast.success('Oggetti centrati nella stanza virtuale');
+        toast.success('Sistema centrato nella stanza');
         onMove();
     }
 </script>
 
 <div class="relative flex flex-col gap-2">
     {#if active}
-        <div class="absolute bottom-full mb-2 flex flex-col gap-3 rounded bg-box p-4 min-w-64 shadow-lg border">
+        <div class="absolute bottom-full mb-2 right-0 flex flex-col gap-3 rounded bg-box p-4 min-w-64 shadow-lg border">
             <div class="text-center">
                 <div class="text-sm font-medium">Sposta Oggetti</div>
                 <div class="text-xs text-gray-600">Incrementi di 10cm</div>
@@ -143,7 +134,6 @@
                 
                 <button 
                     onclick={() => {
-                        toast.success('Posizione del sistema confermata');
                         onToggle();
                     }}
                     class={cn(button(), 'w-full flex items-center justify-center gap-2')}

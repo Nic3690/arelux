@@ -19,6 +19,8 @@
 	<title>FDM Redo</title>
 </svelte:head>
 
+<Toaster position="top-center" />
+
 <Toaster />
 
 {#if askForPassword}
