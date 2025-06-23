@@ -169,7 +169,7 @@
         {disabled}
     >
         <LightbulbFilament size={20} />
-        <span>Move Lights</span>
+        <span>Sposta luce</span>
     </button>
 </div>
 

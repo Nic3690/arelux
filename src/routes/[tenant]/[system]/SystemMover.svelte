@@ -166,6 +166,6 @@
         title={active ? 'Disattiva modalità sposta oggetti' : 'Attiva modalità sposta oggetti'}
     >
         <ArrowsOutCardinal size={20} />
-        <span>Move Objects</span>
+        <span>Sposta sistema</span>
     </button>
 </div>

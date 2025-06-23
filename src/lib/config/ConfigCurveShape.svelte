@@ -19,7 +19,6 @@
 		radius: number;
 	};
 
-	// Ordina i punti per raggio e angolo
 	function sorted(points: Point[]): Point[] {
 		return points.toSorted((a, b) => {
 			if (a.radius < b.radius) return -1;
@@ -33,15 +32,13 @@
 	let { selected = $bindable(), onSubmit, family }: Props = $props();
 	let open = $state(false);
 
-	// Ricava i punti unici dalla famiglia
 	const points = $derived<Point[]>(
 		_.uniqWith(
 			family.items.map((i) => ({ angle: i.deg, radius: i.radius })),
 			_.isEqual,
 		),
 	);
-	
-	// Mappa i raggi a valori visuali per il grafico
+
 	const mappedRadii = $derived.by<Map<string, number>>(() => {
 		const minR = Math.max(...family.items.map((i) => i.radius));
 		const maxR = Math.min(...family.items.map((i) => i.radius));
@@ -50,15 +47,14 @@
 			family.items.map((i) => [JSON.stringify({ angle: i.deg, radius: i.radius }), lerp(i.radius)]),
 		);
 	});
-	
-	// Ottieni tutti gli angoli e i raggi disponibili
+
 	const angles = $derived(new Set(points.map((p) => p.angle)));
 	const wide = $derived(angles.values().some((angle) => angle > 90));
 	const radii = $derived(new Set(points.map((p) => mappedRadii.get(JSON.stringify(p))!)));
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Trigger class="tracking-wider {button()}">MODIFICA CURVATURA</Dialog.Trigger>
+	<Dialog.Trigger class="tracking-wider {button()}">Modifica curvatura</Dialog.Trigger>
 
 	<Dialog.Portal>
 		<Dialog.Overlay

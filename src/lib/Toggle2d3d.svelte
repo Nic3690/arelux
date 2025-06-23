@@ -6,7 +6,8 @@
 	import House from 'phosphor-svelte/lib/House';
 	import ArrowsHorizontal from 'phosphor-svelte/lib/ArrowsHorizontal';
 	import Download from 'phosphor-svelte/lib/Download';
-	import { button, objects } from '$lib';
+	import { objects } from '$lib';
+	import { get } from 'svelte/store';
 	import { page } from '$app/state';
 	import { Renderer } from './renderer/renderer';
 	import { browser } from '$app/environment';
@@ -26,6 +27,7 @@
 	let showVirtualRoom = $state(false);
 	let showRoomSettings = $state(false);
 	let showDownloadDialog = $state(false);
+	let showHelpDialog = $state(false);
 	
 	const STORAGE_KEY = 'virtual_room_dimensions';
 	const DEFAULT_DIMENSIONS = { width: 30, height: 30, depth: 30 };
@@ -170,10 +172,10 @@
 			});
 
 			// Otteniamo tutti gli oggetti della configurazione
-			const savedObjects = $objects.filter(obj => !obj.hidden);
+			const savedObjects = get(objects).filter((obj: any) => !obj.hidden);
 			
 			// Filtriamo solo i profili (oggetti con line_juncts)
-			const profiles = savedObjects.filter(obj => {
+			const profiles = savedObjects.filter((obj: any) => {
 				if (!obj.object) return false;
 				const catalogEntry = renderer!.catalog[obj.code];
 				return catalogEntry && catalogEntry.line_juncts && catalogEntry.line_juncts.length > 0;
@@ -548,11 +550,7 @@
 
 	{#if is3d}
 	<button 
-		class={button({ 
-			size: 'square', 
-			class: 'font-bold flex items-center justify-center', 
-			color: showVirtualRoom ? 'primary' : 'secondary' 
-		})}
+		class={`h-12 w-12 font-bold flex items-center justify-center text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 border border-gray-300 ${showVirtualRoom ? 'bg-yellow-400' : 'bg-white hover:bg-yellow-400'}`}
 		onclick={toggleVirtualRoom}
 		disabled={virtualRoomDisabled}
 		title={virtualRoomDisabled 
@@ -564,10 +562,7 @@
 	</button>
 
 	<button 
-		class={button({ 
-			size: 'square', 
-			class: 'font-bold flex items-center justify-center'
-		})}
+		class="h-12 w-12 font-bold flex items-center justify-center text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 border border-gray-300 bg-white hover:bg-yellow-400"
 		onclick={openRoomSettings}
 		title="Modifica dimensioni stanza"
 	>
@@ -575,11 +570,15 @@
 	</button>
 	{/if}
 
-	<Dialog.Root>
-		<Dialog.Trigger class={button({ size: 'square', class: 'font-bold mt-2' })}>
-			<span class="text-xl">?</span>
-		</Dialog.Trigger>
+	<button 
+		class="h-12 w-12 font-bold mt-2 text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 border border-gray-300 bg-white hover:bg-yellow-400 flex items-center justify-center"
+		onclick={() => showHelpDialog = true}
+		title="Aiuto e informazioni"
+	>
+		<span class="text-xl">?</span>
+	</button>
 
+	<Dialog.Root bind:open={showHelpDialog}>
 		<Dialog.Portal>
 			<Dialog.Overlay
 				transition={fade}
@@ -621,6 +620,7 @@
 
 				<Dialog.Close
 					class="absolute right-5 top-5 rounded-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-98"
+					onclick={() => showHelpDialog = false}
 				>
 					<div>
 						<X class="size-5 text-foreground" />
@@ -632,11 +632,15 @@
 	</Dialog.Root>
 
 	<!-- Pulsante Download -->
-	<Dialog.Root bind:open={showDownloadDialog}>
-		<Dialog.Trigger class={button({ size: 'square', class: 'font-bold flex items-center justify-center' })}>
-			<Download size={20} />
-		</Dialog.Trigger>
+	<button 
+		class="h-12 w-12 font-bold flex items-center justify-center text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 border border-gray-300 bg-white hover:bg-yellow-400"
+		onclick={() => showDownloadDialog = true}
+		title="Scarica configurazione"
+	>
+		<Download size={20} />
+	</button>
 
+	<Dialog.Root bind:open={showDownloadDialog}>
 		<Dialog.Portal>
 			<Dialog.Overlay
 				transition={fade}
@@ -657,14 +661,14 @@
 					
 					<div class="flex flex-col gap-4">
 						<button 
-							class={button({ class: 'w-full py-4 text-lg' })}
+							class="w-full py-4 text-lg text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 bg-yellow-400 hover:bg-yellow-300"
 							onclick={handleDownload2D}
 						>
 							Scarica schema tecnico PDF in 2D
 						</button>
 
 						<button 
-							class={button({ class: 'w-full py-4 text-lg' })}
+							class="w-full py-4 text-lg text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 bg-yellow-400 hover:bg-yellow-300"
 							onclick={handleDownload3D}
 						>
 							Scarica modello tridimensionale GLTF in 3D
@@ -673,7 +677,7 @@
 
 					<div class="mt-6 flex gap-3">
 						<button 
-							class={button({ color: 'secondary', class: 'flex-1' })}
+							class="flex-1 text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 border border-gray-300 bg-white hover:bg-gray-100 py-2"
 							onclick={() => showDownloadDialog = false}
 						>
 							Annulla
@@ -757,13 +761,13 @@
 
 					<div class="mt-6 flex gap-3">
 						<button 
-							class={button({ color: 'secondary', class: 'flex-1' })}
+							class="flex-1 text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 border border-gray-300 bg-white hover:bg-gray-100 py-2"
 							onclick={cancelRoomSettings}
 						>
 							Annulla
 						</button>
 						<button 
-							class={button({ class: 'flex-1' })}
+							class="flex-1 text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 bg-yellow-400 hover:bg-yellow-300 py-2"
 							onclick={confirmRoomSettings}
 						>
 							Conferma
