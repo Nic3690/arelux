@@ -165,8 +165,8 @@
                             class={cn(
                                 'absolute w-2 h-2 rounded-full transform -translate-x-1.5 cursor-pointer transition-all hover:scale-110',
                                 valueLen === len && !isCustomLength 
-                                    ? 'bg-black scale-125 z-1' 
-                                    : 'bg-black z-1'
+                                    ? 'bg-gray-400 scale-125 z-1' 
+                                    : 'bg-gray-400 z-1'
                             )}
                             style="left: {position}%"
                             onclick={() => selectLength(code, len)}

@@ -10,6 +10,7 @@
     import type { MouseEventHandler } from 'svelte/elements';
     import type { Renderer } from '$lib/renderer/renderer';
     import { toast } from 'svelte-sonner';
+	import { Check } from 'phosphor-svelte';
 
     let { 
         active = false,
@@ -87,54 +88,69 @@
                 <div class="text-xs text-gray-600">Incrementi di 10cm</div>
             </div>
 
-            <div class="grid grid-cols-3 gap-2">
-                <div></div>
-                <button 
-                    onclick={() => handleMove('up')}
-                    class="flex h-12 w-12 items-center justify-center rounded bg-gray-200 hover:bg-gray-300 transition-colors"
-                    title={hasVerticalProfiles() ? "Sposta in alto (+10cm)" : "Sposta avanti (+10cm)"}
-                >
-                    <ArrowUp size={20} />
-                </button>
-                <div></div>
+            <!-- Griglia centrata con dimensioni fisse -->
+            <div class="flex justify-center">
+                <div class="grid grid-cols-3 gap-2 w-fit">
+                    <div class="w-12 h-12"></div>
+                    <button 
+                        onclick={() => handleMove('up')}
+                        class="flex h-12 w-12 items-center justify-center rounded bg-yellow-400 hover:bg-yellow-300 transition-colors"
+                        title={hasVerticalProfiles() ? "Sposta in alto (+10cm)" : "Sposta avanti (+10cm)"}
+                    >
+                        <ArrowUp size={20} />
+                    </button>
+                    <div class="w-12 h-12"></div>
 
-                <button 
-                    onclick={() => handleMove('x-')}
-                    class="flex h-12 w-12 items-center justify-center rounded bg-gray-200 hover:bg-gray-300 transition-colors"
-                    title="Sposta a sinistra (+10cm)"
-                >
-                    <ArrowLeft size={20} />
-                </button>
-                
-                <div></div>
-                
-                <button 
-                    onclick={() => handleMove('x+')}
-                    class="flex h-12 w-12 items-center justify-center rounded bg-gray-200 hover:bg-gray-300 transition-colors"
-                    title="Sposta a destra (+10cm)"
-                >
-                    <ArrowRight size={20} />
-                </button>
+                    <button 
+                        onclick={() => handleMove('x-')}
+                        class="flex h-12 w-12 items-center justify-center rounded bg-yellow-400 hover:bg-yellow-300 transition-colors"
+                        title="Sposta a sinistra (+10cm)"
+                    >
+                        <ArrowLeft size={20} />
+                    </button>
+                    
+                    <div class="w-12 h-12"></div>
+                    
+                    <button 
+                        onclick={() => handleMove('x+')}
+                        class="flex h-12 w-12 items-center justify-center rounded bg-yellow-400 hover:bg-yellow-300 transition-colors"
+                        title="Sposta a destra (+10cm)"
+                    >
+                        <ArrowRight size={20} />
+                    </button>
 
-                <div></div>
-                <button 
-                    onclick={() => handleMove('down')}
-                    class="flex h-12 w-12 items-center justify-center rounded bg-gray-200 hover:bg-gray-300 transition-colors"
-                    title={hasVerticalProfiles() ? "Sposta in basso (+10cm)" : "Sposta indietro (+10cm)"}
-                >
-                    <ArrowDown size={20} />
-                </button>
-                <div></div>
+                    <div class="w-12 h-12"></div>
+                    <button 
+                        onclick={() => handleMove('down')}
+                        class="flex h-12 w-12 items-center justify-center rounded bg-yellow-400 hover:bg-yellow-300 transition-colors"
+                        title={hasVerticalProfiles() ? "Sposta in basso (+10cm)" : "Sposta indietro (+10cm)"}
+                    >
+                        <ArrowDown size={20} />
+                    </button>
+                    <div class="w-12 h-12"></div>
+                </div>
             </div>
 
             <div class="flex flex-col gap-2">
                 <button 
                     onclick={centerInRoom}
-                    class="flex items-center justify-center gap-2 w-full py-2 text-sm bg-yellow-100 hover:bg-yellow-200 rounded transition-colors"
+                    class={cn(button({ color: 'secondary' }), 'w-full flex items-center justify-center gap-2')}
                     title="Centra gli oggetti nella stanza virtuale"
                 >
                     <House size={16} />
-                    Centra in Stanza
+                    <span>Centra in Stanza</span>
+                </button>
+                
+                <button 
+                    onclick={() => {
+                        toast.success('Posizione del sistema confermata');
+                        onToggle();
+                    }}
+                    class={cn(button(), 'w-full flex items-center justify-center gap-2')}
+                    title="Conferma la posizione attuale e chiudi"
+                >
+                    <Check size={16} />
+                    <span>Conferma</span>
                 </button>
             </div>
         </div>

@@ -199,9 +199,7 @@ export class TemporaryObject {
 		  const profileDir = tan.clone().normalize();
 		  const isCurvedProfile = parentObject.getCatalogEntry().code.includes('C');
 
-		  let angleY;
-		  if (isCurvedProfile) angleY = Math.atan2(profileDir.x, profileDir.z) + Math.PI - Math.PI/2;
-		  else angleY = Math.atan2(profileDir.x, profileDir.z);
+		  let angleY = Math.atan2(profileDir.x, profileDir.z) + (isCurvedProfile ? Math.PI : Math.PI / 2);
 		  
 		  this.mesh.rotation.set(0, angleY, 0);
 		  const junctionAngle = this.getCatalogEntry().juncts[junctionIndex].angle * (Math.PI/180);
