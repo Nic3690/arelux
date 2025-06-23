@@ -77,6 +77,7 @@
         if (isValidPosition) {
             onMove(position);
         }
+        onToggle(); // Chiude il popup automaticamente
     }
 </script>
 
@@ -132,7 +133,7 @@
                     <button 
                         onclick={confirmPosition}
                         disabled={!isValidPosition}
-                        class="text-sm bg-green-100 hover:bg-green-200 px-4 py-2 rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        class={cn(button(), 'disabled:opacity-50 disabled:cursor-not-allowed')}
                     >
                         Conferma posizione
                     </button>
@@ -142,7 +143,7 @@
                     <div class="text-sm text-green-600 mb-2">Posizione libera</div>
                     <button 
                         onclick={confirmPosition}
-                        class="text-sm bg-green-100 hover:bg-green-200 px-4 py-2 rounded font-medium"
+                        class={cn(button())}
                     >
                         Conferma posizione
                     </button>
