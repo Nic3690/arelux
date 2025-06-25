@@ -48,30 +48,19 @@
     }
 
     function handleSliderChange() {
-        // Reset errori
         hasError = false;
         errorMessage = '';
         valueInvalid = false;
         
-        // Lo slider garantisce già valori validi (multipli di 10, range corretto)
         const matchingItem = items.find(i => i.len === Number(valueLen));
         
         if (matchingItem) {
-            // Lunghezza standard trovata
             value = matchingItem.code;
             isCustomLength = false;
-            console.log('🔧 ConfigLength: lunghezza standard da slider', { code: value, length: valueLen });
             if (onsubmit) onsubmit(value, valueLen, false);
         } else {
-            // Lunghezza personalizzata - usa il primo item della famiglia come base
             isCustomLength = true;
             value = items[0].code;
-            
-            console.log('🔧 ConfigLength: lunghezza personalizzata da slider', { 
-                baseCode: value, 
-                customLength: valueLen, 
-                standardLength: items[0].len
-            });
             
             if (onsubmit) {
                 onsubmit(value, valueLen, true);
@@ -80,7 +69,6 @@
     }
 
     function handleCustomLength() {
-        // Reset errori
         hasError = false;
         errorMessage = '';
         valueInvalid = false;
@@ -92,7 +80,6 @@
             return;
         }
         
-        // Validazione: solo multipli di 10mm
         if (valueLen % 10 !== 0) {
             hasError = true;
             errorMessage = 'La lunghezza deve essere un multiplo di 10mm';
@@ -100,7 +87,6 @@
             return;
         }
         
-        // Validazione: massimo 2500mm
         if (valueLen > 2500) {
             hasError = true;
             errorMessage = 'La lunghezza massima è di 2500mm';
@@ -108,7 +94,6 @@
             return;
         }
         
-        // Validazione: minimo 10mm
         if (valueLen < 10) {
             hasError = true;
             errorMessage = 'La lunghezza minima è di 10mm';
@@ -119,21 +104,12 @@
         const matchingItem = items.find(i => i.len === Number(valueLen));
         
         if (matchingItem) {
-            // Lunghezza standard trovata
             value = matchingItem.code;
             isCustomLength = false;
-            console.log('🔧 ConfigLength: lunghezza standard', { code: value, length: valueLen });
             if (onsubmit) onsubmit(value, valueLen, false);
         } else {
-            // Lunghezza personalizzata - usa il primo item della famiglia come base
             isCustomLength = true;
             value = items[0].code;
-            
-            console.log('🔧 ConfigLength: lunghezza personalizzata con scaling', { 
-                baseCode: value, 
-                customLength: valueLen, 
-                standardLength: items[0].len
-            });
             
             if (onsubmit) {
                 onsubmit(value, valueLen, true);

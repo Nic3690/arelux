@@ -46,7 +46,6 @@
 						variant="outline"
 						class="mr-6"
 						onclick={() => {
-							console.log("CLICCATO EDIT OBJECT:", obj.code);
 							goto(`/${data.tenant}/admin/add`, {
 								state: { editing: obj.code } as App.PageState,
 							});
@@ -57,7 +56,6 @@
 					<Button 
 						variant="destructive" 
 						onclick={() => {
-							console.log("CLICCATO DELETE OBJECT:", obj.code);
 							deleteObject(data.tenant, obj.code);
 						}}
 					>
@@ -94,7 +92,6 @@
 						variant="outline"
 						class="mr-6"
 						onclick={() => {
-							console.log("CLICCATO EDIT FAMILY:", obj.code);
 							goto(`/${data.tenant}/admin/familyadd`, {
 								state: { editing: obj.code } as App.PageState,
 							});
@@ -105,7 +102,6 @@
 					<Button 
 						variant="destructive" 
 						onclick={() => {
-							console.log("CLICCATO DELETE FAMILY:", obj.code);
 							deleteFamily(data.tenant, obj.code);
 						}}
 					>

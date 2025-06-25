@@ -119,7 +119,6 @@ function handleLightPositionPreview(position: number) {
 }
 
 	function remove(item: SavedObject) {
-		console.log('🗑️ Rimuovendo oggetto:', item.code, item);
 		
 		let i = $objects.indexOf(item);
 		if (i > -1) {
@@ -128,7 +127,6 @@ function handleLightPositionPreview(position: number) {
 
 		if (item.object && renderer) {
 			renderer.removeObject(item.object);
-			console.log('✅ Oggetto rimosso completamente');
 		} else {
 			console.warn('⚠️ Oggetto non ha una mesh associata');
 		}

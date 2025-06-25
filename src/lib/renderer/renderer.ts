@@ -397,17 +397,12 @@ class VirtualRoomManager {
 	}
 
 	createRoom(dimensions: number | RoomDimensions = this.currentDimensions, centered: boolean = true, visible: boolean = false): void {
-		console.log('🏠 === INIZIO createRoom ===');
-		console.log('🏠 Parametri - centered:', centered, 'visible:', visible);
-		console.log('🏠 Dimensioni richieste:', dimensions);
-		console.log('🏠 Numero oggetti presenti:', this.renderer.getObjects().length);
 
 		this.removeRoom();
 
 		const room = new Group();
 		this.virtualRoom = room;
 		room.visible = visible;
-		console.log('🏠 Nuovo gruppo stanza creato');
 
 		const material = new MeshStandardMaterial({
 			color: 0xf0f0f0,
@@ -432,53 +427,28 @@ class VirtualRoomManager {
 			this.currentDimensions = { ...dimensions };
 		}
 		
-		console.log('🏠 Dimensioni stanza calcolate:', { roomWidth, roomHeight, roomDepth });
-		
 		if (centered && this.renderer.getObjects().length > 0) {
-			console.log('🎯 CENTERING ATTIVATO - Calcolo bounding box...');
 			const bbox = new Box3();
 			
 			this.renderer.getObjects().forEach((obj, index) => {
 				if (obj.mesh) {
-					console.log(`🎯 Oggetto ${index} - Posizione:`, obj.mesh.position.clone());
 					bbox.expandByObject(obj.mesh);
-					console.log(`🎯 Oggetto ${index} - BBox dopo espansione:`, {
-						min: bbox.min.clone(),
-						max: bbox.max.clone()
-					});
 				} else {
-					console.log(`🎯 Oggetto ${index} - NESSUN MESH`);
 				}
 			});
 
-			console.log('🎯 BBox finale:', { min: bbox.min.clone(), max: bbox.max.clone() });
 			center = bbox.getCenter(new Vector3());
-			console.log('🎯 Centro calcolato dal bbox:', center.clone());
 			
 			const maxY = bbox.max.y;
 			center.y = maxY - roomHeight / 2;
-			console.log('🎯 Centro finale dopo aggiustamento Y:', center.clone());
-			console.log('🎯 MaxY era:', maxY, 'roomHeight/2:', roomHeight/2);
 		} else {
-			console.log('❌ CENTERING SALTATO');
-			console.log('❌ Motivi - centered:', centered, 'oggetti:', this.renderer.getObjects().length);
 			center.y = -roomHeight / 2;
-			console.log('❌ Centro di default impostato a:', center.clone());
 		}
-
-		console.log('🏠 Posizione finale centro stanza:', center.clone());
 
 		this.addRoomSurfaces(room, center, roomWidth, roomHeight, roomDepth, material);
 		this.addGridHelpers(room, center, roomWidth, roomHeight, roomDepth);
 		
-		console.log('🏠 Superfici e griglie aggiunte alla stanza');
-		console.log('🏠 Posizione gruppo stanza prima di aggiungere alla scene:', room.position.clone());
-		
 		this.scene.add(room);
-		
-		console.log('🏠 Stanza aggiunta alla scene');
-		console.log('🏠 Posizione finale gruppo stanza:', room.position.clone());
-		console.log('🏠 === FINE createRoom ===');
 	}
 
 	update(): void {
@@ -1044,12 +1014,10 @@ export class Renderer {
 	async addObject(code: string): Promise<TemporaryObject> {
 		const obj = await RendererObject.init(this, code);
 		this.#objects.push(obj);
-		
-		// ✅ CENTRA L'OGGETTO RISPETTO AL SUO BOUNDING BOX
+
 		if (obj.mesh) {
 			const bbox = new Box3().setFromObject(obj.mesh);
 			const center = bbox.getCenter(new Vector3());
-			// Sposta l'oggetto in modo che il suo centro geometrico sia sull'origine
 			obj.mesh.position.sub(center);
 			
 			this.#originalPositions.set(obj.id, obj.mesh.position.clone());

@@ -17,7 +17,6 @@
 		SPA: true,
 		validators: zodClient(data.schema),
 		onUpdate: async ({ form: f }) => {
-			console.log(f.valid, f.errors, $formData);
 			if (f.valid) {
 				try {
 					await createFamily(data.tenant, $selectedSystem, $formData);

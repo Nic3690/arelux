@@ -105,11 +105,6 @@
 					const item = family.items.find(i => i.code === page.state.chosenItem);
 					if (item && item.len > 0) {
 						const scaleFactor = page.state.length / item.len;
-						console.log('🔧 Preview scaling:', { 
-							originalLength: item.len, 
-							customLength: page.state.length, 
-							scaleFactor 
-						});
 						renderer?.scaleObject(o, scaleFactor);
 					}
 				}

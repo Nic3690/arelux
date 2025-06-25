@@ -37,8 +37,7 @@
 	let tempRoomWidth = $state(roomWidth);
 	let tempRoomHeight = $state(roomHeight);
 	let tempRoomDepth = $state(roomDepth);
-	
-	// Sincronizza con i store
+
 	$effect(() => {
 		virtualRoomVisible.set(showVirtualRoom);
 	});
@@ -51,7 +50,6 @@
 		});
 	});
 	
-	// Effect per aggiornare le dimensioni SOLO quando cambiano le dimensioni, non per ogni aggiunta oggetto
 	$effect(() => {
 		if (renderer) {
 			const dimensions = {
@@ -62,7 +60,6 @@
 			
 			renderer.setCurrentRoomDimensions(dimensions);
 			
-			// SOLO ridimensiona se la stanza è visibile, NON ricrearla (niente centering)
 			if (renderer.isVirtualRoomVisible()) {
 				renderer.resizeVirtualRoom(dimensions);
 			}
@@ -156,7 +153,6 @@
 	}
 
 	function handleDownload2D() {
-		console.log('Download configurazione in formato 2D');
 		showDownloadDialog = false;
 		
 		if (!renderer) {
@@ -168,7 +164,6 @@
 	}
 
 	function generateProfilesPDF() {
-		// Importiamo jsPDF dinamicamente
 		import('jspdf').then(({ jsPDF }) => {
 			const pdf = new jsPDF({
 				orientation: 'landscape',
@@ -176,10 +171,8 @@
 				format: 'a4'
 			});
 
-			// Otteniamo tutti gli oggetti della configurazione
 			const savedObjects = get(objects).filter((obj: any) => !obj.hidden);
 			
-			// Filtriamo solo i profili (oggetti con line_juncts)
 			const profiles = savedObjects.filter((obj: any) => {
 				if (!obj.object) return false;
 				const catalogEntry = renderer!.catalog[obj.code];
@@ -191,11 +184,10 @@
 				return;
 			}
 
-			// Raccogliamo i dati dei profili e calcoliamo il fattore di scala
 			const profileData = [];
 			let minX = Infinity, maxX = -Infinity;
 			let minZ = Infinity, maxZ = -Infinity;
-			let scaleFactor = 1; // Fattore di scala da modello 3D a misure reali
+			let scaleFactor = 1;
 
 			for (const profile of profiles) {
 				const rendererObj = profile.object;
@@ -204,29 +196,22 @@
 				const catalogEntry = rendererObj.getCatalogEntry();
 				const lineJunct = catalogEntry.line_juncts[0];
 				
-				// Convertiamo i punti di controllo della curva in coordinate mondo
 				const point1World = rendererObj.mesh.localToWorld(new Vector3().copy(lineJunct.point1));
 				const point2World = rendererObj.mesh.localToWorld(new Vector3().copy(lineJunct.point2));
 				const pointCWorld = rendererObj.mesh.localToWorld(new Vector3().copy(lineJunct.pointC));
 				
-				// Usa SEMPRE la lunghezza reale salvata nell'oggetto
-				const effectiveLength = profile.length || 2500; // fallback se non c'è length
+				const effectiveLength = profile.length || 2500;
 				
-				// Calcola il fattore di scala confrontando la lunghezza 3D con quella reale
 				if (scaleFactor === 1) {
 					const model3DLength = point1World.distanceTo(point2World);
 					if (model3DLength > 0) {
-						// scaleFactor = lunghezza_reale_mm / lunghezza_modello_3D_mm
-						scaleFactor = effectiveLength / (model3DLength * 1000); // *1000 perché model3D è in metri
-						console.log(`📏 Fattore di scala calcolato: ${scaleFactor} (${effectiveLength}mm reali / ${(model3DLength * 1000).toFixed(1)}mm modello)`);
+						scaleFactor = effectiveLength / (model3DLength * 1000);
 					}
 				}
 				
-				// Determina se è un profilo curvo controllando se il punto di controllo
-				// è significativamente diverso dal punto medio tra point1 e point2
 				const midPoint = new Vector3().addVectors(point1World, point2World).multiplyScalar(0.5);
 				const distanceFromMid = pointCWorld.distanceTo(midPoint);
-				const isCurved = distanceFromMid > 0.1; // soglia di tolleranza
+				const isCurved = distanceFromMid > 0.1;
 
 				profileData.push({
 					point1: { x: point1World.x, z: point1World.z },
@@ -238,7 +223,6 @@
 				});
 
 				if (isCurved) {
-					// Per profili curvi, calcoliamo i bounds campionando punti lungo la curva
 					const curve = new QuadraticBezierCurve3(point1World, pointCWorld, point2World);
 					const samples = 20;
 					for (let i = 0; i <= samples; i++) {
@@ -250,7 +234,6 @@
 						maxZ = Math.max(maxZ, point.z);
 					}
 				} else {
-					// Per profili dritti, bounds normali
 					minX = Math.min(minX, point1World.x, point2World.x);
 					maxX = Math.max(maxX, point1World.x, point2World.x);
 					minZ = Math.min(minZ, point1World.z, point2World.z);
@@ -258,44 +241,35 @@
 				}
 			}
 
-			// Dimensioni totali della configurazione (bounding box reale)
 			let totalWidth = 0;
 			let totalLength = 0;
 			
 			if (minX !== Infinity && maxX !== -Infinity && minZ !== Infinity && maxZ !== -Infinity) {
-				// Calcola le dimensioni del bounding box in coordinate mondo e applica il fattore di scala
-				const boundingBoxWidth = (maxX - minX) * 1000 * scaleFactor; // converti da metri a mm e applica fattore scala
-				const boundingBoxLength = (maxZ - minZ) * 1000 * scaleFactor; // converti da metri a mm e applica fattore scala
+				const boundingBoxWidth = (maxX - minX) * 1000 * scaleFactor;
+				const boundingBoxLength = (maxZ - minZ) * 1000 * scaleFactor;
 				
 				totalWidth = Math.max(boundingBoxWidth, 50);
 				totalLength = Math.max(boundingBoxLength, 50);
 				
-				console.log(`📐 Bounding box: ${boundingBoxWidth.toFixed(1)}mm × ${boundingBoxLength.toFixed(1)}mm`);
 			} else {
-				// Fallback se non riusciamo a calcolare il bounding box
 				totalWidth = 50;
 				totalLength = 50;
 			}
 
-			// Impostazioni canvas
-			const pageWidth = 297; // A4 landscape width in mm
-			const pageHeight = 210; // A4 landscape height in mm
+			const pageWidth = 297;
+			const pageHeight = 210;
 			const margin = 20;
 			const drawArea = {
 				width: pageWidth - 2 * margin,
-				height: pageHeight - 2 * margin - 40 // spazio per dimensioni totali
+				height: pageHeight - 2 * margin - 40
 			};
 
-			// Calcolo scala per far entrare tutto nel foglio
 			const scaleX = drawArea.width / (maxX - minX);
 			const scaleZ = drawArea.height / (maxZ - minZ);
-			const scale = Math.min(scaleX, scaleZ) * 0.9; // 90% per margine
-
-			// Offset per centrare
+			const scale = Math.min(scaleX, scaleZ) * 0.9;
 			const offsetX = margin + (drawArea.width - (maxX - minX) * scale) / 2;
 			const offsetY = margin + (drawArea.height - (maxZ - minZ) * scale) / 2;
 
-			// Funzione per convertire coordinate mondo in coordinate PDF
 			function worldToPDF(worldX: number, worldZ: number): { x: number; y: number } {
 				return {
 					x: offsetX + (worldX - minX) * scale,
@@ -303,7 +277,6 @@
 				};
 			}
 
-			// Disegniamo i profili
 			pdf.setLineWidth(0.5);
 			pdf.setDrawColor(0, 0, 0);
 			pdf.setTextColor(0, 0, 0);
@@ -311,7 +284,6 @@
 
 			for (const profile of profileData) {
 				if (profile.isCurved) {
-					// Disegna profilo curvo campionando punti lungo la curva
 					const point1_3d = new Vector3(profile.point1.x, 0, profile.point1.z);
 					const point2_3d = new Vector3(profile.point2.x, 0, profile.point2.z);
 					const pointC_3d = new Vector3(profile.pointC.x, 0, profile.pointC.z);
@@ -332,36 +304,28 @@
 						pdf.line(pdf1.x, pdf1.y, pdf2.x, pdf2.y);
 					}
 					
-					// Posiziona il testo al punto medio della curva
 					const midPoint = curve.getPointAt(0.5);
 					const midPDF = worldToPDF(midPoint.x, midPoint.z);
 					
-					// Usa la lunghezza reale del profilo invece di calcolarla dalla geometria 3D
 					const realLength = profile.length;
 					
 					const curveText = `${Math.round(realLength)}mm (curvo)`;
 					pdf.text(curveText, midPDF.x, midPDF.y - 3, { align: 'center' });
 					
 				} else {
-					// Disegna profilo dritto come linea
 					const startPDF = worldToPDF(profile.point1.x, profile.point1.z);
 					const endPDF = worldToPDF(profile.point2.x, profile.point2.z);
 
-					// Disegniamo la linea del profilo
 					pdf.line(startPDF.x, startPDF.y, endPDF.x, endPDF.y);
 
-					// Calcoliamo il punto medio per il testo
 					const midX = (startPDF.x + endPDF.x) / 2;
 					const midY = (startPDF.y + endPDF.y) / 2;
 
-					// Aggiungiamo il testo con la lunghezza
 					const lengthText = `${Math.round(profile.length)}mm`;
 					
-					// Calcoliamo l'angolo della linea per orientare il testo
 					const angle = Math.atan2(endPDF.y - startPDF.y, endPDF.x - startPDF.x);
 					const degrees = angle * 180 / Math.PI;
 					
-					// Aggiungiamo il testo leggermente spostato dalla linea
 					const textOffset = 3;
 					const offsetX = -Math.sin(angle) * textOffset;
 					const offsetY = Math.cos(angle) * textOffset;
@@ -373,7 +337,6 @@
 				}
 			}
 
-			// Aggiungiamo le dimensioni totali in basso
 			pdf.setFontSize(12);
 			pdf.setFont('helvetica', 'bold');
 			
@@ -382,11 +345,9 @@
 			
 			pdf.text(dimensionsText, (pageWidth - textWidth) / 2, pageHeight - 15);
 
-			// Aggiungiamo titolo
 			pdf.setFontSize(16);
 			pdf.text('Configurazione Profili - Vista dall\'alto', pageWidth / 2, 15, { align: 'center' });
 
-			// Salviamo il PDF
 			const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
 			pdf.save(`configurazione-2d-${timestamp}.pdf`);
 			
@@ -396,7 +357,6 @@
 	}
 
 	function handleDownload3D() {
-		console.log('Download configurazione in formato 3D');
 		showDownloadDialog = false;
 		
 		if (!renderer) {
@@ -409,10 +369,7 @@
 
 	async function generate3DGLTF() {
 		try {
-			// Crea una nuova scena per l'export
 			const exportScene = new Scene();
-			
-			// Ottieni tutti gli oggetti dalla configurazione corrente
 			const objects = renderer!.getObjects();
 			
 			if (objects.length === 0) {
@@ -420,13 +377,9 @@
 				return;
 			}
 
-			console.log(`🔄 Esportando ${objects.length} oggetti in formato GLTF...`);
-
-			// Gruppo principale per contenere tutti gli oggetti
 			const mainGroup = new Group();
 			mainGroup.name = 'Configurazione_Arelux';
 
-			// Processa ogni oggetto
 			for (let i = 0; i < objects.length; i++) {
 				const obj = objects[i];
 				
@@ -435,11 +388,9 @@
 					continue;
 				}
 
-				// Clona la mesh dell'oggetto
 				const clonedMesh = obj.mesh.clone();
 				clonedMesh.name = `${obj.getCatalogEntry().code}_${i}`;
 				
-				// Assicurati che tutti i materiali siano clonati
 				clonedMesh.traverse((child) => {
 					if (child instanceof Mesh && child.material) {
 						if (Array.isArray(child.material)) {
@@ -450,12 +401,10 @@
 					}
 				});
 
-				// Applica le trasformazioni correnti (posizione, rotazione, scala)
 				clonedMesh.position.copy(obj.mesh.position);
 				clonedMesh.rotation.copy(obj.mesh.rotation);
 				clonedMesh.scale.copy(obj.mesh.scale);
 				
-				// Aggiungi metadati come userData
 				clonedMesh.userData = {
 					originalCode: obj.getCatalogEntry().code,
 					objectType: 'configuration_item',
@@ -467,7 +416,6 @@
 				mainGroup.add(clonedMesh);
 			}
 
-			// Aggiungi metadati alla configurazione completa
 			mainGroup.userData = {
 				configurationType: 'arelux_configuration',
 				totalObjects: objects.length,
@@ -478,29 +426,25 @@
 
 			exportScene.add(mainGroup);
 
-			// Configura l'esportatore GLTF
 			const exporter = new GLTFExporter();
 			
 			const options = {
-				binary: false, // Esporta in formato .gltf (JSON) invece di .glb
-				embedImages: true, // Includi le texture nel file
-				animations: [], // Nessuna animazione
+				binary: false,
+				embedImages: true,
+				animations: [],
 				includeCustomExtensions: false,
-				onlyVisible: true, // Solo oggetti visibili
+				onlyVisible: true,
 				truncateDrawRange: true,
 				forcePowerOfTwoTextures: false,
 				maxTextureSize: 2048
 			};
 
-			// Esporta la scena
 			exporter.parse(
 				exportScene,
 				(gltfData) => {
-					// Crea il file e scaricalo
 					const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
 					const filename = `configurazione-3d-${timestamp}.gltf`;
 					
-					// Converti in Blob e scarica
 					const jsonString = JSON.stringify(gltfData, null, 2);
 					const blob = new Blob([jsonString], { type: 'application/json' });
 					
@@ -512,10 +456,7 @@
 					link.click();
 					document.body.removeChild(link);
 					URL.revokeObjectURL(url);
-					
-					console.log(`✅ File GLTF esportato: ${filename}`);
-					
-					// Pulizia
+
 					exportScene.clear();
 					mainGroup.clear();
 				},
