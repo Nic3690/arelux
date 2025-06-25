@@ -421,8 +421,6 @@ export class TemporaryObject {
 		if (isLight) {
 			other.mesh.rotation.set(0, 0, 0);
 			const profileDir = tan.clone().normalize();
-	
-			// Usa la direzione della tangente per tutti i tipi di profilo
 			const isCurvedProfile = this.getCatalogEntry().code.includes('C');
 			let angleY = Math.atan2(profileDir.x, profileDir.z) + (isCurvedProfile ? Math.PI : Math.PI / 2);
 			

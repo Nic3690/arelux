@@ -77,7 +77,7 @@
         if (isValidPosition) {
             onMove(position);
         }
-        onToggle(); // Chiude il popup automaticamente
+        onToggle();
     }
 </script>
 

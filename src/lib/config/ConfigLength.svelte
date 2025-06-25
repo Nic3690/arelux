@@ -16,8 +16,7 @@
     let isCustomLength = $state(false);
     let valueLen = $state(2500);
     let items: { code: string; len: number }[] = $state([]);
-    
-    // Nuovi stati per i messaggi di errore
+
     let errorMessage = $state('');
     let hasError = $state(false);
 
@@ -172,7 +171,6 @@
                     if (e.key === 'Enter') handleCustomLength();
                 }}
                 oninput={() => {
-                    // Reset errori quando l'utente sta digitando nell'input
                     if (hasError) {
                         hasError = false;
                         errorMessage = '';
