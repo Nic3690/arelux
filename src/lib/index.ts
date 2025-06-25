@@ -64,7 +64,7 @@ export async function finishEdit(
 		isCustomLength?: boolean;
 	},
 ) {
-	renderer.setScene('normal');
+	renderer.setScene('normal');	
 	const state = stateOverride ?? page.state;
 	const family = page.data.families[state.chosenFamily];
 	let item = family.items.find((x) => x.code == state.chosenItem);
@@ -74,6 +74,7 @@ export async function finishEdit(
 		return;
 	}
 
+	
 	// Gestione joiners
 	if (group && page.data.joiners[group]) {
 		for (const j of page.data.joiners[group]) {
@@ -89,7 +90,7 @@ export async function finishEdit(
 			);
 		}
 	}
-
+	
 	// Gestione LED subobjects
 	const subobjects: SavedObject[] = [];
 	if (state.led) {
@@ -107,13 +108,13 @@ export async function finishEdit(
 			length: state.length ? state.length - led.radius : undefined,
 		});
 	}
-
+	
 	// Controlla se l'oggetto è già attaccato dal preview
 	const isAlreadyAttached = obj.getJunctions().some(j => j !== null) || 
 							obj.getLineJunctions().some(j => j !== null);
 
 	// Solo se NON è già attaccato, fai l'attachment
-	if (state.reference && !isAlreadyAttached) {
+	if (state.reference && !isAlreadyAttached) {		
 		if (state.reference.typ === 'junction') {
 			const parentObj = renderer.getObjectById(state.reference.id);
 			if (parentObj) {
@@ -125,11 +126,13 @@ export async function finishEdit(
 				parentObj.attachLine(obj, state.reference.pos);
 			}
 		}
+	} else {
+		console.log('🔶 finishEdit - NESSUN attachment necessario');
 	}
-
+	
 	// Applica scaling se necessario (DOPO eventuale attachment)
 	if (stateOverride?.isCustomLength && stateOverride?.length && item?.len) {
-		console.log('🔧 Applicando scaling per lunghezza personalizzata:', {
+		console.log('🔧 finishEdit - Applicando scaling per lunghezza personalizzata:', {
 			lunghezzaOriginale: item.len,
 			lunghezzaPersonalizzata: stateOverride.length,
 			fattoreScala: stateOverride.length / item.len

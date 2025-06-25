@@ -57,380 +57,100 @@ interface RoomDimensions {
 	depth: number;
 }
 
-const CAMERA_FOV: number = 70;
-let RENDERER: Renderer | undefined = undefined;
-let exr: DataTexture | undefined = undefined;
+class RendererUtils {
+	static isLight(obj: TemporaryObject): boolean {
+		const code = obj.getCatalogEntry().code;
+		return code.includes('XNRS') || code.includes('SP');
+	}
 
-async function loadExr() {
-	if (exr === undefined) exr = await new EXRLoader().loadAsync('/footprint_court_2k.exr');
-	return exr;
+	static isProfile(obj: TemporaryObject): boolean {
+		const entry = obj.getCatalogEntry();
+		return entry.line_juncts && entry.line_juncts.length > 0;
+	}
+
+	static getMinDistanceForLight(lightCode: string): number {
+		if (lightCode.includes('XNRS01')) return 0.06;
+		if (lightCode.includes('XNRS14')) return 0.08;
+		if (lightCode.includes('XNRS31')) return 0.10;
+		if (lightCode.includes('SP')) return 0.08;
+		return 0.08;
+	}
 }
 
-export class Renderer {
-	readonly supabase: SupabaseClient<Database>;
-	readonly tenant: string;
-	readonly families: Record<string, Family>;
-	readonly catalog: Record<string, CatalogEntry>;
+class LightManager {
+	private renderer: Renderer;
+	private feedbackIndicator: Mesh | null = null;
 
-	readonly loader: GLTFLoader;
-	handles: HandleManager;
-
-	#webgl!: WebGLRenderer;
-	#scene: Scene;
-	#camera: Camera;
-	#controls: OrbitControls | undefined;
-	#prevCameraPos: Vector3 | undefined;
-	#prevCameraQuaternion: Quaternion | undefined;
-	#pointer: Vector2;
-	#helpers: ArrowHelper[] = [];
-	#virtualRoom: Group | null = null;
-	#currentRoomDimensions: RoomDimensions = { width: 3, height: 3, depth: 3 };
-	#lightFeedbackIndicator: Mesh | null = null;
-	#systemOffset: Vector3 = new Vector3(0, 0, 0);
-	#originalPositions: Map<string, Vector3> = new Map();
-
-	#hasBeenCentered: boolean = false;
-
-	#objects: TemporaryObject[] = [];
-	#clickCallback: ((_: HandleMesh | LineHandleMesh) => any) | undefined;
-
-	#scenes: {
-		normal: { scene: Scene; handles: HandleManager; objects: TemporaryObject[] };
-		single: { scene: Scene; handles: HandleManager; objects: TemporaryObject[] };
-	};
-
-	#raycaster: Raycaster;
-
-	static get(
-		data: {
-			supabase: SupabaseClient<Database>;
-			tenant: string;
-			families: Record<string, Family>;
-			catalog: Record<string, CatalogEntry>;
-		},
-		canvas: HTMLCanvasElement,
-		controls: HTMLElement,
-	): Renderer {
-		if (!RENDERER)
-			RENDERER = new Renderer(
-				data.supabase,
-				data.tenant,
-				data.families,
-				data.catalog,
-				canvas,
-				controls,
-			);
-		else {
-			const wasVirtualRoomVisible = RENDERER.#virtualRoom?.visible ?? false;
-			const currentDimensions = RENDERER.#currentRoomDimensions;
-			
-			RENDERER.#webgl.dispose();
-			RENDERER.reinitWebgl(canvas);
-			RENDERER.reinitControls(controls);
-
-			if (wasVirtualRoomVisible) {
-				RENDERER.createVirtualRoom(currentDimensions, true, true);
-			}
-		}
-
-		return RENDERER;
-	}
-
-	constructor(
-		supabase: SupabaseClient<Database>,
-		tenant: string,
-		families: Record<string, Family>,
-		catalog: Record<string, CatalogEntry>,
-		canvas: HTMLCanvasElement,
-		controls: HTMLElement,
-	) {
-		this.supabase = supabase;
-		this.tenant = tenant;
-		this.families = families;
-		this.catalog = catalog;
-
-		this.#scene = new Scene();
-		this.#camera = new PerspectiveCamera(CAMERA_FOV);
-		this.#camera.position.set(100, 100, 100);
-		this.#camera.lookAt(new Vector3());
-		this.#pointer = new Vector2();
-
-		this.handles = new HandleManager(this, this.#scene);
-		this.reinitWebgl(canvas);
-		this.reinitControls(controls);
-		this.#raycaster = new Raycaster();
-
-		Cache.enabled = true;
-		const dracoLoader = new DRACOLoader();
-		dracoLoader.setDecoderPath('/');
-		this.loader = new GLTFLoader();
-		this.loader.setDRACOLoader(dracoLoader);
-
-		const singleScene = new Scene();
-		this.#scenes = {
-			normal: { scene: this.#scene, objects: this.#objects, handles: this.handles },
-			single: { scene: singleScene, objects: [], handles: new HandleManager(this, this.#scene) },
-		};
-
-		this.createVirtualRoom();
-	}
-
-	getCurrentRoomDimensions(): RoomDimensions {
-		return { ...this.#currentRoomDimensions };
-	}
-
-	reinitWebgl(canvas: HTMLCanvasElement) {
-		this.#webgl = new WebGLRenderer({ canvas, antialias: true });
-		this.#webgl.setClearColor(0xffffff);
-		this.#webgl.setPixelRatio(window.devicePixelRatio);
-		this.#webgl.setAnimationLoop(() => {
-			resizeCanvasToDisplaySize(this.#webgl, this.#camera);
-			this.handles.update(this.#camera, this.#pointer);
-			this.#webgl.render(this.#scene, this.#camera);
-			this.#raycaster.setFromCamera(this.#pointer, this.#camera);
-		});
-
-		loadExr().then((texture) => {
-			const pmremGenerator = new PMREMGenerator(this.#webgl);
-			const envMap = pmremGenerator.fromEquirectangular(texture).texture;
-			for (const scene of Object.values(this.#scenes)) scene.scene.environment = envMap;
-			pmremGenerator.dispose();
-		});
-	}
-
-	reinitControls(controlsElement: HTMLElement): Renderer {
-		const newControls = new OrbitControls(this.#camera, controlsElement);
-		newControls.minZoom = 10;
-		newControls.maxDistance = 1000;
-		newControls.mouseButtons = {
-			LEFT: MOUSE.PAN,
-			MIDDLE: MOUSE.DOLLY,
-			RIGHT: MOUSE.ROTATE,
-		};
-
-		if (controlsElement !== this.#controls?.domElement) {
-			controlsElement.addEventListener('pointermove', (event) => {
-				this.#pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-				this.#pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
-			});
-			controlsElement.addEventListener('pointerdown', () => {
-				if (this.handles.visible && this.handles.hovering && this.#clickCallback) {
-					if (this.handles.hovering.isDisabled)
-						toast.error('Questo pezzo non può essere attaccato nella posizione richiesta');
-					else if ((this.handles.hovering as HandleMesh).isHandle) {
-						this.#clickCallback(this.handles.hovering as HandleMesh);
-					} else if ((this.handles.hovering as LineHandleMesh).isLineHandle) {
-						const hover = this.handles.hovering as LineHandleMesh;
-						this.#clickCallback(hover);
-					}
-				} else {
-					this.#raycaster.setFromCamera(this.#pointer, this.#camera);
-					const intersectables = this.#objects
-						.filter((obj) => obj.mesh)
-						.map((obj) => obj.mesh) as Object3D[];
-					const intersections = this.#raycaster.intersectObjects(intersectables);
-
-					if (intersections[0]) {
-						let intersection: Object3D | null = null;
-						let clickedObj: TemporaryObject | undefined;
-						
-						this.#objects.forEach((obj) => {
-							obj.mesh?.traverse((child) => {
-								if (child.uuid === intersections[0].object.uuid) {
-									intersection = obj.mesh;
-									clickedObj = obj;
-								}
-							});
-						});
-						
-						if (intersection === null) throw new Error('what?');
-
-						const sceneObject = get(objects).find((o) => o.object?.mesh === intersection);
-						
-						if (sceneObject) {
-							const isLight = sceneObject.code.includes('XNRS') || sceneObject.code.includes('SP');
-							
-							if (isLight) {
-								const parentProfiles = get(objects).filter(p => 
-									p.subobjects.some(s => s.code === sceneObject.code)
-								);
-								
-								if (parentProfiles.length > 0) {
-									const parentProfile = parentProfiles[0];
-									const lightIndex = parentProfile.subobjects.findIndex(s => s.code === sceneObject.code);
-									
-									if (lightIndex >= 0) {
-										const light = parentProfile.subobjects[lightIndex];
-										const lightFamily = Object.values(this.families).find(f => 
-											f.items.some(i => i.code === light.code)
-										);
-										
-										if (lightFamily && parentProfile.object) {
-											parentProfile.subobjects = parentProfile.subobjects.toSpliced(lightIndex, 1);
-											
-											const profileId = parentProfile.object.id;
-											window.location.href = `/${this.tenant}/${lightFamily.system}/add?` + new URLSearchParams({
-												chosenFamily: lightFamily.code,
-												chosenItem: light.code,
-												reference: JSON.stringify({ typ: 'line', id: profileId, junction: 0 }),
-											}).toString();
-											return;
-										}
-									}
-								}
-							} else {
-								for (let i = 0; i < sceneObject.subobjects.length; i++) {
-									const subitem = sceneObject.subobjects[i];
-									const isSubLight = subitem.code.includes('XNRS') || subitem.code.includes('SP');
-									
-									if (isSubLight && clickedObj) {
-										const light = sceneObject.subobjects[i];
-										const lightFamily = Object.values(this.families).find(f => 
-											f.items.some(i => i.code === light.code)
-										);
-										
-										if (lightFamily) {
-											sceneObject.subobjects = sceneObject.subobjects.toSpliced(i, 1);
-											
-											const profileId = sceneObject.object!.id;
-											window.location.href = `/${this.tenant}/${lightFamily.system}/add?` + new URLSearchParams({
-												chosenFamily: lightFamily.code,
-												chosenItem: light.code,
-												reference: JSON.stringify({ typ: 'line', id: profileId, junction: 0 }),
-											}).toString();
-											return;
-										}
-									}
-								}
-							}
-							
-							focusSidebarElement(sceneObject);
-						}
-					}
-				}
-			});
-		}
-
-		if (this.#controls !== undefined) {
-			newControls.target.copy(this.#controls.target);
-			this.#controls.dispose();
-		}
-		this.#controls = newControls;
-		this.#controls.update();
-
-		return this;
+	constructor(renderer: Renderer) {
+		this.renderer = renderer;
 	}
 
 	getLights(): TemporaryObject[] {
-		return this.#objects.filter(obj => {
-			const isLight = obj.getCatalogEntry().code.includes('XNRS') || 
-						obj.getCatalogEntry().code.includes('SP');
-			return isLight;
-		});
+		return this.renderer.getObjects().filter(obj => RendererUtils.isLight(obj));
 	}
 
 	moveLight(lightObj: TemporaryObject, position: number): boolean {
-		const isLight = lightObj.getCatalogEntry().code.includes('XNRS') || 
-						lightObj.getCatalogEntry().code.includes('SP');
-		
-		if (!isLight || !lightObj.mesh) {
-		console.error("Non è una luce valida o non ha un mesh");
-		toast.error("Oggetto non valido per lo spostamento");
-		return false;
+		if (!RendererUtils.isLight(lightObj) || !lightObj.mesh) {
+			toast.error("Oggetto non valido per lo spostamento");
+			return false;
 		}
 
 		const directResult = lightObj.moveLight(position);
 		if (directResult !== null) {
-		return true;
+			return true;
 		}
 		
-		console.log("Spostamento diretto fallito, tentativo con reset delle connessioni");
-
 		lightObj.resetConnections();
 
-		const fallbackProfile = this.#objects.find(obj => 
-		obj !== lightObj && 
-		!obj.getCatalogEntry().code.includes('XNRS') && 
-		!obj.getCatalogEntry().code.includes('SP') &&
-		obj.getCatalogEntry().line_juncts.length > 0 &&
-		obj.mesh
+		const fallbackProfile = this.renderer.getObjects().find(obj => 
+			obj !== lightObj && 
+			RendererUtils.isProfile(obj) &&
+			obj.mesh
 		);
 		
 		if (!fallbackProfile) {
-		console.error("Nessun profilo disponibile per la luce");
-		toast.error("Nessun profilo disponibile per la luce");
-		return false;
-		}
-		
-		console.log("Tentativo di riconnessione con profilo:", fallbackProfile.getCatalogEntry().code);
-
-		try {
-		const lineJunct = fallbackProfile.getCatalogEntry().line_juncts[0];
-		const midPoint = new Vector3()
-			.copy(lineJunct.point1)
-			.add(lineJunct.point2)
-			.multiplyScalar(0.5);
-
-		fallbackProfile.attachLine(lightObj, midPoint, true);
-
-		const finalResult = lightObj.moveLight(position);
-		if (finalResult === null) {
-			console.error("Fallimento anche dopo reset e riconnessione");
-			toast.error("Impossibile spostare la luce");
+			toast.error("Nessun profilo disponibile per la luce");
 			return false;
 		}
 		
-		return true;
+		try {
+			const lineJunct = fallbackProfile.getCatalogEntry().line_juncts[0];
+			const midPoint = new Vector3()
+				.copy(lineJunct.point1)
+				.add(lineJunct.point2)
+				.multiplyScalar(0.5);
+
+			fallbackProfile.attachLine(lightObj, midPoint, true);
+
+			const finalResult = lightObj.moveLight(position);
+			if (finalResult === null) {
+				toast.error("Impossibile spostare la luce");
+				return false;
+			}
+			
+			return true;
 		} catch (error) {
-		console.error("Errore durante la riconnessione della luce:", error);
-		toast.error("Impossibile spostare la luce");
-		return false;
+			toast.error("Impossibile spostare la luce");
+			return false;
 		}
 	}
 
 	isValidLightPosition(profileObj: TemporaryObject, lightObj: TemporaryObject, position: number): boolean {
-		const isLight = lightObj.getCatalogEntry().code.includes('XNRS') || 
-					lightObj.getCatalogEntry().code.includes('SP');
-		
-		if (!isLight) return true;
-	
-		const getMinDistanceForLight = (lightCode: string): number => {
-			if (lightCode.includes('XNRS01')) return 0.05;
-			if (lightCode.includes('XNRS14')) return 0.06;
-			if (lightCode.includes('XNRS31')) return 0.07;
-			if (lightCode.includes('SP')) return 0.06;
-			return 0.04;
-		};
-	
-		const thisLightMinDist = getMinDistanceForLight(lightObj.getCatalogEntry().code);
-	
-		const existingLights: TemporaryObject[] = [];
-		for (const obj of this.#objects) {
-			if (obj === lightObj) continue;
-			
-			const objIsLight = obj.getCatalogEntry().code.includes('XNRS') || 
-							obj.getCatalogEntry().code.includes('SP');
-			
-			if (objIsLight) {
-				for (let j = 0; j < obj.getJunctions().length; j++) {
-					if (obj.getJunctions()[j] === profileObj) {
-						existingLights.push(obj);
-						break;
-					}
-				}
-			}
-		}
-	
+		if (!RendererUtils.isLight(lightObj)) return true;
+
+		const thisLightMinDist = RendererUtils.getMinDistanceForLight(lightObj.getCatalogEntry().code);
+		const existingLights = this.getExistingLightsOnProfile(profileObj, lightObj);
+
 		for (const existingLight of existingLights) {
 			const existingPos = existingLight.getCurvePosition();
-			const existingMinDist = getMinDistanceForLight(existingLight.getCatalogEntry().code);
+			const existingMinDist = RendererUtils.getMinDistanceForLight(existingLight.getCatalogEntry().code);
 			const requiredDistance = Math.max(thisLightMinDist, existingMinDist);
 			
 			if (Math.abs(position - existingPos) < requiredDistance) {
 				return false;
 			}
 		}
-	
+
 		return true;
 	}
 
@@ -441,39 +161,15 @@ export class Renderer {
 		if (this.isValidLightPosition(profileObj, lightObj, desiredPosition)) {
 			return Math.max(minPos, Math.min(maxPos, desiredPosition));
 		}
-	
-		const getMinDistanceForLight = (lightCode: string): number => {
-			if (lightCode.includes('XNRS01')) return 0.06;
-			if (lightCode.includes('XNRS14')) return 0.08;
-			if (lightCode.includes('XNRS31')) return 0.10;
-			if (lightCode.includes('SP')) return 0.08;
-			return 0.08;
-		};
-	
-		const thisLightMinDist = getMinDistanceForLight(lightObj.getCatalogEntry().code);
-	
-		const existingPositions: number[] = [];
-		for (const obj of this.#objects) {
-			if (obj === lightObj) continue;
-			
-			const objIsLight = obj.getCatalogEntry().code.includes('XNRS') || 
-							obj.getCatalogEntry().code.includes('SP');
-			
-			if (objIsLight) {
-				for (let j = 0; j < obj.getJunctions().length; j++) {
-					if (obj.getJunctions()[j] === profileObj) {
-						existingPositions.push(obj.getCurvePosition());
-						break;
-					}
-				}
-			}
-		}
-	
-		existingPositions.sort((a, b) => a - b);
-	
+
+		const thisLightMinDist = RendererUtils.getMinDistanceForLight(lightObj.getCatalogEntry().code);
+		const existingPositions = this.getExistingLightsOnProfile(profileObj, lightObj)
+			.map(light => light.getCurvePosition())
+			.sort((a, b) => a - b);
+
 		let bestPosition = desiredPosition;
 		let minDistanceToDesired = Infinity;
-	
+
 		for (let i = 0; i <= existingPositions.length; i++) {
 			let spaceStart = i === 0 ? minPos : existingPositions[i - 1] + thisLightMinDist;
 			let spaceEnd = i === existingPositions.length ? maxPos : existingPositions[i] - thisLightMinDist;
@@ -488,7 +184,7 @@ export class Renderer {
 				}
 			}
 		}
-	
+
 		return bestPosition;
 	}
 
@@ -529,80 +225,73 @@ export class Renderer {
 				indicator.position.y += 2;
 			}
 		}
-		this.#lightFeedbackIndicator = indicator;
-		this.#scene.add(indicator);
+		this.feedbackIndicator = indicator;
+		this.renderer.getScene().add(indicator);
 	}
 
 	clearLightPositionFeedback(): void {
-		if (this.#lightFeedbackIndicator) {
-			this.#scene.remove(this.#lightFeedbackIndicator);
+		if (this.feedbackIndicator) {
+			this.renderer.getScene().remove(this.feedbackIndicator);
 
-			if (Array.isArray(this.#lightFeedbackIndicator.material)) {
-				this.#lightFeedbackIndicator.material.forEach(mat => mat.dispose());
+			if (Array.isArray(this.feedbackIndicator.material)) {
+				this.feedbackIndicator.material.forEach(mat => mat.dispose());
 			} else {
-				this.#lightFeedbackIndicator.material.dispose();
+				this.feedbackIndicator.material.dispose();
 			}
 			
-			this.#lightFeedbackIndicator.geometry.dispose();
-			this.#lightFeedbackIndicator = null;
+			this.feedbackIndicator.geometry.dispose();
+			this.feedbackIndicator = null;
 		}
 	}
 
 	highlightLight(lightObj: TemporaryObject | null): void {
-		this.setOpacity(1);
+		this.renderer.setOpacity(1);
 		
 		if (lightObj) {
-			for (const obj of this.#objects) {
+			for (const obj of this.renderer.getObjects()) {
 				if (obj !== lightObj) {
 					obj.setOpacity(0.4);
 				}
 			}
 			
 			lightObj.setOpacity(1);
-			this.frameObject(lightObj);
+			this.renderer.frameObject(lightObj);
 		}
 	}
 
 	findValidProfileForLight(lightObj: TemporaryObject): [TemporaryObject | null, number] {
 		const junctions = lightObj.getJunctions();
 		for (let j = 0; j < junctions.length; j++) {
-		const junction = junctions[j];
-		if (junction !== null) {
-			for (let i = 0; i < junction.getLineJunctions().length; i++) {
-			if (junction.getLineJunctions()[i] === lightObj) {
-				return [junction, i];
+			const junction = junctions[j];
+			if (junction !== null) {
+				for (let i = 0; i < junction.getLineJunctions().length; i++) {
+					if (junction.getLineJunctions()[i] === lightObj) {
+						return [junction, i];
+					}
+				}
 			}
-			}
-		}
 		}
 
-	for (const obj of this.#objects) {
-		if (obj === lightObj) continue;
+		for (const obj of this.renderer.getObjects()) {
+			if (obj === lightObj) continue;
 
-		const isProfile = !obj.getCatalogEntry().code.includes('XNRS') && 
-							!obj.getCatalogEntry().code.includes('SP');
-							
-		if (isProfile && obj.getCatalogEntry().line_juncts.length > 0 && obj.mesh) {
-			for (let i = 0; i < obj.getLineJunctions().length; i++) {
-			if (obj.getLineJunctions()[i] === null || obj.getLineJunctions()[i] === lightObj) {
-				return [obj, i];
+			if (RendererUtils.isProfile(obj) && obj.mesh) {
+				for (let i = 0; i < obj.getLineJunctions().length; i++) {
+					if (obj.getLineJunctions()[i] === null || obj.getLineJunctions()[i] === lightObj) {
+						return [obj, i];
+					}
+				}
 			}
-			}
-		}
 		}
 		return [null, -1];
 	}
 
 	getLightMovementDirection(lightObj: TemporaryObject): boolean {
-		if (!lightObj || !lightObj.mesh) {
-		  return false;
-		}
-	  
+		if (!lightObj?.mesh) return false;
+
 		const parentProfile = this.findParentProfileForLight(lightObj);
-		if (!parentProfile || !parentProfile.mesh) {
-		  return false;
-		}
-	  
+		if (!parentProfile?.mesh) return false;
+
 		const junctionId = this.findJunctionIdForProfile(parentProfile, lightObj);
 		if (junctionId < 0) return false;
 		
@@ -610,43 +299,40 @@ export class Renderer {
 		if (!curveData) return false;
 
 		const curve = new QuadraticBezierCurve3(
-		  parentProfile.mesh.localToWorld(new Vector3().copy(curveData.point1)),
-		  parentProfile.mesh.localToWorld(new Vector3().copy(curveData.pointC)),
-		  parentProfile.mesh.localToWorld(new Vector3().copy(curveData.point2))
+			parentProfile.mesh.localToWorld(new Vector3().copy(curveData.point1)),
+			parentProfile.mesh.localToWorld(new Vector3().copy(curveData.pointC)),
+			parentProfile.mesh.localToWorld(new Vector3().copy(curveData.point2))
 		);
 
 		const curPos = lightObj.getCurvePosition();
 		const tangent = curve.getTangentAt(curPos);
-		const cameraRight = new Vector3(1, 0, 0).applyQuaternion(this.#camera.quaternion);
+		const cameraRight = new Vector3(1, 0, 0).applyQuaternion(this.renderer.getCamera().quaternion);
 
 		return tangent.dot(cameraRight) < 0;
-	  }
+	}
 
 	findParentProfileForLight(lightObj: TemporaryObject): TemporaryObject | null {
 		for (let j = 0; j < lightObj.getJunctions().length; j++) {
-		const junction = lightObj.getJunctions()[j];
-		if (junction !== null) {
-			for (let i = 0; i < junction.getLineJunctions().length; i++) {
-			if (junction.getLineJunctions()[i] === lightObj) {
-				return junction;
+			const junction = lightObj.getJunctions()[j];
+			if (junction !== null) {
+				for (let i = 0; i < junction.getLineJunctions().length; i++) {
+					if (junction.getLineJunctions()[i] === lightObj) {
+						return junction;
+					}
+				}
 			}
-			}
-		}
 		}
 
-		for (const obj of this.getObjects()) {
-		if (obj === lightObj) continue;
+		for (const obj of this.renderer.getObjects()) {
+			if (obj === lightObj) continue;
 
-		const isProfile = !obj.getCatalogEntry().code.includes('XNRS') && 
-						!obj.getCatalogEntry().code.includes('SP');
-		
-		if (isProfile && obj.getCatalogEntry().line_juncts.length > 0) {
-			for (let i = 0; i < obj.getLineJunctions().length; i++) {
-			if (obj.getLineJunctions()[i] === lightObj) {
-				return obj;
+			if (RendererUtils.isProfile(obj)) {
+				for (let i = 0; i < obj.getLineJunctions().length; i++) {
+					if (obj.getLineJunctions()[i] === lightObj) {
+						return obj;
+					}
+				}
 			}
-			}
-		}
 		}
 		
 		return null;
@@ -656,12 +342,585 @@ export class Renderer {
 		if (!profileObj || !lightObj) return -1;
 		
 		for (let i = 0; i < profileObj.getLineJunctions().length; i++) {
-		if (profileObj.getLineJunctions()[i] === lightObj) {
-			return i;
-		}
+			if (profileObj.getLineJunctions()[i] === lightObj) {
+				return i;
+			}
 		}
 		
 		return -1;
+	}
+
+	private getExistingLightsOnProfile(profileObj: TemporaryObject, excludeLight: TemporaryObject): TemporaryObject[] {
+		const existingLights: TemporaryObject[] = [];
+		
+		for (const obj of this.renderer.getObjects()) {
+			if (obj === excludeLight || !RendererUtils.isLight(obj)) continue;
+			
+			for (let j = 0; j < obj.getJunctions().length; j++) {
+				if (obj.getJunctions()[j] === profileObj) {
+					existingLights.push(obj);
+					break;
+				}
+			}
+		}
+
+		return existingLights;
+	}
+}
+
+class VirtualRoomManager {
+	private renderer: Renderer;
+	private scene: Scene;
+	private virtualRoom: Group | null = null;
+	private currentDimensions: RoomDimensions = { width: 3, height: 3, depth: 3 };
+
+	constructor(renderer: Renderer, scene: Scene) {
+		this.renderer = renderer;
+		this.scene = scene;
+	}
+
+	getCurrentDimensions(): RoomDimensions {
+		return { ...this.currentDimensions };
+	}
+
+	setCurrentDimensions(dimensions: RoomDimensions): void {
+		this.currentDimensions = dimensions;
+	}
+
+	createRoom(dimensions: number | RoomDimensions = this.currentDimensions, centered: boolean = true, visible: boolean = false): void {
+		console.log('🏠 === INIZIO createRoom ===');
+		console.log('🏠 Parametri - centered:', centered, 'visible:', visible);
+		console.log('🏠 Dimensioni richieste:', dimensions);
+		console.log('🏠 Numero oggetti presenti:', this.renderer.getObjects().length);
+
+		this.removeRoom();
+
+		const room = new Group();
+		this.virtualRoom = room;
+		room.visible = visible;
+		console.log('🏠 Nuovo gruppo stanza creato');
+
+		const material = new MeshStandardMaterial({
+			color: 0xf0f0f0,
+			transparent: true,
+			opacity: 0.15,
+			side: DoubleSide,
+			depthWrite: false
+		});
+
+		let center = new Vector3(0, 0, 0);
+		const scaleFactor = 25;
+		
+		let roomWidth: number, roomHeight: number, roomDepth: number;
+		
+		if (typeof dimensions === 'number') {
+			roomWidth = roomHeight = roomDepth = dimensions * scaleFactor;
+		} else {
+			roomWidth = dimensions.width * scaleFactor;
+			roomHeight = dimensions.height * scaleFactor;
+			roomDepth = dimensions.depth * scaleFactor;
+			
+			this.currentDimensions = { ...dimensions };
+		}
+		
+		console.log('🏠 Dimensioni stanza calcolate:', { roomWidth, roomHeight, roomDepth });
+		
+		if (centered && this.renderer.getObjects().length > 0) {
+			console.log('🎯 CENTERING ATTIVATO - Calcolo bounding box...');
+			const bbox = new Box3();
+			
+			this.renderer.getObjects().forEach((obj, index) => {
+				if (obj.mesh) {
+					console.log(`🎯 Oggetto ${index} - Posizione:`, obj.mesh.position.clone());
+					bbox.expandByObject(obj.mesh);
+					console.log(`🎯 Oggetto ${index} - BBox dopo espansione:`, {
+						min: bbox.min.clone(),
+						max: bbox.max.clone()
+					});
+				} else {
+					console.log(`🎯 Oggetto ${index} - NESSUN MESH`);
+				}
+			});
+
+			console.log('🎯 BBox finale:', { min: bbox.min.clone(), max: bbox.max.clone() });
+			center = bbox.getCenter(new Vector3());
+			console.log('🎯 Centro calcolato dal bbox:', center.clone());
+			
+			const maxY = bbox.max.y;
+			center.y = maxY - roomHeight / 2;
+			console.log('🎯 Centro finale dopo aggiustamento Y:', center.clone());
+			console.log('🎯 MaxY era:', maxY, 'roomHeight/2:', roomHeight/2);
+		} else {
+			console.log('❌ CENTERING SALTATO');
+			console.log('❌ Motivi - centered:', centered, 'oggetti:', this.renderer.getObjects().length);
+			center.y = -roomHeight / 2;
+			console.log('❌ Centro di default impostato a:', center.clone());
+		}
+
+		console.log('🏠 Posizione finale centro stanza:', center.clone());
+
+		this.addRoomSurfaces(room, center, roomWidth, roomHeight, roomDepth, material);
+		this.addGridHelpers(room, center, roomWidth, roomHeight, roomDepth);
+		
+		console.log('🏠 Superfici e griglie aggiunte alla stanza');
+		console.log('🏠 Posizione gruppo stanza prima di aggiungere alla scene:', room.position.clone());
+		
+		this.scene.add(room);
+		
+		console.log('🏠 Stanza aggiunta alla scene');
+		console.log('🏠 Posizione finale gruppo stanza:', room.position.clone());
+		console.log('🏠 === FINE createRoom ===');
+	}
+
+	update(): void {
+		if (this.virtualRoom && this.renderer.getObjects().length > 0) {
+			this.createRoom(this.currentDimensions, false, this.virtualRoom.visible);
+		}
+	}
+
+	updateWithCentering(): void {
+		if (this.virtualRoom && this.renderer.getObjects().length > 0) {
+			this.createRoom(this.currentDimensions, true, this.virtualRoom.visible);
+		}
+	}
+
+	setVisible(visible: boolean): void {
+		if (this.virtualRoom) {
+			this.virtualRoom.visible = visible;
+		} else if (visible) {
+			this.createRoom(this.currentDimensions, false, true);
+		}
+	}
+
+	isVisible(): boolean {
+		return this.virtualRoom !== null && this.virtualRoom.visible;
+	}
+
+	resize(dimensions: number | RoomDimensions): void {
+		const isVisible = this.virtualRoom?.visible ?? false;
+		const shouldCenter = this.renderer.getObjects().length > 0;
+		this.createRoom(dimensions, shouldCenter, isVisible);
+	}
+
+	private removeRoom(): void {
+		if (this.virtualRoom) {
+			this.scene.remove(this.virtualRoom);
+			this.virtualRoom = null;
+		}
+	}
+
+	private addRoomSurfaces(room: Group, center: Vector3, width: number, height: number, depth: number, material: MeshStandardMaterial): void {
+		const ceiling = new Mesh(
+			new PlaneGeometry(width, depth),
+			new MeshStandardMaterial({
+				color: 0xf5f5f5,
+				transparent: true,
+				opacity: 0.15,
+				side: DoubleSide
+			})
+		);
+		ceiling.rotation.x = Math.PI / 2;
+		ceiling.position.set(center.x, center.y + height / 2, center.z);
+		room.add(ceiling);
+
+		const floor = new Mesh(new PlaneGeometry(width, depth), material.clone());
+		floor.rotation.x = Math.PI / 2;
+		floor.position.set(center.x, center.y - height / 2, center.z);
+		room.add(floor);
+
+		const wallBack = new Mesh(new PlaneGeometry(width, height), material.clone());
+		wallBack.position.set(center.x, center.y, center.z - depth / 2);
+		wallBack.rotation.y = Math.PI;
+		room.add(wallBack);
+
+		const wallLeft = new Mesh(new PlaneGeometry(depth, height), material.clone());
+		wallLeft.position.set(center.x - width / 2, center.y, center.z);
+		wallLeft.rotation.y = Math.PI / 2;
+		room.add(wallLeft);
+
+		const wallRight = new Mesh(new PlaneGeometry(depth, height), material.clone());
+		wallRight.position.set(center.x + width / 2, center.y, center.z);
+		wallRight.rotation.y = -Math.PI / 2;
+		room.add(wallRight);
+	}
+
+	private addGridHelpers(room: Group, center: Vector3, width: number, height: number, depth: number): void {
+		const gridDivisions = 10;
+		
+		const gridHelperCeiling = new GridHelper(Math.max(width, depth), gridDivisions, 0x888888, 0xcccccc);
+		gridHelperCeiling.scale.set(
+			width / Math.max(width, depth),
+			1,
+			depth / Math.max(width, depth)
+		);
+		gridHelperCeiling.position.set(center.x, center.y + height / 2 - 0.01, center.z);
+		gridHelperCeiling.rotation.x = Math.PI;
+		room.add(gridHelperCeiling);
+
+		const gridHelperFloor = new GridHelper(Math.max(width, depth), gridDivisions, 0x888888, 0xcccccc);
+		gridHelperFloor.scale.set(
+			width / Math.max(width, depth),
+			1,
+			depth / Math.max(width, depth)
+		);
+		gridHelperFloor.position.set(center.x, center.y - height / 2 + 0.01, center.z);
+		room.add(gridHelperFloor);
+	}
+}
+
+class ObjectClickHandler {
+	private renderer: Renderer;
+	private lightManager: LightManager;
+
+	constructor(renderer: Renderer, lightManager: LightManager) {
+		this.renderer = renderer;
+		this.lightManager = lightManager;
+	}
+
+	handleClick(intersections: Intersection[]): void {
+		if (!intersections[0]) return;
+
+		let intersection: Object3D | null = null;
+		let clickedObj: TemporaryObject | undefined;
+		
+		this.renderer.getObjects().forEach((obj) => {
+			obj.mesh?.traverse((child) => {
+				if (child.uuid === intersections[0].object.uuid) {
+					intersection = obj.mesh;
+					clickedObj = obj;
+				}
+			});
+		});
+		
+		if (intersection === null) throw new Error('Intersection object not found');
+
+		const sceneObject = get(objects).find((o) => o.object?.mesh === intersection);
+		
+		if (sceneObject) {
+			const isLight = RendererUtils.isLight(sceneObject.object!);
+			
+			if (isLight) {
+				this.handleLightClick(sceneObject);
+			} else {
+				this.handleProfileClick(sceneObject, clickedObj);
+			}
+		}
+	}
+
+	private handleLightClick(sceneObject: any): void {
+		const parentProfiles = get(objects).filter(p => 
+			p.subobjects.some(s => s.code === sceneObject.code)
+		);
+		
+		if (parentProfiles.length > 0) {
+			const parentProfile = parentProfiles[0];
+			const lightIndex = parentProfile.subobjects.findIndex(s => s.code === sceneObject.code);
+			
+			if (lightIndex >= 0) {
+				const light = parentProfile.subobjects[lightIndex];
+				const lightFamily = Object.values(this.renderer.families).find(f => 
+					f.items.some(i => i.code === light.code)
+				);
+				
+				if (lightFamily && parentProfile.object) {
+					parentProfile.subobjects = parentProfile.subobjects.toSpliced(lightIndex, 1);
+					
+					const profileId = parentProfile.object.id;
+					this.navigateToLightPage(lightFamily, light.code, profileId);
+					return;
+				}
+			}
+		}
+		
+		focusSidebarElement(sceneObject);
+	}
+
+	private handleProfileClick(sceneObject: any, clickedObj: TemporaryObject | undefined): void {
+		for (let i = 0; i < sceneObject.subobjects.length; i++) {
+			const subitem = sceneObject.subobjects[i];
+			const isSubLight = RendererUtils.isLight({ getCatalogEntry: () => ({ code: subitem.code }) } as TemporaryObject);
+			
+			if (isSubLight && clickedObj) {
+				const light = sceneObject.subobjects[i];
+				const lightFamily = Object.values(this.renderer.families).find(f => 
+					f.items.some(i => i.code === light.code)
+				);
+				
+				if (lightFamily) {
+					sceneObject.subobjects = sceneObject.subobjects.toSpliced(i, 1);
+					
+					const profileId = sceneObject.object!.id;
+					this.navigateToLightPage(lightFamily, light.code, profileId);
+					return;
+				}
+			}
+		}
+		
+		focusSidebarElement(sceneObject);
+	}
+
+	private navigateToLightPage(lightFamily: Family, lightCode: string, profileId: string): void {
+		window.location.href = `/${this.renderer.tenant}/${lightFamily.system}/add?` + new URLSearchParams({
+			chosenFamily: lightFamily.code,
+			chosenItem: lightCode,
+			reference: JSON.stringify({ typ: 'line', id: profileId, junction: 0 }),
+		}).toString();
+	}
+}
+
+const CAMERA_FOV: number = 70;
+let RENDERER: Renderer | undefined = undefined;
+let exr: DataTexture | undefined = undefined;
+
+async function loadExr() {
+	if (exr === undefined) exr = await new EXRLoader().loadAsync('/footprint_court_2k.exr');
+	return exr;
+}
+
+export class Renderer {
+	readonly supabase: SupabaseClient<Database>;
+	readonly tenant: string;
+	readonly families: Record<string, Family>;
+	readonly catalog: Record<string, CatalogEntry>;
+	readonly loader: GLTFLoader;
+	
+	handles: HandleManager;
+	
+	private lightManager: LightManager;
+	private virtualRoomManager: VirtualRoomManager;
+	private clickHandler: ObjectClickHandler;
+
+	#webgl!: WebGLRenderer;
+	#scene: Scene;
+	#camera: Camera;
+	#controls: OrbitControls | undefined;
+	#prevCameraPos: Vector3 | undefined;
+	#prevCameraQuaternion: Quaternion | undefined;
+	#pointer: Vector2;
+	#helpers: ArrowHelper[] = [];
+	#systemOffset: Vector3 = new Vector3(0, 0, 0);
+	#originalPositions: Map<string, Vector3> = new Map();
+	#hasBeenCentered: boolean = false;
+	#objects: TemporaryObject[] = [];
+	#clickCallback: ((_: HandleMesh | LineHandleMesh) => any) | undefined;
+
+	#scenes: {
+		normal: { scene: Scene; handles: HandleManager; objects: TemporaryObject[] };
+		single: { scene: Scene; handles: HandleManager; objects: TemporaryObject[] };
+	};
+
+	#raycaster: Raycaster;
+
+	static get(
+		data: {
+			supabase: SupabaseClient<Database>;
+			tenant: string;
+			families: Record<string, Family>;
+			catalog: Record<string, CatalogEntry>;
+		},
+		canvas: HTMLCanvasElement,
+		controls: HTMLElement,
+	): Renderer {
+		if (!RENDERER) {
+			RENDERER = new Renderer(
+				data.supabase,
+				data.tenant,
+				data.families,
+				data.catalog,
+				canvas,
+				controls,
+			);
+		} else {
+			const wasVirtualRoomVisible = RENDERER.virtualRoomManager.isVisible();
+			const currentDimensions = RENDERER.virtualRoomManager.getCurrentDimensions();
+			
+			RENDERER.#webgl.dispose();
+			RENDERER.reinitWebgl(canvas);
+			RENDERER.reinitControls(controls);
+
+			if (wasVirtualRoomVisible) {
+				RENDERER.virtualRoomManager.createRoom(currentDimensions, true, true);
+			}
+		}
+
+		return RENDERER;
+	}
+
+	constructor(
+		supabase: SupabaseClient<Database>,
+		tenant: string,
+		families: Record<string, Family>,
+		catalog: Record<string, CatalogEntry>,
+		canvas: HTMLCanvasElement,
+		controls: HTMLElement,
+	) {
+		this.supabase = supabase;
+		this.tenant = tenant;
+		this.families = families;
+		this.catalog = catalog;
+
+		this.#scene = new Scene();
+		this.#camera = new PerspectiveCamera(CAMERA_FOV);
+		this.#camera.position.set(100, 100, 100);
+		this.#camera.lookAt(new Vector3());
+		this.#pointer = new Vector2();
+
+		this.handles = new HandleManager(this, this.#scene);
+		this.lightManager = new LightManager(this);
+		this.virtualRoomManager = new VirtualRoomManager(this, this.#scene);
+		this.clickHandler = new ObjectClickHandler(this, this.lightManager);
+
+		this.reinitWebgl(canvas);
+		this.reinitControls(controls);
+		this.#raycaster = new Raycaster();
+
+		Cache.enabled = true;
+		const dracoLoader = new DRACOLoader();
+		dracoLoader.setDecoderPath('/');
+		this.loader = new GLTFLoader();
+		this.loader.setDRACOLoader(dracoLoader);
+
+		const singleScene = new Scene();
+		this.#scenes = {
+			normal: { scene: this.#scene, objects: this.#objects, handles: this.handles },
+			single: { scene: singleScene, objects: [], handles: new HandleManager(this, this.#scene) },
+		};
+
+		this.virtualRoomManager.createRoom();
+	}
+
+	getCurrentRoomDimensions(): RoomDimensions {
+		return this.virtualRoomManager.getCurrentDimensions();
+	}
+
+	getCamera(): Camera {
+		return this.#camera;
+	}
+
+	reinitWebgl(canvas: HTMLCanvasElement) {
+		this.#webgl = new WebGLRenderer({ canvas, antialias: true });
+		this.#webgl.setClearColor(0xffffff);
+		this.#webgl.setPixelRatio(window.devicePixelRatio);
+		this.#webgl.setAnimationLoop(() => {
+			resizeCanvasToDisplaySize(this.#webgl, this.#camera);
+			this.handles.update(this.#camera, this.#pointer);
+			this.#webgl.render(this.#scene, this.#camera);
+			this.#raycaster.setFromCamera(this.#pointer, this.#camera);
+		});
+
+		loadExr().then((texture) => {
+			const pmremGenerator = new PMREMGenerator(this.#webgl);
+			const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+			for (const scene of Object.values(this.#scenes)) scene.scene.environment = envMap;
+			pmremGenerator.dispose();
+		});
+	}
+
+	reinitControls(controlsElement: HTMLElement): Renderer {
+		const newControls = new OrbitControls(this.#camera, controlsElement);
+		newControls.minZoom = 10;
+		newControls.maxDistance = 1000;
+		newControls.mouseButtons = {
+			LEFT: MOUSE.PAN,
+			MIDDLE: MOUSE.DOLLY,
+			RIGHT: MOUSE.ROTATE,
+		};
+
+		if (controlsElement !== this.#controls?.domElement) {
+			this.setupControlEvents(controlsElement);
+		}
+
+		if (this.#controls !== undefined) {
+			newControls.target.copy(this.#controls.target);
+			this.#controls.dispose();
+		}
+		this.#controls = newControls;
+		this.#controls.update();
+
+		return this;
+	}
+
+	private setupControlEvents(controlsElement: HTMLElement): void {
+		controlsElement.addEventListener('pointermove', (event) => {
+			this.#pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+			this.#pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+		});
+
+		controlsElement.addEventListener('pointerdown', () => {
+			if (this.handles.visible && this.handles.hovering && this.#clickCallback) {
+				this.handleHandleClick();
+			} else {
+				this.handleObjectClick();
+			}
+		});
+	}
+
+	private handleHandleClick(): void {
+		if (!this.handles.hovering) return;
+
+		if (this.handles.hovering.isDisabled) {
+			toast.error('Questo pezzo non può essere attaccato nella posizione richiesta');
+		} else if ((this.handles.hovering as HandleMesh).isHandle) {
+			this.#clickCallback!(this.handles.hovering as HandleMesh);
+		} else if ((this.handles.hovering as LineHandleMesh).isLineHandle) {
+			this.#clickCallback!(this.handles.hovering as LineHandleMesh);
+		}
+	}
+
+	private handleObjectClick(): void {
+		this.#raycaster.setFromCamera(this.#pointer, this.#camera);
+		const intersectables = this.#objects
+			.filter((obj) => obj.mesh)
+			.map((obj) => obj.mesh) as Object3D[];
+		const intersections = this.#raycaster.intersectObjects(intersectables);
+
+		if (intersections[0]) {
+			this.clickHandler.handleClick(intersections);
+		}
+	}
+
+	getLights(): TemporaryObject[] {
+		return this.lightManager.getLights();
+	}
+
+	moveLight(lightObj: TemporaryObject, position: number): boolean {
+		return this.lightManager.moveLight(lightObj, position);
+	}
+
+	isValidLightPosition(profileObj: TemporaryObject, lightObj: TemporaryObject, position: number): boolean {
+		return this.lightManager.isValidLightPosition(profileObj, lightObj, position);
+	}
+
+	findNearestValidLightPosition(profileObj: TemporaryObject, lightObj: TemporaryObject, desiredPosition: number): number {
+		return this.lightManager.findNearestValidLightPosition(profileObj, lightObj, desiredPosition);
+	}
+
+	updateLightPositionFeedback(lightObj: TemporaryObject | null, position: number): void {
+		this.lightManager.updateLightPositionFeedback(lightObj, position);
+	}
+
+	clearLightPositionFeedback(): void {
+		this.lightManager.clearLightPositionFeedback();
+	}
+
+	highlightLight(lightObj: TemporaryObject | null): void {
+		this.lightManager.highlightLight(lightObj);
+	}
+
+	findValidProfileForLight(lightObj: TemporaryObject): [TemporaryObject | null, number] {
+		return this.lightManager.findValidProfileForLight(lightObj);
+	}
+
+	getLightMovementDirection(lightObj: TemporaryObject): boolean {
+		return this.lightManager.getLightMovementDirection(lightObj);
+	}
+
+	findParentProfileForLight(lightObj: TemporaryObject): TemporaryObject | null {
+		return this.lightManager.findParentProfileForLight(lightObj);
+	}
+
+	findJunctionIdForProfile(profileObj: TemporaryObject, lightObj: TemporaryObject): number {
+		return this.lightManager.findJunctionIdForProfile(profileObj, lightObj);
 	}
 
 	raycast(pointer: Vector2, objects: Object3D[]): Intersection[] {
@@ -697,8 +956,8 @@ export class Renderer {
 
 		this.handles.clear();
 		
-		const isVisible = this.#virtualRoom?.visible ?? false;
-		this.createVirtualRoom(this.#currentRoomDimensions, false, isVisible);
+		const isVisible = this.virtualRoomManager.isVisible();
+		this.virtualRoomManager.createRoom(this.virtualRoomManager.getCurrentDimensions(), false, isVisible);
 
 		return this;
 	}
@@ -785,13 +1044,11 @@ export class Renderer {
 		
 		this.frameObject(obj);
 		
-		// Centering automatico SOLO per il primo oggetto
 		if (this.#objects.length === 1 && !this.#hasBeenCentered) {
-			this.updateVirtualRoomWithCentering();
+			this.virtualRoomManager.updateWithCentering();
 			this.#hasBeenCentered = true;
 		} else {
-			// Per gli oggetti successivi, aggiorna solo senza centering
-			this.updateVirtualRoom();
+			this.virtualRoomManager.update();
 		}
 		
 		return obj;
@@ -808,10 +1065,7 @@ export class Renderer {
 	frameObject(obj: TemporaryObject): TemporaryObject {
 		if (!obj.mesh) return obj;
 
-		const isProfile = obj.getCatalogEntry().line_juncts && 
-                     obj.getCatalogEntry().line_juncts.length > 0;
-    
-		if (!isProfile) return obj;
+		if (!RendererUtils.isProfile(obj)) return obj;
 		
 		const bbox = new Box3().setFromObject(obj.mesh);
 		const center = bbox.getCenter(new Vector3());
@@ -845,7 +1099,7 @@ export class Renderer {
 			this.#hasBeenCentered = false;
 		}
 		
-		this.updateVirtualRoom();
+		this.virtualRoomManager.update();
 	}
 
 	moveCamera(x: number, y: number, z: number) {
@@ -897,15 +1151,6 @@ export class Renderer {
 		}
 	}
 
-	private saveOriginalPositions(): void {
-		this.#originalPositions.clear();
-		for (const obj of this.#objects) {
-			if (obj.mesh) {
-				this.#originalPositions.set(obj.id, obj.mesh.position.clone());
-			}
-		}
-	}
-
 	resetAllObjectsPosition(): void {
 		if (this.#originalPositions.size === 0) {
 			for (const obj of this.#objects) {
@@ -929,17 +1174,12 @@ export class Renderer {
 	}
 
 	centerSystemInRoom(): void {
-		if (!this.#virtualRoom) return;
-
 		const profiles: TemporaryObject[] = [];
 		const otherObjects: TemporaryObject[] = [];
 
 		for (const obj of this.#objects) {
 			if (obj.mesh) {
-				const isProfile = obj.getCatalogEntry().line_juncts && 
-								obj.getCatalogEntry().line_juncts.length > 0;
-				
-				if (isProfile) {
+				if (RendererUtils.isProfile(obj)) {
 					profiles.push(obj);
 				} else {
 					otherObjects.push(obj);
@@ -964,9 +1204,7 @@ export class Renderer {
 		}
 
 		const roomCenter = new Vector3(0, 0, 0);
-
 		const offset = roomCenter.clone().sub(systemCenter);
-		
 		offset.y = 0;
 
 		for (const obj of this.#objects) {
@@ -976,7 +1214,6 @@ export class Renderer {
 		}
 
 		this.#systemOffset.add(offset);
-
 	}
 
 	private calculateProfilesCenter(profiles: TemporaryObject[]): Vector3 {
@@ -996,16 +1233,9 @@ export class Renderer {
 			const point1World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point1));
 			const point2World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point2));
 			
-			const profileCenter = new Vector3()
+			return new Vector3()
 				.addVectors(point1World, point2World)
 				.multiplyScalar(0.5);
-
-			console.log(`📏 Singolo profilo ${profile.getCatalogEntry().code}:`);
-			console.log(`   Point1: (${point1World.x.toFixed(1)}, ${point1World.y.toFixed(1)}, ${point1World.z.toFixed(1)})`);
-			console.log(`   Point2: (${point2World.x.toFixed(1)}, ${point2World.y.toFixed(1)}, ${point2World.z.toFixed(1)})`);
-			console.log(`   Centro profilo: (${profileCenter.x.toFixed(1)}, ${profileCenter.y.toFixed(1)}, ${profileCenter.z.toFixed(1)})`);
-
-			return profileCenter;
 		}
 
 		const extremePoints: Vector3[] = [];
@@ -1022,10 +1252,6 @@ export class Renderer {
 			const point2World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point2));
 			
 			extremePoints.push(point1World, point2World);
-
-			console.log(`📏 Profilo ${profile.getCatalogEntry().code}:`);
-			console.log(`   Point1: (${point1World.x.toFixed(1)}, ${point1World.y.toFixed(1)}, ${point1World.z.toFixed(1)})`);
-			console.log(`   Point2: (${point2World.x.toFixed(1)}, ${point2World.y.toFixed(1)}, ${point2World.z.toFixed(1)})`);
 		}
 
 		const barycenter = new Vector3();
@@ -1033,9 +1259,6 @@ export class Renderer {
 			barycenter.add(point);
 		}
 		barycenter.divideScalar(extremePoints.length);
-
-		console.log(`🎯 Baricentro multipli profili calcolato da ${extremePoints.length} punti estremi:`);
-		console.log(`   Baricentro: (${barycenter.x.toFixed(1)}, ${barycenter.y.toFixed(1)}, ${barycenter.z.toFixed(1)})`);
 
 		return barycenter;
 	}
@@ -1045,251 +1268,50 @@ export class Renderer {
 	}
 
 	createVirtualRoom(
-		dimensions: number | RoomDimensions = this.#currentRoomDimensions, 
+		dimensions: number | RoomDimensions = this.virtualRoomManager.getCurrentDimensions(), 
 		centered: boolean = true, 
 		visible: boolean = false
 	): Renderer {
-		if (this.#virtualRoom) {
-			this.#scene.remove(this.#virtualRoom);
-			this.#virtualRoom = null;
-		}
-	
-		const room = new Group();
-		this.#virtualRoom = room;
-		room.visible = visible;
-	
-		const material = new MeshStandardMaterial({
-			color: 0xf0f0f0,
-			transparent: true,
-			opacity: 0.15,
-			side: DoubleSide,
-			depthWrite: false
-		});
-	
-		let center = new Vector3(0, 0, 0);
-		const scaleFactor = 25;
-		
-		let roomWidth: number, roomHeight: number, roomDepth: number;
-		
-		if (typeof dimensions === 'number') {
-			roomWidth = roomHeight = roomDepth = dimensions * scaleFactor;
-		} else {
-			roomWidth = dimensions.width * scaleFactor;
-			roomHeight = dimensions.height * scaleFactor;
-			roomDepth = dimensions.depth * scaleFactor;
-			
-			this.#currentRoomDimensions = { ...dimensions };
-		}
-		
-		if (centered && this.#objects.length > 0) {
-			const bbox = new Box3();
-			
-			this.#objects.forEach(obj => {
-				if (obj.mesh) {
-					bbox.expandByObject(obj.mesh);
-				}
-			});
-	
-			center = bbox.getCenter(new Vector3());
-			const maxY = bbox.max.y;
-			center.y = maxY - roomHeight / 2;
-		} else {
-			center.y = -roomHeight / 2;
-		}
-
-		const ceiling = new Mesh(
-			new PlaneGeometry(roomWidth, roomDepth),
-			new MeshStandardMaterial({
-				color: 0xf5f5f5,
-				transparent: true,
-				opacity: 0.15,
-				side: DoubleSide
-			})
-		);
-		ceiling.rotation.x = Math.PI / 2;
-		ceiling.position.set(center.x, center.y + roomHeight / 2, center.z);
-		room.add(ceiling);
-
-		const floor = new Mesh(
-			new PlaneGeometry(roomWidth, roomDepth),
-			material.clone()
-		);
-		floor.rotation.x = Math.PI / 2;
-		floor.position.set(center.x, center.y - roomHeight / 2, center.z);
-		room.add(floor);
-
-		const wallBack = new Mesh(
-			new PlaneGeometry(roomWidth, roomHeight),
-			material.clone()
-		);
-		wallBack.position.set(center.x, center.y, center.z - roomDepth / 2);
-		wallBack.rotation.y = Math.PI;
-		room.add(wallBack);
-
-		const wallLeft = new Mesh(
-			new PlaneGeometry(roomDepth, roomHeight),
-			material.clone()
-		);
-		wallLeft.position.set(center.x - roomWidth / 2, center.y, center.z);
-		wallLeft.rotation.y = Math.PI / 2;
-		room.add(wallLeft);
-
-		const wallRight = new Mesh(
-			new PlaneGeometry(roomDepth, roomHeight),
-			material.clone()
-		);
-		wallRight.position.set(center.x + roomWidth / 2, center.y, center.z);
-		wallRight.rotation.y = -Math.PI / 2;
-		room.add(wallRight);
-
-		const gridDivisions = 10;
-		const gridHelperCeiling = new GridHelper(
-			Math.max(roomWidth, roomDepth), 
-			gridDivisions, 
-			0x888888, 
-			0xcccccc
-		);
-
-		gridHelperCeiling.scale.set(
-			roomWidth / Math.max(roomWidth, roomDepth),
-			1,
-			roomDepth / Math.max(roomWidth, roomDepth)
-		);
-		
-		gridHelperCeiling.position.set(center.x, center.y + roomHeight / 2 - 0.01, center.z);
-		gridHelperCeiling.rotation.x = Math.PI;
-		room.add(gridHelperCeiling);
-
-		const gridHelperFloor = new GridHelper(
-			Math.max(roomWidth, roomDepth), 
-			gridDivisions, 
-			0x888888, 
-			0xcccccc
-		);
-
-		gridHelperFloor.scale.set(
-			roomWidth / Math.max(roomWidth, roomDepth),
-			1,
-			roomDepth / Math.max(roomWidth, roomDepth)
-		);
-		
-		gridHelperFloor.position.set(center.x, center.y - roomHeight / 2 + 0.01, center.z);
-		room.add(gridHelperFloor);
-		
-		this.#scene.add(room);
-		
+		this.virtualRoomManager.createRoom(dimensions, centered, visible);
 		return this;
 	}
 
 	updateVirtualRoom(): Renderer {
-		if (this.#virtualRoom && this.#objects.length > 0) {
-			this.createVirtualRoom(this.#currentRoomDimensions, false, this.#virtualRoom.visible);
-		}
+		this.virtualRoomManager.update();
 		return this;
 	}
 
 	updateVirtualRoomWithCentering(): Renderer {
-		if (this.#virtualRoom && this.#objects.length > 0) {
-			this.createVirtualRoom(this.#currentRoomDimensions, true, this.#virtualRoom.visible);
-		}
+		this.virtualRoomManager.updateWithCentering();
 		return this;
 	}
 
 	setVirtualRoomVisible(visible: boolean): Renderer {
-	  if (this.#virtualRoom) {
-		this.#virtualRoom.visible = visible;
-	  } else if (visible) {
-		this.createVirtualRoom(this.#currentRoomDimensions, false, true);
-	  }
-	  return this;
+		this.virtualRoomManager.setVisible(visible);
+		return this;
 	}
 
 	isVirtualRoomVisible(): boolean {
-	  return this.#virtualRoom !== null && this.#virtualRoom.visible;
+		return this.virtualRoomManager.isVisible();
 	}
 
 	resizeVirtualRoom(dimensions: number | RoomDimensions): Renderer {
-		const isVisible = this.#virtualRoom?.visible ?? false;
-		return this.createVirtualRoom(dimensions, false, isVisible);
+		this.virtualRoomManager.resize(dimensions);
+		return this;
 	}
 
 	setCurrentRoomDimensions(dimensions: RoomDimensions): void {
-		this.#currentRoomDimensions = dimensions;
+		this.virtualRoomManager.setCurrentDimensions(dimensions);
 	}
 
 	debugRoomAndProfiles(): void {
-		console.log("🏠 === DEBUG STANZA VIRTUALE ===");
-		
 		const roomDimensions = {
-			larghezza: this.#currentRoomDimensions.width * 1000,
-			altezza: this.#currentRoomDimensions.height * 1000,
-			profondità: this.#currentRoomDimensions.depth * 1000
+			larghezza: this.virtualRoomManager.getCurrentDimensions().width * 1000,
+			altezza: this.virtualRoomManager.getCurrentDimensions().height * 1000,
+			profondità: this.virtualRoomManager.getCurrentDimensions().depth * 1000
 		};
 		
-		console.log("📏 Dimensioni stanza (mm):", roomDimensions);
-		console.log(`   - Larghezza: ${roomDimensions.larghezza}mm`);
-		console.log(`   - Altezza: ${roomDimensions.altezza}mm`);
-		console.log(`   - Profondità: ${roomDimensions.profondità}mm`);
-		
-		const profiles = this.#objects.filter(obj => {
-			const catalogEntry = obj.getCatalogEntry();
-			const isProfile = catalogEntry.line_juncts && catalogEntry.line_juncts.length > 0;
-			return isProfile;
-		});
-		
-		console.log(`🔧 Profili presenti: ${profiles.length}`);
-		
-		profiles.forEach((profile, index) => {
-			const catalogEntry = profile.getCatalogEntry();
-			console.log(`   ${index + 1}. Codice: ${catalogEntry.code}`);
-			
-			const savedObjects = this.getSavedObjects();
-			const savedObject = savedObjects.find(obj => obj.object?.id === profile.id);
-			
-			let catalogLength = 0;
-			let familyInfo = null;
-			
-			for (const [familyCode, family] of Object.entries(this.families)) {
-				const familyItem = family.items.find(item => item.code === catalogEntry.code);
-				if (familyItem) {
-					catalogLength = familyItem.len || 0;
-					familyInfo = {
-						system: family.system,
-						radius: familyItem.radius,
-						angle: familyItem.deg
-					};
-					break;
-				}
-			}
-			
-			if (savedObject) {
-				const effectiveLength = savedObject.length || catalogLength;
-				const isCustomLength = savedObject.customLength || false;
-				
-				console.log(`      - Lunghezza effettiva: ${effectiveLength}mm ${isCustomLength ? '(personalizzata)' : '(standard)'}`);
-				
-				if (familyInfo) {
-					console.log(`      - Sistema: ${familyInfo.system}`);
-					if (isCustomLength) {
-						console.log(`      - Lunghezza catalogo: ${catalogLength}mm`);
-					}
-					console.log(`      - Raggio: ${familyInfo.radius}mm`);
-					console.log(`      - Angolo: ${familyInfo.angle}°`);
-				}
-			} else {
-				if (familyInfo) {
-					console.log(`      - Sistema: ${familyInfo.system}`);
-					console.log(`      - Lunghezza (catalogo): ${catalogLength}mm`);
-					console.log(`      - Raggio: ${familyInfo.radius}mm`);
-					console.log(`      - Angolo: ${familyInfo.angle}°`);
-				}
-			}
-			
-			if (profile.mesh) {
-				const position = profile.mesh.position;
-				console.log(`      - Posizione: x=${position.x.toFixed(1)}, y=${position.y.toFixed(1)}, z=${position.z.toFixed(1)}`);
-			}
-		});
+		const profiles = this.#objects.filter(obj => RendererUtils.isProfile(obj));
 		
 		if (profiles.length > 0) {
 			const savedObjects = this.getSavedObjects();
@@ -1306,35 +1328,52 @@ export class Renderer {
 			});
 			
 			const maxProfileLength = Math.max(...effectiveLengths);
-			
-			console.log("📊 Analisi scala (con lunghezze effettive):");
-			console.log(`   - Profilo più lungo: ${maxProfileLength}mm`);
-			console.log(`   - Larghezza stanza: ${roomDimensions.larghezza}mm`);
-			console.log(`   - Rapporto profilo/stanza: ${((maxProfileLength / roomDimensions.larghezza) * 100).toFixed(1)}%`);
 		}
-		
-		console.log("🏠 === FINE DEBUG ===");
 	}
 
 	getSavedObjects() {
 		return get(objects);
 	}
 
-	/**
-	 * Scala un oggetto e aggiorna le sue junctions e line_junctions di conseguenza
-	 * @param obj L'oggetto da scalare
-	 * @param scaleFactor Il fattore di scala (es: 1.5 per 150% della dimensione originale)
-	 */
 	scaleObject(obj: TemporaryObject, scaleFactor: number): void {
 		if (!obj.mesh) {
-			console.warn('Impossibile scalare oggetto senza mesh');
 			return;
 		}
 
-		console.log(`🔧 Scaling oggetto ${obj.getCatalogEntry().code} con fattore ${scaleFactor}`);
-
-		// Scala la mesh lungo l'asse X (assumendo che i profili siano lineari lungo X)
 		obj.mesh.scale.setX(scaleFactor);
 
+		const catalogEntry = obj.getCatalogEntry();
+		if (catalogEntry.line_juncts) {
+			for (const junction of catalogEntry.line_juncts) {
+				const point1 = new Vector3().copy(junction.point1).multiplyScalar(scaleFactor);
+				const point2 = new Vector3().copy(junction.point2).multiplyScalar(scaleFactor);
+				junction.point1 = point1;
+				junction.point2 = point2;
+				
+				if (junction.pointC) {
+					const pointC = new Vector3().copy(junction.pointC).multiplyScalar(scaleFactor);
+					junction.pointC = pointC;
+				}
+			}
+		}
+
+		const junctions = obj.getJunctions();
+		for (let i = 0; i < junctions.length; i++) {
+			const junction = junctions[i];
+			if (junction && junction.mesh) {
+				const junctionPos = junction.mesh.position.clone();
+				junctionPos.x *= scaleFactor;
+				junction.mesh.position.copy(junctionPos);
+			}
+		}
+
+		const lineJunctions = obj.getLineJunctions();
+		for (let i = 0; i < lineJunctions.length; i++) {
+			const lineJunction = lineJunctions[i];
+			if (lineJunction) {
+				const newPosition = lineJunction.getCurvePosition() * scaleFactor;
+				lineJunction.setCurvePosition(Math.min(0.98, Math.max(0.02, newPosition)));
+			}
+		}
 	}
 }

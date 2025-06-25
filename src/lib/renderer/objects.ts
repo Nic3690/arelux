@@ -236,7 +236,6 @@ export class TemporaryObject {
 		this.mesh = mesh;
 		this.#angle = 0;
 		this.#state.getScene().add(this.mesh);
-		console.log(this.#catalogEntry.code);
 	}
 
 	attach(other: TemporaryObject, junctionId?: number, dontFrame?: true): string {
@@ -516,34 +515,6 @@ export class RendererObject extends TemporaryObject {
 
 	static async init(state: Renderer, code: string): Promise<RendererObject> {
 		const mesh = await loadModel(state, code);
-		
-		console.log("Codice: ", code);
-		
-		const entry = state.catalog[code];
-		if (entry) {
-
-		  console.log("JUNCTIONS:", entry.juncts.length);
-		  entry.juncts.forEach((j, index) => {
-			console.log(`Junction #${index}:`, {
-			  position: { x: j.x, y: j.y, z: j.z },
-			  angle: j.angle,
-			  group: j.group
-			});
-		  });
-
-		  console.log("LINE JUNCTIONS:", entry.line_juncts.length);
-		  entry.line_juncts.forEach((lj, index) => {
-			console.log(`Line Junction #${index}:`, {
-			  point1: lj.point1,
-			  pointC: lj.pointC,
-			  point2: lj.point2,
-			  group: lj.group
-			});
-		  });
-		} else {
-		  console.error("Nessuna voce di catalogo trovata per", code);
-		}
-		console.log("=============================");
 		
 		return new RendererObject(state, code, mesh);
 	  }
