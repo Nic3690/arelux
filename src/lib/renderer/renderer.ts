@@ -1014,11 +1014,13 @@ export class Renderer {
 	async addObject(code: string): Promise<TemporaryObject> {
 		const obj = await RendererObject.init(this, code);
 		this.#objects.push(obj);
-
+	
 		if (obj.mesh) {
-			const bbox = new Box3().setFromObject(obj.mesh);
-			const center = bbox.getCenter(new Vector3());
-			obj.mesh.position.sub(center);
+			if (this.#objects.length === 1) {
+				const bbox = new Box3().setFromObject(obj.mesh);
+				const center = bbox.getCenter(new Vector3());
+				obj.mesh.position.sub(center);
+			}
 			
 			this.#originalPositions.set(obj.id, obj.mesh.position.clone());
 		}

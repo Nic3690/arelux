@@ -240,17 +240,17 @@ export class TemporaryObject {
 
 	attach(other: TemporaryObject, junctionId?: number, dontFrame?: true): string {
 		if (junctionId) junctionId %= other.#junctions.length;
-
+	
 		if (!this.mesh || !other.mesh)
 			throw new Error('Can only attach if both objects have a mesh attached');
 		if (other.#junctions.concat(other.#lineJunctions).some((j) => j !== null))
 			throw new Error('Can only attach if not already attached to something');
 		if (junctionId !== undefined && other.#junctions[junctionId] !== null)
 			throw new Error("Specified a junction id, but it's already occupied");
-
+	
 		const thisCandidates = this.nullJunctions();
 		const otherCandidates = junctionId !== undefined ? [junctionId] : other.nullJunctions();
-
+	
 		let thisJunctId = null;
 		let otherJunctId = null;
 		for (const thisCandidate of thisCandidates) {
@@ -267,34 +267,35 @@ export class TemporaryObject {
 		}
 		if (thisJunctId === null || otherJunctId === null)
 			throw new Error('No compatible junctions found');
-
+	
 		this.#junctions[thisJunctId] = other;
 		other.#junctions[otherJunctId] = this;
-
+	
 		const j1 = this.#catalogEntry.juncts[thisJunctId];
 		const j2 = other.#catalogEntry.juncts[otherJunctId];
-		const pos1 = new Vector3().copy(j1);
-		const pos2 = new Vector3().copy(j2);
-
+		const pos1 = this.mesh.localToWorld(new Vector3().copy(j1));
+		const pos2 = other.mesh.localToWorld(new Vector3().copy(j2));
+	
 		const canonicalize = (angle: number) => ((angle % 360) + 360) % 360;
 		const rotate =
 			canonicalize(j2.angle + other.#angle + 180) - canonicalize(j1.angle + this.#angle);
 		other.mesh.rotateY(rotate * DEG2RAD);
 		other.#angle -= rotate;
-
+	
 		other.#angle = canonicalize(other.#angle);
 		this.#angle = canonicalize(this.#angle);
-
-		this.mesh.localToWorld(pos1);
-		other.mesh.localToWorld(pos2);
-
+	
+		const pos2Updated = other.mesh.localToWorld(new Vector3().copy(j2));
+	
 		other.mesh.position.copy({
-			x: other.mesh.position.x + pos1.x - pos2.x,
-			y: other.mesh.position.y + pos1.y - pos2.y,
-			z: other.mesh.position.z + pos1.z - pos2.z,
+			x: other.mesh.position.x + pos1.x - pos2Updated.x,
+			y: other.mesh.position.y + pos1.y - pos2Updated.y,
+			z: other.mesh.position.z + pos1.z - pos2Updated.z,
 		});
-
-		if (!dontFrame) this.#state.frameObject(other);
+	
+		if (!dontFrame && this.#junctions.filter(j => j !== null).length <= 1) {
+			this.#state.frameObject(other);
+		}
 		
 		return j1.group;
 	}
