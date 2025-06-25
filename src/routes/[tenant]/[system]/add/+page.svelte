@@ -89,40 +89,42 @@
 	let group: string | null = $state(null);
 	
 	$effect(() => {
-		if (temporary !== null) {
-			renderer?.removeObject(temporary);
-			temporary = null;
-		}
+	if (temporary !== null) {
+		renderer?.removeObject(temporary);
+		temporary = null;
+	}
 
-		if (page.state.chosenFamily !== undefined && page.state.chosenItem !== undefined) {
-			renderer?.setOpacity(0.2);
+	if (page.state.chosenFamily !== undefined && page.state.chosenItem !== undefined) {
+		renderer?.setOpacity(0.2);
 
-			renderer?.addObject(page.state.chosenItem).then((o) => {
-				if (junctionId !== undefined) o.markJunction(junctionId);
+		renderer?.addObject(page.state.chosenItem).then((o) => {
+			if (junctionId !== undefined) o.markJunction(junctionId);
 
-				if (page.state.isCustomLength && page.state.length) {
-					const family = data.families[page.state.chosenFamily!];
-					const item = family.items.find(i => i.code === page.state.chosenItem);
-					if (item && item.len > 0) {
-						const scaleFactor = page.state.length / item.len;
-						renderer?.scaleObject(o, scaleFactor);
-					}
+			// NON scalare durante l'anteprima - solo scala visivamente
+			if (page.state.isCustomLength && page.state.length) {
+				const family = data.families[page.state.chosenFamily!];
+				const item = family.items.find(i => i.code === page.state.chosenItem);
+				if (item && item.len > 0) {
+					const scaleFactor = page.state.length / item.len;
+					// SOLO scaling visivo della mesh, non modificare le junction
+					o.mesh!.scale.setX(scaleFactor);
 				}
+			}
 
-				if (page.state.reference) {
-					if (page.state.reference.typ === 'junction') {
-						renderer?.getObjectById(page.state.reference.id)?.attach(o);
-					} else {
-						renderer?.getObjectById(page.state.reference.id)?.attachLine(o, page.state.reference.pos);
-					}
+			if (page.state.reference) {
+				if (page.state.reference.typ === 'junction') {
+					renderer?.getObjectById(page.state.reference.id)?.attach(o);
+				} else {
+					renderer?.getObjectById(page.state.reference.id)?.attachLine(o, page.state.reference.pos);
 				}
+			}
 
-				temporary = o;
-			});
-		} else {
-			renderer?.setOpacity(1);
-		}
-	});
+			temporary = o;
+		});
+	} else {
+		renderer?.setOpacity(1);
+	}
+});
 	
 	beforeNavigate(() => {
 		if (temporary) renderer?.removeObject(temporary);

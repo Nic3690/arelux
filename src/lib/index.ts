@@ -127,6 +127,9 @@ export async function finishEdit(
 	}
 	
 	if (stateOverride?.isCustomLength && stateOverride?.length && item?.len) {
+		if (obj.mesh) {
+			obj.mesh.scale.setX(1);
+		}
 		renderer.scaleObject(obj, stateOverride.length / item.len);
 	}
 

@@ -1319,41 +1319,42 @@ export class Renderer {
 		if (!obj.mesh) {
 			return;
 		}
-
+	
+		console.log('🔧 SCALING OBJECT (FINAL):');
+		console.log('Scale factor:', scaleFactor);
+	
+		// Scala la mesh
 		obj.mesh.scale.setX(scaleFactor);
-
-		const catalogEntry = obj.getCatalogEntry();
-		if (catalogEntry.line_juncts) {
-			for (const junction of catalogEntry.line_juncts) {
-				const point1 = new Vector3().copy(junction.point1).multiplyScalar(scaleFactor);
-				const point2 = new Vector3().copy(junction.point2).multiplyScalar(scaleFactor);
-				junction.point1 = point1;
-				junction.point2 = point2;
-				
-				if (junction.pointC) {
-					const pointC = new Vector3().copy(junction.pointC).multiplyScalar(scaleFactor);
-					junction.pointC = pointC;
+	
+		// SOLO se l'oggetto non è attaccato, modifica anche il catalogEntry
+		const hasConnections = obj.getJunctions().some(j => j !== null) || 
+							  obj.getLineJunctions().some(j => j !== null);
+		
+		if (!hasConnections) {
+			// Crea una copia locale del catalogEntry per questo oggetto
+			const catalogEntry = JSON.parse(JSON.stringify(obj.getCatalogEntry()));
+			
+			if (catalogEntry.juncts) {
+				for (const junction of catalogEntry.juncts) {
+					junction.x *= scaleFactor;
 				}
 			}
-		}
-
-		const junctions = obj.getJunctions();
-		for (let i = 0; i < junctions.length; i++) {
-			const junction = junctions[i];
-			if (junction && junction.mesh) {
-				const junctionPos = junction.mesh.position.clone();
-				junctionPos.x *= scaleFactor;
-				junction.mesh.position.copy(junctionPos);
+			
+			if (catalogEntry.line_juncts) {
+				for (const junction of catalogEntry.line_juncts) {
+					junction.point1.x *= scaleFactor;
+					junction.point2.x *= scaleFactor;
+					if (junction.pointC) {
+						junction.pointC.x *= scaleFactor;
+					}
+				}
 			}
-		}
-
-		const lineJunctions = obj.getLineJunctions();
-		for (let i = 0; i < lineJunctions.length; i++) {
-			const lineJunction = lineJunctions[i];
-			if (lineJunction) {
-				const newPosition = lineJunction.getCurvePosition() * scaleFactor;
-				lineJunction.setCurvePosition(Math.min(0.98, Math.max(0.02, newPosition)));
-			}
+	
+			// Applica il catalogEntry modificato solo a questo oggetto
+			obj.setCatalogEntry(catalogEntry);
+			console.log('Updated catalog entry for unconnected object');
+		} else {
+			console.log('Object has connections, skipping catalog entry update');
 		}
 	}
 }

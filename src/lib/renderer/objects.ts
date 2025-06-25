@@ -243,6 +243,13 @@ export class TemporaryObject {
 	
 		if (!this.mesh || !other.mesh)
 			throw new Error('Can only attach if both objects have a mesh attached');
+		
+		// DEBUG: Stampa lo stato delle junction
+		console.log('🔍 ATTACH DEBUG:');
+		console.log('This object junctions:', this.#junctions.map((j, i) => ({ index: i, occupied: j !== null })));
+		console.log('Other object junctions:', other.#junctions.map((j, i) => ({ index: i, occupied: j !== null })));
+		console.log('Other object line junctions:', other.#lineJunctions.map((j, i) => ({ index: i, occupied: j !== null })));
+		
 		if (other.#junctions.concat(other.#lineJunctions).some((j) => j !== null))
 			throw new Error('Can only attach if not already attached to something');
 		if (junctionId !== undefined && other.#junctions[junctionId] !== null)
@@ -251,12 +258,16 @@ export class TemporaryObject {
 		const thisCandidates = this.nullJunctions();
 		const otherCandidates = junctionId !== undefined ? [junctionId] : other.nullJunctions();
 	
+		console.log('This candidates (free):', thisCandidates);
+		console.log('Other candidates (free):', otherCandidates);
+	
 		let thisJunctId = null;
 		let otherJunctId = null;
 		for (const thisCandidate of thisCandidates) {
 			for (const otherCandidate of otherCandidates) {
 				const thisGroup = this.getCatalogEntry().juncts[thisCandidate].group;
 				const otherGroup = other.getCatalogEntry().juncts[otherCandidate].group;
+				console.log(`Trying to match: this[${thisCandidate}] group="${thisGroup}" with other[${otherCandidate}] group="${otherGroup}"`);
 				if (thisGroup === otherGroup) {
 					thisJunctId = thisCandidate;
 					otherJunctId = otherCandidate;
@@ -265,6 +276,9 @@ export class TemporaryObject {
 			}
 			if (thisJunctId !== null) break;
 		}
+		
+		console.log('Selected junction IDs:', { thisJunctId, otherJunctId });
+		
 		if (thisJunctId === null || otherJunctId === null)
 			throw new Error('No compatible junctions found');
 	
