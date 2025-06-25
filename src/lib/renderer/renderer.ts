@@ -1022,7 +1022,10 @@ export class Renderer {
 			if (this.#objects.length === 1) {
 				const bbox = new Box3().setFromObject(obj.mesh);
 				const center = bbox.getCenter(new Vector3());
-				obj.mesh.position.sub(center);
+
+				obj.mesh.position.x -= center.x;
+				obj.mesh.position.z -= center.z;
+				obj.mesh.position.y -= bbox.max.y;
 			}
 			
 			this.#originalPositions.set(obj.id, obj.mesh.position.clone());
