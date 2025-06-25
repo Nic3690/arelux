@@ -397,13 +397,12 @@ class VirtualRoomManager {
 	}
 
 	createRoom(dimensions: number | RoomDimensions = this.currentDimensions, centered: boolean = true, visible: boolean = false): void {
-
 		this.removeRoom();
-
+	
 		const room = new Group();
 		this.virtualRoom = room;
 		room.visible = visible;
-
+	
 		const material = new MeshStandardMaterial({
 			color: 0xf0f0f0,
 			transparent: true,
@@ -411,7 +410,7 @@ class VirtualRoomManager {
 			side: DoubleSide,
 			depthWrite: false
 		});
-
+	
 		let center = new Vector3(0, 0, 0);
 		const scaleFactor = 25;
 		
@@ -433,22 +432,61 @@ class VirtualRoomManager {
 			this.renderer.getObjects().forEach((obj, index) => {
 				if (obj.mesh) {
 					bbox.expandByObject(obj.mesh);
-				} else {
 				}
 			});
-
-			center = bbox.getCenter(new Vector3());
+	
+			const systemCenter = bbox.getCenter(new Vector3());
+			const FLOOR_OFFSET = 50.0;
 			
-			const maxY = bbox.max.y;
-			center.y = maxY - roomHeight / 2;
+			center.x = systemCenter.x;
+			center.z = systemCenter.z;
+			center.y = systemCenter.y + FLOOR_OFFSET;
+
 		} else {
 			center.y = -roomHeight / 2;
 		}
-
+	
 		this.addRoomSurfaces(room, center, roomWidth, roomHeight, roomDepth, material);
 		this.addGridHelpers(room, center, roomWidth, roomHeight, roomDepth);
 		
 		this.scene.add(room);
+	}
+	
+	private addRoomSurfaces(room: Group, center: Vector3, width: number, height: number, depth: number, material: MeshStandardMaterial): void {
+		const ceiling = new Mesh(
+			new PlaneGeometry(width, depth),
+			new MeshStandardMaterial({
+				color: 0xf5f5f5,
+				transparent: true,
+				opacity: 0.1,
+				side: DoubleSide,
+				depthWrite: false
+			})
+		);
+		ceiling.renderOrder = -1;
+		ceiling.rotation.x = Math.PI / 2;
+		ceiling.position.set(center.x, center.y + height / 2, center.z);
+		room.add(ceiling);
+	
+		const floor = new Mesh(new PlaneGeometry(width, depth), material.clone());
+		floor.rotation.x = Math.PI / 2;
+		floor.position.set(center.x, center.y - height / 2, center.z);
+		room.add(floor);
+	
+		const wallBack = new Mesh(new PlaneGeometry(width, height), material.clone());
+		wallBack.position.set(center.x, center.y, center.z - depth / 2);
+		wallBack.rotation.y = Math.PI;
+		room.add(wallBack);
+	
+		const wallLeft = new Mesh(new PlaneGeometry(depth, height), material.clone());
+		wallLeft.position.set(center.x - width / 2, center.y, center.z);
+		wallLeft.rotation.y = Math.PI / 2;
+		room.add(wallLeft);
+	
+		const wallRight = new Mesh(new PlaneGeometry(depth, height), material.clone());
+		wallRight.position.set(center.x + width / 2, center.y, center.z);
+		wallRight.rotation.y = -Math.PI / 2;
+		room.add(wallRight);
 	}
 
 	update(): void {
@@ -486,41 +524,6 @@ class VirtualRoomManager {
 			this.scene.remove(this.virtualRoom);
 			this.virtualRoom = null;
 		}
-	}
-
-	private addRoomSurfaces(room: Group, center: Vector3, width: number, height: number, depth: number, material: MeshStandardMaterial): void {
-		const ceiling = new Mesh(
-			new PlaneGeometry(width, depth),
-			new MeshStandardMaterial({
-				color: 0xf5f5f5,
-				transparent: true,
-				opacity: 0.15,
-				side: DoubleSide
-			})
-		);
-		ceiling.rotation.x = Math.PI / 2;
-		ceiling.position.set(center.x, center.y + height / 2, center.z);
-		room.add(ceiling);
-
-		const floor = new Mesh(new PlaneGeometry(width, depth), material.clone());
-		floor.rotation.x = Math.PI / 2;
-		floor.position.set(center.x, center.y - height / 2, center.z);
-		room.add(floor);
-
-		const wallBack = new Mesh(new PlaneGeometry(width, height), material.clone());
-		wallBack.position.set(center.x, center.y, center.z - depth / 2);
-		wallBack.rotation.y = Math.PI;
-		room.add(wallBack);
-
-		const wallLeft = new Mesh(new PlaneGeometry(depth, height), material.clone());
-		wallLeft.position.set(center.x - width / 2, center.y, center.z);
-		wallLeft.rotation.y = Math.PI / 2;
-		room.add(wallLeft);
-
-		const wallRight = new Mesh(new PlaneGeometry(depth, height), material.clone());
-		wallRight.position.set(center.x + width / 2, center.y, center.z);
-		wallRight.rotation.y = -Math.PI / 2;
-		room.add(wallRight);
 	}
 
 	private addGridHelpers(room: Group, center: Vector3, width: number, height: number, depth: number): void {
@@ -1026,7 +1029,6 @@ export class Renderer {
 		}
 		
 		this.frameObject(obj);
-		this.virtualRoomManager.update();
 		
 		return obj;
 	}
@@ -1075,8 +1077,6 @@ export class Renderer {
 		if (this.#objects.length === 0) {
 			this.#hasBeenCentered = false;
 		}
-		
-		this.virtualRoomManager.update();
 	}
 
 	moveCamera(x: number, y: number, z: number) {

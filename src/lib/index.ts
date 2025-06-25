@@ -124,16 +124,6 @@ export async function finishEdit(
 				parentObj.attachLine(obj, state.reference.pos);
 			}
 		}
-	} else {
-		if (tempPosition && obj.mesh) {
-			obj.mesh.position.copy(tempPosition);
-		}
-		if (tempRotation && obj.mesh) {
-			obj.mesh.rotation.copy(tempRotation);
-		}
-		if (tempScale && obj.mesh) {
-			obj.mesh.scale.copy(tempScale);
-		}
 	}
 	
 	if (stateOverride?.isCustomLength && stateOverride?.length && item?.len) {
