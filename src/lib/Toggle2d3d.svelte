@@ -174,9 +174,15 @@
 			const savedObjects = get(objects).filter((obj: any) => !obj.hidden);
 			
 			const profiles = savedObjects.filter((obj: any) => {
-				if (!obj.object) return false;
+				if (!obj.object && !obj.code) return false;
+				
 				const catalogEntry = renderer!.catalog[obj.code];
-				return catalogEntry && catalogEntry.line_juncts && catalogEntry.line_juncts.length > 0;
+				if (!catalogEntry) return false;
+				
+				const hasLineJuncts = catalogEntry.line_juncts && catalogEntry.line_juncts.length > 0;
+				const hasMultipleJuncts = catalogEntry.juncts && catalogEntry.juncts.length >= 2;
+				
+				return hasLineJuncts || hasMultipleJuncts;
 			});
 
 			if (profiles.length === 0) {
@@ -194,46 +200,71 @@
 				if (!rendererObj || !rendererObj.mesh) continue;
 
 				const catalogEntry = rendererObj.getCatalogEntry();
-				const lineJunct = catalogEntry.line_juncts[0];
 				
-				const point1World = rendererObj.mesh.localToWorld(new Vector3().copy(lineJunct.point1));
-				const point2World = rendererObj.mesh.localToWorld(new Vector3().copy(lineJunct.point2));
-				const pointCWorld = rendererObj.mesh.localToWorld(new Vector3().copy(lineJunct.pointC));
-				
-				const effectiveLength = profile.length || 2500;
-				
-				if (scaleFactor === 1) {
-					const model3DLength = point1World.distanceTo(point2World);
-					if (model3DLength > 0) {
-						scaleFactor = effectiveLength / (model3DLength * 1000);
+				if (catalogEntry.line_juncts && catalogEntry.line_juncts.length > 0) {
+					const lineJunct = catalogEntry.line_juncts[0];
+					
+					const point1World = rendererObj.mesh.localToWorld(new Vector3().copy(lineJunct.point1));
+					const point2World = rendererObj.mesh.localToWorld(new Vector3().copy(lineJunct.point2));
+					const pointCWorld = rendererObj.mesh.localToWorld(new Vector3().copy(lineJunct.pointC));
+					
+					const effectiveLength = profile.length || 2500;
+					
+					if (scaleFactor === 1) {
+						const model3DLength = point1World.distanceTo(point2World);
+						if (model3DLength > 0) {
+							scaleFactor = effectiveLength / (model3DLength * 1000);
+						}
 					}
-				}
-				
-				const midPoint = new Vector3().addVectors(point1World, point2World).multiplyScalar(0.5);
-				const distanceFromMid = pointCWorld.distanceTo(midPoint);
-				const isCurved = distanceFromMid > 0.1;
+					
+					const midPoint = new Vector3().addVectors(point1World, point2World).multiplyScalar(0.5);
+					const distanceFromMid = pointCWorld.distanceTo(midPoint);
+					const isCurved = distanceFromMid > 0.1;
 
-				profileData.push({
-					point1: { x: point1World.x, z: point1World.z },
-					point2: { x: point2World.x, z: point2World.z },
-					pointC: { x: pointCWorld.x, z: pointCWorld.z },
-					length: effectiveLength,
-					code: profile.code,
-					isCurved
-				});
+					profileData.push({
+						point1: { x: point1World.x, z: point1World.z },
+						point2: { x: point2World.x, z: point2World.z },
+						pointC: { x: pointCWorld.x, z: pointCWorld.z },
+						length: effectiveLength,
+						code: profile.code,
+						isCurved
+					});
 
-				if (isCurved) {
-					const curve = new QuadraticBezierCurve3(point1World, pointCWorld, point2World);
-					const samples = 20;
-					for (let i = 0; i <= samples; i++) {
-						const t = i / samples;
-						const point = curve.getPointAt(t);
-						minX = Math.min(minX, point.x);
-						maxX = Math.max(maxX, point.x);
-						minZ = Math.min(minZ, point.z);
-						maxZ = Math.max(maxZ, point.z);
+					if (isCurved) {
+						const curve = new QuadraticBezierCurve3(point1World, pointCWorld, point2World);
+						const samples = 20;
+						for (let i = 0; i <= samples; i++) {
+							const t = i / samples;
+							const point = curve.getPointAt(t);
+							minX = Math.min(minX, point.x);
+							maxX = Math.max(maxX, point.x);
+							minZ = Math.min(minZ, point.z);
+							maxZ = Math.max(maxZ, point.z);
+						}
+					} else {
+						minX = Math.min(minX, point1World.x, point2World.x);
+						maxX = Math.max(maxX, point1World.x, point2World.x);
+						minZ = Math.min(minZ, point1World.z, point2World.z);
+						maxZ = Math.max(maxZ, point1World.z, point2World.z);
 					}
-				} else {
+				} else if (catalogEntry.juncts && catalogEntry.juncts.length >= 2) {
+					const junct1 = catalogEntry.juncts[0];
+					const junct2 = catalogEntry.juncts[1];
+					
+					const point1World = rendererObj.mesh.localToWorld(new Vector3().copy(junct1));
+					const point2World = rendererObj.mesh.localToWorld(new Vector3().copy(junct2));
+					
+					const effectiveLength = profile.length || point1World.distanceTo(point2World) * 1000;
+					
+					profileData.push({
+						point1: { x: point1World.x, z: point1World.z },
+						point2: { x: point2World.x, z: point2World.z },
+						pointC: { x: point2World.x, z: point2World.z },
+						length: effectiveLength,
+						code: profile.code,
+						isCurved: false
+					});
+
 					minX = Math.min(minX, point1World.x, point2World.x);
 					maxX = Math.max(maxX, point1World.x, point2World.x);
 					minZ = Math.min(minZ, point1World.z, point2World.z);
