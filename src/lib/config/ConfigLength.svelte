@@ -8,9 +8,10 @@
         family: Family;
         value?: string;
         onsubmit?: (value: string, length: number, isCustom?: boolean) => any;
+        allowCustomLength?: boolean; // Nuovo prop per controllare le lunghezze personalizzate
     };
 
-    let { family, value = $bindable(), onsubmit }: Props = $props();
+    let { family, value = $bindable(), onsubmit, allowCustomLength = true }: Props = $props();
 
     let valueInvalid = $state(false);
     let isCustomLength = $state(false);
@@ -47,6 +48,23 @@
     }
 
     function handleSliderChange() {
+        // Se non sono permesse lunghezze personalizzate (XFREES), forza la selezione solo sui pallini
+        if (!allowCustomLength) {
+            // Trova la lunghezza standard più vicina
+            const closestItem = items.reduce((prev, curr) => 
+                Math.abs(curr.len - valueLen) < Math.abs(prev.len - valueLen) ? curr : prev
+            );
+            
+            if (closestItem) {
+                valueLen = closestItem.len;
+                value = closestItem.code;
+                isCustomLength = false;
+                if (onsubmit) onsubmit(value, valueLen, false);
+            }
+            return;
+        }
+
+        // Comportamento originale per sistemi che permettono lunghezze personalizzate (XNET)
         hasError = false;
         errorMessage = '';
         valueInvalid = false;
@@ -68,6 +86,9 @@
     }
 
     function handleCustomLength() {
+        // Se non sono permesse lunghezze personalizzate, non fare nulla
+        if (!allowCustomLength) return;
+
         hasError = false;
         errorMessage = '';
         valueInvalid = false;
@@ -138,10 +159,10 @@
                         {@const position = ((len - 10) / (2500 - 10)) * 100}
                         <button
                             class={cn(
-                                'absolute w-2 h-2 rounded-full transform -translate-x-1.5 cursor-pointer transition-all hover:scale-110',
+                                'absolute w-3 h-3 rounded-full transform -translate-x-1.5 cursor-pointer transition-all hover:scale-110 z-10',
                                 valueLen === len && !isCustomLength 
-                                    ? 'bg-gray-400 scale-125 z-1' 
-                                    : 'bg-gray-400 z-1'
+                                    ? 'bg-gray-600 scale-125' 
+                                    : 'bg-gray-400'
                             )}
                             style="left: {position}%"
                             onclick={() => selectLength(code, len)}
@@ -153,33 +174,41 @@
             {/if}
         </div>
 
-        <!-- Input manuale -->
-        <div class="flex items-center justify-center">
-            <input
-                bind:value={valueLen}
-                type="number"
-                min="10"
-                max="2500"
-                step="10"
-                class={cn(
-                    'font-input w-16 appearance-none rounded-md border-2 border-black/40 bg-transparent text-center',
-                    (valueInvalid || hasError) && 'border-red-500',
-                    isCustomLength && !hasError && 'border-primary',
-                )}
-                onblur={() => handleCustomLength()}
-                onkeyup={(e) => {
-                    if (e.key === 'Enter') handleCustomLength();
-                }}
-                oninput={() => {
-                    if (hasError) {
-                        hasError = false;
-                        errorMessage = '';
-                        valueInvalid = false;
-                    }
-                }}
-            />
-            <span class="ml-0.5">mm</span>
-        </div>
+        <!-- Input manuale - solo se permesso (XNET) -->
+        {#if allowCustomLength}
+            <div class="flex items-center justify-center">
+                <input
+                    bind:value={valueLen}
+                    type="number"
+                    min="10"
+                    max="2500"
+                    step="10"
+                    class={cn(
+                        'font-input w-16 appearance-none rounded-md border-2 border-black/40 bg-transparent text-center',
+                        (valueInvalid || hasError) && 'border-red-500',
+                        isCustomLength && !hasError && 'border-primary',
+                    )}
+                    onblur={() => handleCustomLength()}
+                    onkeyup={(e) => {
+                        if (e.key === 'Enter') handleCustomLength();
+                    }}
+                    oninput={() => {
+                        if (hasError) {
+                            hasError = false;
+                            errorMessage = '';
+                            valueInvalid = false;
+                        }
+                    }}
+                />
+                <span class="ml-0.5">mm</span>
+            </div>
+        {:else}
+            <!-- Per XFREES mostra solo il valore selezionato senza input modificabile -->
+            <div class="flex items-center justify-center">
+                <span class="font-input w-16 text-center font-medium">{valueLen}</span>
+                <span class="ml-0.5">mm</span>
+            </div>
+        {/if}
     </div>
     
     <!-- Messaggi di errore -->

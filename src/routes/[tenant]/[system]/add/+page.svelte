@@ -323,6 +323,7 @@
 
 	<div bind:this={controlsEl}></div>
 
+<!-- Estratto dalla pagina add - sezione di configurazione lunghezza -->
 <div class="absolute bottom-5 left-80 right-80 flex justify-center gap-3">
     {#if page.state.chosenFamily !== undefined}
       {@const family = data.families[page.state.chosenFamily]}
@@ -333,8 +334,10 @@
 
       {#if isProfilo}
         {#if family.system === "XNet" || family.system === "XFree s"}
+            <!-- XNET: permetti lunghezze personalizzate -->
             <ConfigLength
                 {family}
+                allowCustomLength={true}
                 onsubmit={(objectCode, length, isCustom) => {
                     configLength = length;
                     
@@ -348,8 +351,12 @@
                 }}
             />
         {:else if family.needsLengthConfig && !family.arbitraryLength}
+            <!-- Determina se è XFREES (solo pallini) o altro sistema (personalizzabile) -->
+            {@const allowCustomLength = !family.system.toLowerCase().includes('xfree')}
+            
             <ConfigLength
                 {family}
+                {allowCustomLength}
                 onsubmit={(objectCode, length, isCustom) => {
                     configLength = length;
                     
