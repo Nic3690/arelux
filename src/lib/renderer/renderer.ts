@@ -369,10 +369,14 @@ class LightManager {
 }
 
 class VirtualRoomManager {
+	initializeWithStoredDimensions(initialDimensions: { width: number; height: number; depth: number; }) {
+		throw new Error('Method not implemented.');
+	}
 	private renderer: Renderer;
 	private scene: Scene;
 	private virtualRoom: Group | null = null;
 	private currentDimensions: RoomDimensions = { width: 3, height: 3, depth: 3 };
+	virtualRoomManager: any;
 
 	constructor(renderer: Renderer, scene: Scene) {
 		this.renderer = renderer;
@@ -385,6 +389,11 @@ class VirtualRoomManager {
 
 	setCurrentDimensions(dimensions: RoomDimensions): void {
 		this.currentDimensions = dimensions;
+	}
+
+	initializeVirtualRoomWithDimensions(dimensions: RoomDimensions): void {
+		this.virtualRoomManager.setCurrentDimensions(dimensions);
+		this.virtualRoomManager.createRoom(dimensions, false, false);
 	}
 
 	createRoom(dimensions: number | RoomDimensions = this.currentDimensions, centered: boolean = true, visible: boolean = false): void {
@@ -785,8 +794,6 @@ export class Renderer {
 			normal: { scene: this.#scene, objects: this.#objects, handles: this.handles },
 			single: { scene: singleScene, objects: [], handles: new HandleManager(this, this.#scene) },
 		};
-
-		this.virtualRoomManager.createRoom();
 	}
 
 	getCurrentRoomDimensions(): RoomDimensions {
@@ -1038,18 +1045,18 @@ export class Renderer {
 		const obj = await RendererObject.init(this, code);
 		this.#objects.push(obj);
 		
+		// ✅ CENTRA L'OGGETTO RISPETTO AL SUO BOUNDING BOX
 		if (obj.mesh) {
+			const bbox = new Box3().setFromObject(obj.mesh);
+			const center = bbox.getCenter(new Vector3());
+			// Sposta l'oggetto in modo che il suo centro geometrico sia sull'origine
+			obj.mesh.position.sub(center);
+			
 			this.#originalPositions.set(obj.id, obj.mesh.position.clone());
 		}
 		
 		this.frameObject(obj);
-		
-		if (this.#objects.length === 1 && !this.#hasBeenCentered) {
-			this.virtualRoomManager.updateWithCentering();
-			this.#hasBeenCentered = true;
-		} else {
-			this.virtualRoomManager.update();
-		}
+		this.virtualRoomManager.update();
 		
 		return obj;
 	}

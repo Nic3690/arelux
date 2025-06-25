@@ -46,8 +46,6 @@ export function findClosestCatalogLength(family: Family, customLength: number): 
 	return closestItem;
 }
 
-// SOSTITUIRE finishEdit in src/lib/index.ts per evitare doppio attachment:
-
 export async function finishEdit(
 	renderer: Renderer,
 	obj: RendererObject,
@@ -66,6 +64,11 @@ export async function finishEdit(
 ) {
 	renderer.setScene('normal');	
 	const state = stateOverride ?? page.state;
+	
+	const tempPosition = obj.mesh?.position.clone();
+	const tempRotation = obj.mesh?.rotation.clone();
+	const tempScale = obj.mesh?.scale.clone();
+	
 	const family = page.data.families[state.chosenFamily];
 	let item = family.items.find((x) => x.code == state.chosenItem);
 	if (item === undefined) {
@@ -74,8 +77,6 @@ export async function finishEdit(
 		return;
 	}
 
-	
-	// Gestione joiners
 	if (group && page.data.joiners[group]) {
 		for (const j of page.data.joiners[group]) {
 			objects.update((objs) =>
@@ -91,7 +92,6 @@ export async function finishEdit(
 		}
 	}
 	
-	// Gestione LED subobjects
 	const subobjects: SavedObject[] = [];
 	if (state.led) {
 		const led = page.data.families[family.ledFamily ?? ''].items.find((x) => x.code == state.led);
@@ -109,11 +109,9 @@ export async function finishEdit(
 		});
 	}
 	
-	// Controlla se l'oggetto è già attaccato dal preview
 	const isAlreadyAttached = obj.getJunctions().some(j => j !== null) || 
 							obj.getLineJunctions().some(j => j !== null);
 
-	// Solo se NON è già attaccato, fai l'attachment
 	if (state.reference && !isAlreadyAttached) {		
 		if (state.reference.typ === 'junction') {
 			const parentObj = renderer.getObjectById(state.reference.id);
@@ -127,22 +125,21 @@ export async function finishEdit(
 			}
 		}
 	} else {
-		console.log('🔶 finishEdit - NESSUN attachment necessario');
+		if (tempPosition && obj.mesh) {
+			obj.mesh.position.copy(tempPosition);
+		}
+		if (tempRotation && obj.mesh) {
+			obj.mesh.rotation.copy(tempRotation);
+		}
+		if (tempScale && obj.mesh) {
+			obj.mesh.scale.copy(tempScale);
+		}
 	}
 	
-	// Applica scaling se necessario (DOPO eventuale attachment)
 	if (stateOverride?.isCustomLength && stateOverride?.length && item?.len) {
-		console.log('🔧 finishEdit - Applicando scaling per lunghezza personalizzata:', {
-			lunghezzaOriginale: item.len,
-			lunghezzaPersonalizzata: stateOverride.length,
-			fattoreScala: stateOverride.length / item.len
-		});
-		
-		// Scala l'oggetto (solo la mesh)
 		renderer.scaleObject(obj, stateOverride.length / item.len);
 	}
 
-	// Aggiungi l'oggetto come salvato
 	objects.update((objs) =>
 		objs.concat({
 			code: state.chosenItem,

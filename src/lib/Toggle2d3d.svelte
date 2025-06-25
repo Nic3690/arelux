@@ -29,8 +29,7 @@
 	let showRoomSettings = $state(false);
 	let showDownloadDialog = $state(false);
 	let showHelpDialog = $state(false);
-	
-	// Usa SOLO il store per le dimensioni (elimina il doppio salvataggio)
+
 	let roomWidth = $state($virtualRoomDimensions.width);
 	let roomHeight = $state($virtualRoomDimensions.height);
 	let roomDepth = $state($virtualRoomDimensions.depth);
@@ -69,8 +68,7 @@
 			}
 		}
 	});
-	
-	// Effect per inizializzare il renderer SOLO al primo avvio
+
 	let rendererInitialized = $state(false);
 	$effect(() => {
 		if (renderer && !rendererInitialized) {
@@ -79,13 +77,9 @@
 				height: roomHeight / 10,
 				depth: roomDepth / 10
 			};
-			
+
 			renderer.setCurrentRoomDimensions(initialDimensions);
-			
-			// Se la stanza virtuale era già attiva, attivala senza centering forzato
-			if (showVirtualRoom) {
-				renderer.setVirtualRoomVisible(true);
-			}
+			renderer.createVirtualRoom(initialDimensions, false, showVirtualRoom);
 			
 			rendererInitialized = true;
 		}
