@@ -1319,38 +1319,7 @@ export class Renderer {
 		if (!obj.mesh) {
 			return;
 		}
-	
-		console.log('🔧 SCALING OBJECT (FINAL):');
-		console.log('Scale factor:', scaleFactor);
 
 		obj.mesh.scale.setX(scaleFactor);
-
-		const hasConnections = obj.getJunctions().some(j => j !== null) || 
-							  obj.getLineJunctions().some(j => j !== null);
-		
-		if (!hasConnections) {
-			const catalogEntry = JSON.parse(JSON.stringify(obj.getCatalogEntry()));
-			
-			if (catalogEntry.juncts) {
-				for (const junction of catalogEntry.juncts) {
-					junction.x *= scaleFactor;
-				}
-			}
-			
-			if (catalogEntry.line_juncts) {
-				for (const junction of catalogEntry.line_juncts) {
-					junction.point1.x *= scaleFactor;
-					junction.point2.x *= scaleFactor;
-					if (junction.pointC) {
-						junction.pointC.x *= scaleFactor;
-					}
-				}
-			}
-
-			obj.setCatalogEntry(catalogEntry);
-			console.log('Updated catalog entry for unconnected object');
-		} else {
-			console.log('Object has connections, skipping catalog entry update');
-		}
 	}
 }
