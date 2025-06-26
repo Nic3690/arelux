@@ -515,8 +515,7 @@ class VirtualRoomManager {
 
 	resize(dimensions: number | RoomDimensions): void {
 		const isVisible = this.virtualRoom?.visible ?? false;
-		const shouldCenter = this.renderer.getObjects().length > 0;
-		this.createRoom(dimensions, shouldCenter, isVisible);
+		this.createRoom(dimensions, false, isVisible);
 	}
 
 	private removeRoom(): void {
