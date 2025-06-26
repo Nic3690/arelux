@@ -1322,16 +1322,13 @@ export class Renderer {
 	
 		console.log('🔧 SCALING OBJECT (FINAL):');
 		console.log('Scale factor:', scaleFactor);
-	
-		// Scala la mesh
+
 		obj.mesh.scale.setX(scaleFactor);
-	
-		// SOLO se l'oggetto non è attaccato, modifica anche il catalogEntry
+
 		const hasConnections = obj.getJunctions().some(j => j !== null) || 
 							  obj.getLineJunctions().some(j => j !== null);
 		
 		if (!hasConnections) {
-			// Crea una copia locale del catalogEntry per questo oggetto
 			const catalogEntry = JSON.parse(JSON.stringify(obj.getCatalogEntry()));
 			
 			if (catalogEntry.juncts) {
@@ -1349,8 +1346,7 @@ export class Renderer {
 					}
 				}
 			}
-	
-			// Applica il catalogEntry modificato solo a questo oggetto
+
 			obj.setCatalogEntry(catalogEntry);
 			console.log('Updated catalog entry for unconnected object');
 		} else {
