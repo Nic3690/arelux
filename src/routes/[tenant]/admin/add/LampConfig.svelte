@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Check from 'lucide-svelte/icons/check';
 	import ChevronsUpDown from 'lucide-svelte/icons/chevrons-up-down';
-	import { onMount, tick } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import * as Command from '$shad/ui/command';
 	import * as Popover from '$shad/ui/popover';
 	import { cn } from '$shad/utils.js';
@@ -17,6 +17,7 @@
 	import type { Vector3Like } from 'three';
 	import { selectedSystem } from '$lib';
 	import type { Renderer } from '$lib/renderer/renderer';
+	import type { TemporaryObject } from '$lib/renderer/objects';
 
 	export let renderer: Renderer;
 
@@ -37,6 +38,7 @@
 	let price: number;
 	let isLed: boolean = false;
 	let isEditMode: boolean = false;
+	let profileObject: TemporaryObject | undefined;
 	
 	$: isLed = chosenFamily !== undefined && page.data.families[chosenFamily]?.isLed;
 
@@ -86,9 +88,21 @@
 		}
 	}
 
-	onMount(() => {
+	onMount(async () => {
 		renderer.handles.setVisible(true);
 		renderer.handles.clear();
+
+		// 🔧 NUOVO: Carica la mesh del profilo se in modalità editing
+		if (isEditMode && code) {
+			try {
+				console.log('🔧 Caricando modello per editing:', code);
+				profileObject = await renderer.addObject(code);
+				renderer.frameObject(profileObject);
+				console.log('✅ Modello caricato con successo');
+			} catch (error) {
+				console.warn('⚠️ Impossibile caricare il modello:', code, error);
+			}
+		}
 
 		for (let i = 0; i < junctions.length; i++) {
 			renderer.handles.createTemporaryHandle();
@@ -98,6 +112,15 @@
 
 		for (const j of lineJunctions) {
 			renderer.handles.createCurve(j.point1, j.pointC, j.point2);
+		}
+	});
+
+	// 🔧 NUOVO: Cleanup quando si esce dalla pagina
+	onDestroy(() => {
+		if (profileObject) {
+			console.log('🧹 Cleanup: rimuovendo oggetto profilo');
+			renderer.removeObject(profileObject);
+			profileObject = undefined;
 		}
 	});
 

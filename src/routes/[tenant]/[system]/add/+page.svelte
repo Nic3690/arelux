@@ -22,6 +22,30 @@
 	import type { RendererObject } from '$lib/renderer/objects';
 	import ConfigLengthSelector from '$lib/config/ConfigLengthSelector.svelte';
 	import { Vector3 } from 'three';
+	import type { Family } from '../../../../app';
+
+	function hasTemperatureVariants(family: Family): boolean {
+		const codes = family.items.map(item => item.code);
+		const hasWW = codes.some(code => code.includes('WW'));
+		const hasNW = codes.some(code => code.includes('NW'));
+		return hasWW && hasNW;
+		}
+
+		function getCurrentTemperature(code: string): 'WW' | 'NW' {
+		return code.includes('WW') ? 'WW' : 'NW';
+		}
+
+		function switchTemperature(code: string, newTemp: 'WW' | 'NW'): string {
+		if (newTemp === 'WW') {
+			return code.replace(/NW/g, 'WW');
+		} else {
+			return code.replace(/WW/g, 'NW');
+		}
+		}
+
+		function findItemByCode(family: Family, code: string) {
+		return family.items.find(item => item.code === code);
+		}
 
 	let { data }: { data: PageData } = $props();
 	let canvas: HTMLCanvasElement;
@@ -100,13 +124,11 @@
 		renderer?.addObject(page.state.chosenItem).then((o) => {
 			if (junctionId !== undefined) o.markJunction(junctionId);
 
-			// NON scalare durante l'anteprima - solo scala visivamente
 			if (page.state.isCustomLength && page.state.length) {
 				const family = data.families[page.state.chosenFamily!];
 				const item = family.items.find(i => i.code === page.state.chosenItem);
 				if (item && item.len > 0) {
 					const scaleFactor = page.state.length / item.len;
-					// SOLO scaling visivo della mesh, non modificare le junction
 					o.mesh!.scale.setX(scaleFactor);
 				}
 			}
@@ -257,8 +279,16 @@
 						if (chosenFamily === undefined) return;
 
 						const family = data.families[chosenFamily];
-						const item = family.items[0];
-						if (family.needsConfig) {
+						let item = family.items[0];
+						
+						if (hasTemperatureVariants(family)) {
+							const wwItem = family.items.find(i => i.code.includes('WW'));
+							if (wwItem) {
+								item = wwItem;
+							}
+						}
+						
+						if (family.needsConfig || hasTemperatureVariants(family)) {
 							pushState('', {
 								chosenFamily,
 								chosenItem: item.code,
@@ -284,7 +314,7 @@
 						}
 					}}
 				>
-					{#if chosenFamily !== undefined && data.families[chosenFamily].needsConfig}
+					{#if chosenFamily !== undefined && (data.families[chosenFamily].needsConfig || hasTemperatureVariants(data.families[chosenFamily]))}
 						AVANTI
 					{:else}
 						AGGIUNGI
@@ -325,21 +355,77 @@
 
 	<div bind:this={controlsEl}></div>
 
-<!-- Estratto dalla pagina add - sezione di configurazione lunghezza -->
 <div class="absolute bottom-5 left-80 right-80 flex justify-center gap-3">
     {#if page.state.chosenFamily !== undefined}
       {@const family = data.families[page.state.chosenFamily]}
+
+      {#if hasTemperatureVariants(family)}
+        <div class="flex items-center rounded bg-box px-5 py-3">
+          <span class="mr-4 font-medium">Temperatura:</span>
+          <div class="flex rounded border-2 border-gray-300 overflow-hidden">
+            <button
+              class="px-6 py-2 font-medium transition-all {getCurrentTemperature(page.state.chosenItem) === 'WW' 
+                ? 'bg-yellow-400 text-black' 
+                : 'bg-white text-gray-700 hover:bg-gray-100'}"
+              onclick={() => {
+                const newCode = switchTemperature(page.state.chosenItem, 'WW');
+                const newItem = findItemByCode(family, newCode);
+                
+                if (newItem) {
+                  replaceState('', {
+                    chosenItem: newCode,
+                    chosenFamily: page.state.chosenFamily,
+                    reference: page.state.reference,
+                    length: page.state.length,
+                    isCustomLength: page.state.isCustomLength,
+                    led: page.state.led,
+                  });
+                }
+              }}
+            >
+              <div class="text-center">
+                <div class="font-bold">3000K</div>
+                <!--<div class="text-xs opacity-75">Warm</div>-->
+              </div>
+            </button>
+            
+            <button
+              class="px-6 py-2 font-medium transition-all {getCurrentTemperature(page.state.chosenItem) === 'NW' 
+                ? 'bg-yellow-400 text-black' 
+                : 'bg-white text-gray-700 hover:bg-gray-100'}"
+              onclick={() => {
+                const newCode = switchTemperature(page.state.chosenItem, 'NW');
+                const newItem = findItemByCode(family, newCode);
+                
+                if (newItem) {
+                  replaceState('', {
+                    chosenItem: newCode,
+                    chosenFamily: page.state.chosenFamily,
+                    reference: page.state.reference,
+                    length: page.state.length,
+                    isCustomLength: page.state.isCustomLength,
+                    led: page.state.led,
+                  });
+                }
+              }}
+            >
+              <div class="text-center">
+                <div class="font-bold">4000K</div>
+                <!--<div class="text-xs opacity-75">Natural</div>-->
+              </div>
+            </button>
+          </div>
+        </div>
+      {/if}
 
       {@const isProfilo = family.group.toLowerCase().includes('profil') || 
                         family.displayName.toLowerCase().includes('profil') ||
                         (family.needsLengthConfig && !family.isLed)}
 
       {#if isProfilo}
-        {#if family.system === "XNet" || family.system === "XFree s"}
-            <!-- XNET: permetti lunghezze personalizzate -->
+        {#if family.system === "XNet" || family.system === "XFree S"}
             <ConfigLength
                 {family}
-                allowCustomLength={true}
                 onsubmit={(objectCode, length, isCustom) => {
                     configLength = length;
                     
@@ -353,12 +439,8 @@
                 }}
             />
         {:else if family.needsLengthConfig && !family.arbitraryLength}
-            <!-- Determina se è XFREES (solo pallini) o altro sistema (personalizzabile) -->
-            {@const allowCustomLength = !family.system.toLowerCase().includes('xfree')}
-            
             <ConfigLength
                 {family}
-                {allowCustomLength}
                 onsubmit={(objectCode, length, isCustom) => {
                     configLength = length;
                     

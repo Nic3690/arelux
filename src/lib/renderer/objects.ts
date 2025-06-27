@@ -233,6 +233,12 @@ export class TemporaryObject {
 			for (const j of this.#junctions) if (j) this.detach(j);
 			this.#state.getScene().remove(this.mesh);
 		}
+		console.log(`🔧 SetMesh per ${this.getCatalogEntry().code}:`, {
+			position: mesh.position,
+			rotation: mesh.rotation,
+			quaternion: mesh.quaternion,
+        	matrixWorld: mesh.matrixWorld
+		});
 		this.mesh = mesh;
 		this.#angle = 0;
 		this.#state.getScene().add(this.mesh);

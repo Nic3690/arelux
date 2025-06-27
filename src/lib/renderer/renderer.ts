@@ -1318,7 +1318,6 @@ export class Renderer {
 		if (!obj.mesh) {
 			return;
 		}
-
 		obj.mesh.scale.setX(scaleFactor);
 	}
 }
