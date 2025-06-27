@@ -1318,6 +1318,23 @@ export class Renderer {
 		if (!obj.mesh) {
 			return;
 		}
-		obj.mesh.scale.setX(scaleFactor);
+		if (this.isVerticalProfile(obj)) {
+			obj.mesh.scale.setY(scaleFactor);
+		} else {
+			obj.mesh.scale.setX(scaleFactor);
+		}
+	}
+
+	isVerticalProfile(obj: TemporaryObject): boolean {
+		const code = obj.getCatalogEntry().code;
+		
+		for (const family of Object.values(this.families)) {
+			const familyItem = family.items.find(item => item.code === code);
+			if (familyItem) {
+				const familyDisplayName = family.displayName.toLowerCase();
+				return familyDisplayName.includes('verticale');
+			}
+		}
+		return false;
 	}
 }

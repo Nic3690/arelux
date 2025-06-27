@@ -129,7 +129,15 @@
 				const item = family.items.find(i => i.code === page.state.chosenItem);
 				if (item && item.len > 0) {
 					const scaleFactor = page.state.length / item.len;
-					o.mesh!.scale.setX(scaleFactor);
+					
+					const familyDisplayName = family.displayName.toLowerCase();
+					const isVertical = familyDisplayName.includes('verticale');
+					
+					if (isVertical) {
+						o.mesh!.scale.setY(scaleFactor);
+					} else {
+						o.mesh!.scale.setX(scaleFactor);
+					}
 				}
 			}
 

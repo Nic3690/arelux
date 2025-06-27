@@ -125,10 +125,16 @@ export async function finishEdit(
 			}
 		}
 	}
-	
+
 	if (stateOverride?.isCustomLength && stateOverride?.length && item?.len) {
 		if (obj.mesh) {
-			obj.mesh.scale.setX(1);
+			// Reset dello scale prima di applicare quello nuovo
+			const isVertical = renderer.isVerticalProfile?.(obj) ?? false;
+			if (isVertical) {
+				obj.mesh.scale.setY(1);
+			} else {
+				obj.mesh.scale.setX(1);
+			}
 		}
 		renderer.scaleObject(obj, stateOverride.length / item.len);
 	}
