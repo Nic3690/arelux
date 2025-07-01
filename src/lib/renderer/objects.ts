@@ -195,15 +195,40 @@ export class TemporaryObject {
 			return null;
 		  }
 
-		  this.mesh.rotation.set(0, 0, 0);
-		  const profileDir = tan.clone().normalize();
-		  const isCurvedProfile = parentObject.getCatalogEntry().code.includes('C');
+			this.mesh.rotation.set(0, 0, 0);
+			const profileDir = tan.clone().normalize();
+			const isCurvedProfile = parentObject.getCatalogEntry().code.includes('C');
 
-		  let angleY = Math.atan2(profileDir.x, profileDir.z) + (isCurvedProfile ? Math.PI : Math.PI / 2);
-		  
-		  this.mesh.rotation.set(0, angleY, 0);
-		  const junctionAngle = this.getCatalogEntry().juncts[junctionIndex].angle * (Math.PI/180);
-		  this.mesh.rotateY(junctionAngle);
+			// 🔧 NUOVO: Analizza la direzione principale della line junction
+			const lineJunct = parentObject.getCatalogEntry().line_juncts[parentJunctionId];
+			const lineDirection = new Vector3()
+				.subVectors(lineJunct.point2, lineJunct.point1)
+				.normalize();
+
+			// Determina se è principalmente verticale (componente Y dominante)
+			const isVerticalProfile = Math.abs(lineDirection.y) > Math.abs(lineDirection.x) && 
+									Math.abs(lineDirection.y) > Math.abs(lineDirection.z);
+
+			let angleY, angleX = 0, angleZ = 0;
+
+			if (isVerticalProfile) {
+				angleZ = lineDirection.y > 0 ? Math.PI / 2 : -Math.PI / 2;
+				angleY = 3 * Math.PI / 2;
+    
+				// Calcola rotazione Y per seguire eventuali componenti X/Z
+				if (Math.abs(lineDirection.x) > 0.01 || Math.abs(lineDirection.z) > 0.01) {
+					angleY += Math.atan2(lineDirection.x, lineDirection.z);
+				}
+				
+				this.mesh.rotation.set(angleX, angleY || 0, angleZ);
+			} else {
+				// Logica originale per profili orizzontali
+				angleY = Math.atan2(profileDir.x, profileDir.z) + (isCurvedProfile ? Math.PI : Math.PI / 2);
+				this.mesh.rotation.set(0, angleY, 0);
+			}
+
+			const junctionAngle = this.getCatalogEntry().juncts[junctionIndex].angle * (Math.PI/180);
+			this.mesh.rotateY(junctionAngle);
 
 		  const pos2 = this.mesh.localToWorld(new Vector3().copy(j2));
 		  this.mesh.position.copy({
@@ -233,6 +258,12 @@ export class TemporaryObject {
 			for (const j of this.#junctions) if (j) this.detach(j);
 			this.#state.getScene().remove(this.mesh);
 		}
+		console.log(`🔧 SetMesh per ${this.getCatalogEntry().code}:`, {
+			position: mesh.position,
+			rotation: mesh.rotation,
+			quaternion: mesh.quaternion,
+        	matrixWorld: mesh.matrixWorld
+		});
 		this.mesh = mesh;
 		this.#angle = 0;
 		this.#state.getScene().add(this.mesh);
@@ -437,9 +468,35 @@ export class TemporaryObject {
 			other.mesh.rotation.set(0, 0, 0);
 			const profileDir = tan.clone().normalize();
 			const isCurvedProfile = this.getCatalogEntry().code.includes('C');
-			let angleY = Math.atan2(profileDir.x, profileDir.z) + (isCurvedProfile ? Math.PI : Math.PI / 2);
 			
-			other.mesh.rotation.set(0, angleY, 0);
+			// 🔧 NUOVO: Analizza la direzione principale della line junction
+			const lineJunct = this.getCatalogEntry().line_juncts[0];
+			const lineDirection = new Vector3()
+				.subVectors(lineJunct.point2, lineJunct.point1)
+				.normalize();
+			
+			// Determina se è principalmente verticale (componente Y dominante)
+			const isVerticalProfile = Math.abs(lineDirection.y) > Math.abs(lineDirection.x) && 
+									 Math.abs(lineDirection.y) > Math.abs(lineDirection.z);
+			
+			let angleY, angleX = 0, angleZ = 0;
+			
+			if (isVerticalProfile) {
+				// Orienta seguendo la tangente completa (3D)
+				angleZ = lineDirection.y > 0 ? Math.PI / 2 : -Math.PI / 2;
+				angleY = 3 * Math.PI / 2;
+        
+        		// Calcola rotazione Y per seguire eventuali componenti X/Z
+				if (Math.abs(lineDirection.x) > 0.01 || Math.abs(lineDirection.z) > 0.01) {
+					angleY += Math.atan2(lineDirection.x, lineDirection.z);
+				}
+				other.mesh.rotation.set(angleX, angleY, angleZ);
+			} else {
+				// Logica originale per profili orizzontali
+				angleY = Math.atan2(profileDir.x, profileDir.z) + (isCurvedProfile ? Math.PI : Math.PI / 2);
+				other.mesh.rotation.set(0, angleY, 0);
+			}
+			
 			const junctionAngle = other.getCatalogEntry().juncts[0].angle * (Math.PI/180);
 			other.mesh.rotateY(junctionAngle);
 		}

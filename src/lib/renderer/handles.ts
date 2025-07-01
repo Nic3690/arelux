@@ -40,7 +40,55 @@ function lineJunctionCompatible(
 	otherObj: CatalogEntry,
 	otherJunctId: number,
 ): number {
-	return thisObj.juncts.findIndex((j) => j.group == otherObj.line_juncts[otherJunctId].group);
+	const groupCompatible = thisObj.juncts.findIndex((j) => j.group == otherObj.line_juncts[otherJunctId].group);
+	
+	if (groupCompatible === -1) {
+		return -1;
+	}
+	
+	const isVerticalProfile = isProfileVertical(otherObj);
+	const isForbiddenLight = isForbiddenLightForVerticalProfile(thisObj);
+	
+	if (isVerticalProfile && isForbiddenLight) {
+		return -1;
+	}
+	
+	return groupCompatible;
+}
+
+function isProfileVertical(catalogEntry: CatalogEntry): boolean {
+	// Controlla se il profilo è verticale analizzando la line junction
+	if (!catalogEntry.line_juncts || catalogEntry.line_juncts.length === 0) {
+		return false;
+	}
+	
+	const lineJunct = catalogEntry.line_juncts[0];
+	const lineDirection = {
+		x: lineJunct.point2.x - lineJunct.point1.x,
+		y: lineJunct.point2.y - lineJunct.point1.y,
+		z: lineJunct.point2.z - lineJunct.point1.z
+	};
+	
+	// Normalizza la direzione
+	const length = Math.sqrt(lineDirection.x * lineDirection.x + lineDirection.y * lineDirection.y + lineDirection.z * lineDirection.z);
+	if (length === 0) return false;
+	
+	lineDirection.x /= length;
+	lineDirection.y /= length;
+	lineDirection.z /= length;
+	
+	// È verticale se la componente Y è dominante
+	return Math.abs(lineDirection.y) > Math.abs(lineDirection.x) && 
+		Math.abs(lineDirection.y) > Math.abs(lineDirection.z);
+}
+
+function isForbiddenLightForVerticalProfile(catalogEntry: CatalogEntry): boolean {
+	const forbiddenLights = ['XNRS11', 'XNRS14', 'XNRS15', 'XNRS16'];
+	
+	// Controlla se il codice della luce contiene uno dei codici vietati
+	return forbiddenLights.some(forbiddenCode => 
+		catalogEntry.code.includes(forbiddenCode)
+	);
 }
 
 export class HandleManager {
