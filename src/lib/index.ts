@@ -46,9 +46,6 @@ export function findClosestCatalogLength(family: Family, customLength: number): 
 	return closestItem;
 }
 
-// Modifica da applicare nel file src/lib/index.ts
-// Nel metodo finishEdit(), aggiungere la logica per i profili verticali dopo il posizionamento:
-
 export async function finishEdit(
 	renderer: Renderer,
 	obj: RendererObject,
@@ -115,9 +112,6 @@ export async function finishEdit(
 	const isAlreadyAttached = obj.getJunctions().some(j => j !== null) || 
 							obj.getLineJunctions().some(j => j !== null);
 
-	// Controlla se è un profilo verticale e se non è già attaccato
-	const isVerticalProfile = renderer.isVerticalProfile?.(obj) ?? false;
-	
 	if (state.reference && !isAlreadyAttached) {		
 		if (state.reference.typ === 'junction') {
 			const parentObj = renderer.getObjectById(state.reference.id);
@@ -130,9 +124,6 @@ export async function finishEdit(
 				parentObj.attachLine(obj, state.reference.pos);
 			}
 		}
-	} else if (isVerticalProfile && !isAlreadyAttached) {
-		// Se è un profilo verticale e non è attaccato a nulla, posizionalo sulla parete di fondo
-		renderer.positionVerticalProfileOnBackWall?.(obj);
 	}
 
 	if (stateOverride?.isCustomLength && stateOverride?.length && item?.len) {

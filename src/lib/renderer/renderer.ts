@@ -396,16 +396,13 @@ class VirtualRoomManager {
 		this.virtualRoomManager.createRoom(dimensions, false, false);
 	}
 
-	// Modifica da applicare nel file src/lib/renderer/renderer.ts
-	// Aggiornare il metodo createRoom della classe VirtualRoomManager:
-
 	createRoom(dimensions: number | RoomDimensions = this.currentDimensions, centered: boolean = true, visible: boolean = false): void {
 		this.removeRoom();
-
+	
 		const room = new Group();
 		this.virtualRoom = room;
 		room.visible = visible;
-
+	
 		const material = new MeshStandardMaterial({
 			color: 0xf0f0f0,
 			transparent: true,
@@ -413,7 +410,7 @@ class VirtualRoomManager {
 			side: DoubleSide,
 			depthWrite: false
 		});
-
+	
 		let center = new Vector3(0, 0, 0);
 		const scaleFactor = 25;
 		
@@ -432,57 +429,27 @@ class VirtualRoomManager {
 		if (centered && this.renderer.getObjects().length > 0) {
 			const bbox = new Box3();
 			
-			// Calcola il centro considerando solo i profili non verticali per il posizionamento orizzontale
-			const horizontalObjects = this.renderer.getObjects().filter(obj => {
-				if (!obj.mesh) return false;
-				const isVertical = this.renderer.isVerticalProfile(obj);
-				return !isVertical;
-			});
-			
-			// Se ci sono oggetti orizzontali, centra la stanza su di essi
-			if (horizontalObjects.length > 0) {
-				horizontalObjects.forEach((obj) => {
-					if (obj.mesh) {
-						bbox.expandByObject(obj.mesh);
-					}
-				});
-				
-				const systemCenter = bbox.getCenter(new Vector3());
-				const FLOOR_OFFSET = 50.0;
-				
-				center.x = systemCenter.x;
-				center.z = systemCenter.z;
-				center.y = systemCenter.y + FLOOR_OFFSET;
-			} else {
-				// Se ci sono solo profili verticali, considera tutti gli oggetti
-				this.renderer.getObjects().forEach((obj) => {
-					if (obj.mesh) {
-						bbox.expandByObject(obj.mesh);
-					}
-				});
-				
-				if (!bbox.isEmpty()) {
-					const systemCenter = bbox.getCenter(new Vector3());
-					const FLOOR_OFFSET = 50.0;
-					
-					center.x = systemCenter.x;
-					center.z = systemCenter.z;
-					center.y = systemCenter.y + FLOOR_OFFSET;
-				} else {
-					center.y = -roomHeight / 2;
+			this.renderer.getObjects().forEach((obj, index) => {
+				if (obj.mesh) {
+					bbox.expandByObject(obj.mesh);
 				}
-			}
+			});
+	
+			const systemCenter = bbox.getCenter(new Vector3());
+			const FLOOR_OFFSET = 50.0;
+			
+			center.x = systemCenter.x;
+			center.z = systemCenter.z;
+			center.y = systemCenter.y + FLOOR_OFFSET;
+
 		} else {
 			center.y = -roomHeight / 2;
 		}
-
+	
 		this.addRoomSurfaces(room, center, roomWidth, roomHeight, roomDepth, material);
 		this.addGridHelpers(room, center, roomWidth, roomHeight, roomDepth);
 		
 		this.scene.add(room);
-		
-		// RIMOSSO il setTimeout che causava il loop infinito
-		// I profili verticali vengono posizionati solo quando vengono aggiunti
 	}
 	
 	private addRoomSurfaces(room: Group, center: Vector3, width: number, height: number, depth: number, material: MeshStandardMaterial): void {
@@ -1046,231 +1013,29 @@ export class Renderer {
 		return this.#objects[this.#objects.length - 1];
 	}
 
-// Modifica da applicare nel file src/lib/renderer/renderer.ts
-// Nel metodo addObject(), sostituire la sezione di posizionamento con questo codice:
+	async addObject(code: string): Promise<TemporaryObject> {
+		const obj = await RendererObject.init(this, code);
+		this.#objects.push(obj);
+	
+		if (obj.mesh) {
+			if (this.#objects.length === 1) {
+				const bbox = new Box3().setFromObject(obj.mesh);
+				const center = bbox.getCenter(new Vector3());
 
-async addObject(code: string): Promise<TemporaryObject> {
-	const obj = await RendererObject.init(this, code);
-	this.#objects.push(obj);
-
-	if (obj.mesh) {
-		// Salva la bounding box originale PRIMA di qualsiasi movimento
-		const originalBbox = new Box3().setFromObject(obj.mesh);
-		(obj as any).originalBbox = originalBbox; // Salva nella proprietà dell'oggetto
-		
-		// Controlla se è un profilo verticale
-		const isVerticalProfile = this.isVerticalProfile(obj);
-		
-		if (this.#objects.length === 1) {
-			const bbox = new Box3().setFromObject(obj.mesh);
-			const center = bbox.getCenter(new Vector3());
-
-			obj.mesh.position.x -= center.x;
-			obj.mesh.position.z -= center.z;
-			obj.mesh.position.y -= bbox.max.y;
+				obj.mesh.position.x -= center.x;
+				obj.mesh.position.z -= center.z;
+				if (this.isVerticalProfile(obj)) obj.mesh.position.z -= (this.getCurrentRoomDimensions().depth / 2) * 25;
+				obj.mesh.position.y -= bbox.max.y;
+			}
 			
-			// Se è un profilo verticale, posizionalo sulla parete di fondo
-			if (isVerticalProfile) {
-				this.positionVerticalProfileOnBackWall(obj);
-			}
-		} else if (isVerticalProfile) {
-			// Se non è il primo oggetto ma è un profilo verticale, posizionalo comunque sulla parete di fondo
-			this.positionVerticalProfileOnBackWall(obj);
+			this.#originalPositions.set(obj.id, obj.mesh.position.clone());
 		}
 		
-		this.#originalPositions.set(obj.id, obj.mesh.position.clone());
+		this.frameObject(obj);
+		
+		return obj;
 	}
-	
-	this.frameObject(obj);
-	
-	return obj;
-}
 
-// Flag per evitare loop infiniti di ridistribuzione
-private isRedistributing = false;
-
-// Nuovo metodo da aggiungere nella classe Renderer:
-public positionVerticalProfileOnBackWall(obj: TemporaryObject): void {
-	if (!obj.mesh || this.isRedistributing) return;
-	
-	this.isRedistributing = true;
-	
-	try {
-		// Ottieni le dimensioni della stanza virtuale
-		const roomDimensions = this.virtualRoomManager.getCurrentDimensions();
-		
-		// Converti le dimensioni della stanza in unità del renderer (moltiplicando per 25)
-		const scaleFactor = 25;
-		const roomWidth = roomDimensions.width * scaleFactor;
-		const roomDepth = roomDimensions.depth * scaleFactor;
-		
-		// Calcola il centro della stanza basandoti sugli oggetti NON VERTICALI esistenti
-		let roomCenterZ = 0;
-		let roomCenterX = 0;
-		
-		const nonVerticalObjects = this.#objects.filter(o => 
-			o !== obj && o.mesh && !this.isVerticalProfile(o)
-		);
-		
-		if (nonVerticalObjects.length > 0) {
-			const bbox = new Box3();
-			nonVerticalObjects.forEach(o => {
-				if (o.mesh) bbox.expandByObject(o.mesh);
-			});
-			const center = bbox.getCenter(new Vector3());
-			roomCenterZ = center.z;
-			roomCenterX = center.x;
-		}
-		
-		// Trova tutti i profili verticali esistenti (incluso quello nuovo)
-		const verticalProfiles = this.#objects.filter(o => 
-			o.mesh && this.isVerticalProfile(o)
-		);
-		
-		// Posiziona il profilo verticale sulla parete di fondo
-		const backWallZ = roomCenterZ - (roomDepth / 2);
-		
-		// Distribuisci i profili verticali lungo la parete
-		this.distributeVerticalProfilesOnBackWall(verticalProfiles, roomCenterX, roomWidth, backWallZ);
-		
-		console.log(`🔧 ${verticalProfiles.length} profili verticali distribuiti sulla parete di fondo`);
-	} finally {
-		this.isRedistributing = false;
-	}
-}
-
-private distributeVerticalProfilesOnBackWall(
-	verticalProfiles: TemporaryObject[], 
-	roomCenterX: number, 
-	roomWidth: number, 
-	backWallZ: number
-): void {
-	if (verticalProfiles.length === 0) return;
-	
-	// Margini laterali e spazio tra i profili
-	const sideMargin = roomWidth * 0.1; // 10% di margine per lato
-	const minSpacing = 5; // Spazio minimo tra i profili
-	
-	// Calcola la larghezza utilizzabile sulla parete
-	const usableWidth = roomWidth - (2 * sideMargin);
-	
-	// Calcola le posizioni X per i profili
-	let positions: number[] = [];
-	
-	if (verticalProfiles.length === 1) {
-		// Un solo profilo: posizionalo al centro
-		positions = [roomCenterX];
-	} else {
-		// Più profili: distribuiscili uniformemente
-		const spacing = Math.max(minSpacing, usableWidth / (verticalProfiles.length - 1));
-		const startX = roomCenterX - (usableWidth / 2);
-		
-		for (let i = 0; i < verticalProfiles.length; i++) {
-			if (verticalProfiles.length === 1) {
-				positions.push(roomCenterX);
-			} else {
-				const x = startX + (i * spacing);
-				positions.push(x);
-			}
-		}
-		
-		// Se lo spacing è troppo piccolo, usa una distribuzione più compatta
-		if (spacing < minSpacing * 2) {
-			positions = [];
-			const totalWidth = (verticalProfiles.length - 1) * minSpacing;
-			const startX = roomCenterX - (totalWidth / 2);
-			
-			for (let i = 0; i < verticalProfiles.length; i++) {
-				positions.push(startX + (i * minSpacing));
-			}
-		}
-	}
-	
-	// Calcola la posizione del pavimento della stanza virtuale
-	const roomDimensions = this.virtualRoomManager.getCurrentDimensions();
-	const roomHeight = roomDimensions.height * 25; // Scala factor
-	
-	// Il pavimento della stanza è sempre a Y = -roomHeight/2
-	const floorY = -(roomHeight / 2);
-	
-	// Applica le posizioni ai profili
-	verticalProfiles.forEach((profile, index) => {
-		if (!profile.mesh || index >= positions.length) return;
-		
-		// Usa la bounding box originale salvata alla creazione
-		const originalBbox = (profile as any).originalBbox;
-		let originalBottom = -0.5; // Valore di fallback
-		
-		if (originalBbox) {
-			originalBottom = originalBbox.min.y;
-		} else {
-			// Se non c'è la bbox salvata, usa un calcolo semplificato
-			console.warn('⚠️ Bounding box originale non trovata, uso valore di fallback');
-		}
-		
-		// Posiziona sulla parete di fondo
-		profile.mesh.position.z = backWallZ + 2; // Offset di 2 unità dalla parete
-		
-		// Posiziona lungo l'asse X
-		profile.mesh.position.x = positions[index];
-		
-		// Posiziona sul pavimento: il pavimento deve coincidere con la base dell'oggetto
-		profile.mesh.position.y = floorY - originalBottom;
-		
-		console.log(`📍 Profilo verticale ${index + 1}/${verticalProfiles.length} posizionato a: x=${profile.mesh.position.x.toFixed(1)}, y=${profile.mesh.position.y.toFixed(1)}, z=${profile.mesh.position.z.toFixed(1)}`);
-		console.log(`🏠 Pavimento stanza a Y=${floorY.toFixed(1)}, base oggetto originale a Y=${originalBottom.toFixed(1)}`);
-	});
-}
-
-// Metodo per ridistribuire tutti i profili verticali
-public redistributeVerticalProfiles(): void {
-	if (this.isRedistributing) return;
-	
-	// Trova tutti i profili verticali esistenti
-	const verticalProfiles = this.#objects.filter(o => 
-		o.mesh && this.isVerticalProfile(o)
-	);
-	
-	if (verticalProfiles.length === 0) return;
-	
-	this.isRedistributing = true;
-	
-	try {
-		// Ottieni le dimensioni della stanza virtuale
-		const roomDimensions = this.virtualRoomManager.getCurrentDimensions();
-		const scaleFactor = 25;
-		const roomWidth = roomDimensions.width * scaleFactor;
-		const roomDepth = roomDimensions.depth * scaleFactor;
-		
-		// Calcola il centro della stanza basandoti sugli oggetti non verticali
-		let roomCenterZ = 0;
-		let roomCenterX = 0;
-		
-		const nonVerticalObjects = this.#objects.filter(o => 
-			o.mesh && !this.isVerticalProfile(o)
-		);
-		
-		if (nonVerticalObjects.length > 0) {
-			const bbox = new Box3();
-			nonVerticalObjects.forEach(o => {
-				if (o.mesh) bbox.expandByObject(o.mesh);
-			});
-			const center = bbox.getCenter(new Vector3());
-			roomCenterZ = center.z;
-			roomCenterX = center.x;
-		}
-		
-		// Posiziona la parete di fondo
-		const backWallZ = roomCenterZ - (roomDepth / 2);
-		
-		// Ridistribuisci tutti i profili verticali
-		this.distributeVerticalProfilesOnBackWall(verticalProfiles, roomCenterX, roomWidth, backWallZ);
-		
-		console.log(`🔄 Ridistribuiti ${verticalProfiles.length} profili verticali sulla parete di fondo`);
-	} finally {
-		this.isRedistributing = false;
-	}
-}
 	getObjects(): TemporaryObject[] {
 		return this.#objects;
 	}
@@ -1303,8 +1068,6 @@ public redistributeVerticalProfiles(): void {
 	}
 
 	removeObject(obj: TemporaryObject) {
-		const wasVerticalProfile = this.isVerticalProfile(obj);
-		
 		obj.detachAll();
 		obj.dispose(this.#scene);
 		
@@ -1316,13 +1079,6 @@ public redistributeVerticalProfiles(): void {
 		
 		if (this.#objects.length === 0) {
 			this.#hasBeenCentered = false;
-		}
-		
-		// Se è stato rimosso un profilo verticale, ridistribuisci gli altri
-		if (wasVerticalProfile) {
-			setTimeout(() => {
-				this.redistributeVerticalProfiles();
-			}, 100);
 		}
 	}
 

@@ -109,91 +109,81 @@
 				toast.error("Impossibile spostare la luce alla posizione specificata");
 			}
 		}
-	}
+}
 
-	function handleLightPositionPreview(position: number) {
-		if (selectedLight && renderer) {
-			lightPosition = position;
-			renderer.updateLightPositionFeedback(selectedLight, position);
-		}
+function handleLightPositionPreview(position: number) {
+	if (selectedLight && renderer) {
+		lightPosition = position;
+		renderer.updateLightPositionFeedback(selectedLight, position);
 	}
-
-	// Modifica da applicare nel file src/routes/[tenant]/[system]/+page.svelte
-	// Sostituire la funzione remove esistente con questa versione:
+}
 
 	function remove(item: SavedObject) {
+		
 		let i = $objects.indexOf(item);
 		if (i > -1) {
 			$objects = $objects.toSpliced(i, 1);
 		}
 
 		if (item.object && renderer) {
-			// Controlla se l'oggetto da rimuovere è un profilo verticale
-			const isVerticalProfile = renderer.isVerticalProfile?.(item.object) ?? false;
-			
 			renderer.removeObject(item.object);
-			
-			// Se era un profilo verticale, ridistribuisci automaticamente gli altri
-			if (isVerticalProfile) {
-				console.log('🔄 Ridistribuzione profili verticali dopo rimozione');
-			}
 		} else {
 			console.warn('⚠️ Oggetto non ha una mesh associata');
 		}
 	}
 
-		let canvas: HTMLCanvasElement;
-		let controlsEl: HTMLElement;
-		onMount(() => {
-			renderer = Renderer.get(data, canvas, controlsEl)
-				.setCamera(controlsEl, {
-					is3d,
-					isOrtographic: is3d,
-				})
-				.setScene('normal');
-			renderer.handles.setVisible(false);
+	let canvas: HTMLCanvasElement;
+	let controlsEl: HTMLElement;
+	onMount(() => {
+		renderer = Renderer.get(data, canvas, controlsEl)
+			.setCamera(controlsEl, {
+				is3d,
+				isOrtographic: is3d,
+			})
+			.setScene('normal');
+		renderer.handles.setVisible(false);
+	
+	controlsEl.addEventListener('pointerdown', (event) => {
+		if (lightMoverMode && renderer) {
+		lights = renderer.getLights();
+
+		pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+		pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+		const intersectables = lights
+		.filter(obj => obj.mesh)
+		.map(obj => obj.mesh) as Object3D[];
+
+		const intersections = renderer.raycast(pointer, intersectables);
 		
-		controlsEl.addEventListener('pointerdown', (event) => {
-			if (lightMoverMode && renderer) {
-			lights = renderer.getLights();
+		if (intersections.length > 0) {
+			for (const light of lights) {
+			let found = false;
+			light.mesh?.traverse((child) => {
+				if (intersections.some(i => i.object.uuid === child.uuid)) {
+				selectedLight = light;
 
-			pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-			pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-			const intersectables = lights
-			.filter(obj => obj.mesh)
-			.map(obj => obj.mesh) as Object3D[];
-
-			const intersections = renderer.raycast(pointer, intersectables);
-			
-			if (intersections.length > 0) {
-				for (const light of lights) {
-				let found = false;
-				light.mesh?.traverse((child) => {
-					if (intersections.some(i => i.object.uuid === child.uuid)) {
-					selectedLight = light;
-
-					if (selectedLight.getCurvePosition() === undefined) {
-						selectedLight.setCurvePosition(0.5);
-					}
-					
-					lightPosition = selectedLight.getCurvePosition();
-
-					if (renderer) {
-						invertedControls = renderer.getLightMovementDirection(selectedLight);
-					}
-
-					if (renderer) {
-						renderer.highlightLight(selectedLight);
-					}
-					found = true;
-					}
-				});
-				if (found) break;
+				if (selectedLight.getCurvePosition() === undefined) {
+					selectedLight.setCurvePosition(0.5);
 				}
+				
+				lightPosition = selectedLight.getCurvePosition();
+
+				if (renderer) {
+					invertedControls = renderer.getLightMovementDirection(selectedLight);
+				}
+
+				if (renderer) {
+					renderer.highlightLight(selectedLight);
+				}
+				found = true;
+				}
+			});
+			if (found) break;
 			}
-			}
-		});
+		}
+		}
+	});
 	});
 
 	$effect(() => {
