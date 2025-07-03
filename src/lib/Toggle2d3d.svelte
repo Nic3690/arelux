@@ -337,9 +337,26 @@
 					
 					const midPoint = curve.getPointAt(0.5);
 					const midPDF = worldToPDF(midPoint.x, midPoint.z);
+
+					let curveAngle = 0;
+            		let curveRadius = 0;
+
+					if (!renderer) return ;
+					for (const family of Object.values(renderer.families)) {
+						const familyItem = family.items.find(item => item.code === profile.code);
+						if (familyItem) {
+							if (familyItem.deg > 0 && familyItem.radius > 0) {
+								curveAngle = familyItem.deg;
+								curveRadius = familyItem.radius;
+								break;
+							}
+						}
+					}
 					
-					const realLength = profile.length;
-					
+					let realLength = profile.length;
+					if (curveAngle > 0 && curveRadius > 0)
+						realLength = (curveAngle / 360) * 2 * Math.PI * curveRadius;
+
 					const curveText = `${Math.round(realLength)}mm (curvo)`;
 					pdf.text(curveText, midPDF.x, midPDF.y - 3, { align: 'center' });
 					
