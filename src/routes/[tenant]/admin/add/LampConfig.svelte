@@ -95,10 +95,8 @@
 		// 🔧 NUOVO: Carica la mesh del profilo se in modalità editing
 		if (isEditMode && code) {
 			try {
-				console.log('🔧 Caricando modello per editing:', code);
 				profileObject = await renderer.addObject(code);
 				renderer.frameObject(profileObject);
-				console.log('✅ Modello caricato con successo');
 			} catch (error) {
 				console.warn('⚠️ Impossibile caricare il modello:', code, error);
 			}
@@ -118,7 +116,6 @@
 	// 🔧 NUOVO: Cleanup quando si esce dalla pagina
 	onDestroy(() => {
 		if (profileObject) {
-			console.log('🧹 Cleanup: rimuovendo oggetto profilo');
 			renderer.removeObject(profileObject);
 			profileObject = undefined;
 		}

@@ -42,8 +42,6 @@
                     break;
                 }
             }
-
-            console.log(familyDisplayName);
             
             // Controlla se è verticale in una qualsiasi delle proprietà
             return code.includes('verticale') || 
