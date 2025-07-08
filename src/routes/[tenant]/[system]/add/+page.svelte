@@ -23,25 +23,23 @@
 	import ConfigLengthSelector from '$lib/config/ConfigLengthSelector.svelte';
 	import { Vector3 } from 'three';
 	import type { Family } from '../../../../app';
+	import { TemperatureManager, type TemperatureConfig } from '$lib/config/temperatureConfig';
 
 	function hasTemperatureVariants(family: Family): boolean {
-		const codes = family.items.map(item => item.code);
-		const hasWW = codes.some(code => code.includes('WW'));
-		const hasNW = codes.some(code => code.includes('NW'));
-		return hasWW && hasNW;
-		}
+		return TemperatureManager.hasTemperatureVariants(family);
+	}
 
-		function getCurrentTemperature(code: string): 'WW' | 'NW' {
-		return code.includes('WW') ? 'WW' : 'NW';
-		}
+	function getAvailableTemperatures(family: Family): TemperatureConfig[] {
+		return TemperatureManager.getAvailableTemperatures(family);
+	}
 
-		function switchTemperature(code: string, newTemp: 'WW' | 'NW'): string {
-		if (newTemp === 'WW') {
-			return code.replace(/NW/g, 'WW');
-		} else {
-			return code.replace(/WW/g, 'NW');
-		}
-		}
+	function getCurrentTemperature(code: string): TemperatureConfig | null {
+		return TemperatureManager.getCurrentTemperature(code);
+	}
+
+	function switchToTemperature(code: string, temperature: TemperatureConfig): string {
+		return TemperatureManager.switchTemperature(code, temperature);
+	}
 
 		function findItemByCode(family: Family, code: string) {
 		return family.items.find(item => item.code === code);
@@ -367,64 +365,43 @@
     {#if page.state.chosenFamily !== undefined}
       {@const family = data.families[page.state.chosenFamily]}
 
-      {#if hasTemperatureVariants(family)}
-        <div class="flex items-center rounded bg-box px-5 py-3">
-          <span class="mr-4 font-medium">Temperatura:</span>
-          <div class="flex rounded border-2 border-gray-300 overflow-hidden">
-            <button
-              class="px-6 py-2 font-medium transition-all {getCurrentTemperature(page.state.chosenItem) === 'WW' 
-                ? 'bg-yellow-400 text-black' 
-                : 'bg-white text-gray-700 hover:bg-gray-100'}"
-              onclick={() => {
-                const newCode = switchTemperature(page.state.chosenItem, 'WW');
-                const newItem = findItemByCode(family, newCode);
-                
-                if (newItem) {
-                  replaceState('', {
-                    chosenItem: newCode,
-                    chosenFamily: page.state.chosenFamily,
-                    reference: page.state.reference,
-                    length: page.state.length,
-                    isCustomLength: page.state.isCustomLength,
-                    led: page.state.led,
-                  });
-                }
-              }}
-            >
-              <div class="text-center">
-                <div class="font-bold">3000K</div>
-                <!--<div class="text-xs opacity-75">Warm</div>-->
-              </div>
-            </button>
-            
-            <button
-              class="px-6 py-2 font-medium transition-all {getCurrentTemperature(page.state.chosenItem) === 'NW' 
-                ? 'bg-yellow-400 text-black' 
-                : 'bg-white text-gray-700 hover:bg-gray-100'}"
-              onclick={() => {
-                const newCode = switchTemperature(page.state.chosenItem, 'NW');
-                const newItem = findItemByCode(family, newCode);
-                
-                if (newItem) {
-                  replaceState('', {
-                    chosenItem: newCode,
-                    chosenFamily: page.state.chosenFamily,
-                    reference: page.state.reference,
-                    length: page.state.length,
-                    isCustomLength: page.state.isCustomLength,
-                    led: page.state.led,
-                  });
-                }
-              }}
-            >
-              <div class="text-center">
-                <div class="font-bold">4000K</div>
-                <!--<div class="text-xs opacity-75">Natural</div>-->
-              </div>
-            </button>
-          </div>
-        </div>
-      {/if}
+	{#if hasTemperatureVariants(family)}
+		{@const availableTemperatures = getAvailableTemperatures(family)}
+		{@const currentTemp = getCurrentTemperature(page.state.chosenItem)}
+		
+		<div class="flex items-center rounded bg-box px-5 py-3">
+		<span class="mr-4 font-medium">Temperatura:</span>
+		<div class="flex rounded border-2 border-gray-300 overflow-hidden">
+			{#each availableTemperatures as temperature}
+			<button
+				class="px-6 py-2 font-medium transition-all {currentTemp?.suffix === temperature.suffix 
+				? 'bg-yellow-400 text-black' 
+				: 'bg-white text-gray-700 hover:bg-gray-100'}"
+				onclick={() => {
+				const newCode = switchToTemperature(page.state.chosenItem, temperature);
+				const newItem = findItemByCode(family, newCode);
+				
+				if (newItem) {
+					replaceState('', {
+					chosenItem: newCode,
+					chosenFamily: page.state.chosenFamily,
+					reference: page.state.reference,
+					length: page.state.length,
+					isCustomLength: page.state.isCustomLength,
+					led: page.state.led,
+					});
+				}
+				}}
+			>
+				<div class="text-center">
+				<div class="font-bold">{temperature.label}</div>
+				<!--<div class="text-xs opacity-75">{temperature.suffix}</div>-->
+				</div>
+			</button>
+			{/each}
+		</div>
+		</div>
+	{/if}
 
       {@const isProfilo = family.group.toLowerCase().includes('profil') || 
                         family.displayName.toLowerCase().includes('profil') ||
