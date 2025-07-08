@@ -26,11 +26,13 @@
 	import { TemperatureManager, type TemperatureConfig } from '$lib/config/temperatureConfig';
 
 	function hasTemperatureVariants(family: Family): boolean {
-		return TemperatureManager.hasTemperatureVariants(family);
+		const enhancedFamily = TemperatureManager.getEnhancedFamily(family, enhancedCatalog);
+		return TemperatureManager.hasTemperatureVariants(enhancedFamily);
 	}
 
 	function getAvailableTemperatures(family: Family): TemperatureConfig[] {
-		return TemperatureManager.getAvailableTemperatures(family);
+		const enhancedFamily = TemperatureManager.getEnhancedFamily(family, enhancedCatalog);
+		return TemperatureManager.getAvailableTemperatures(enhancedFamily);
 	}
 
 	function getCurrentTemperature(code: string): TemperatureConfig | null {
@@ -41,9 +43,30 @@
 		return TemperatureManager.switchTemperature(code, temperature);
 	}
 
-		function findItemByCode(family: Family, code: string) {
-		return family.items.find(item => item.code === code);
+	function findItemByCode(family: Family, code: string) {
+		const enhancedFamily = TemperatureManager.getEnhancedFamily(family, enhancedCatalog);
+		return enhancedFamily.items.find(item => item.code === code);
+	}
+
+	function getEnhancedCatalog() {
+		return TemperatureManager.getEnhancedCatalog(data.catalog);
+	}
+
+
+	// Nuova funzione helper per gestire la selezione iniziale
+	function getDefaultItemForFamily(family: Family): any {
+		const enhancedFamily = TemperatureManager.getEnhancedFamily(family);
+		
+		if (hasTemperatureVariants(enhancedFamily)) {
+			// Prioritizza WW se disponibile, altrimenti il primo della lista
+			const wwItem = enhancedFamily.items.find(i => i.code.includes('WW'));
+			if (wwItem) {
+				return wwItem;
+			}
 		}
+		
+		return enhancedFamily.items[0];
+	}
 
 	let { data }: { data: PageData } = $props();
 	let canvas: HTMLCanvasElement;
@@ -62,6 +85,8 @@
 	let configShape = $state<{ angle: number; radius: number }>();
 	let configLength = $state<number>();
 
+	let enhancedCatalog = $derived(getEnhancedCatalog());
+
 	onMount(() => {
 		renderer = Renderer.get(data, canvas, controlsEl);
 		renderer.handles.setVisible(false);
@@ -69,7 +94,7 @@
 
 	let hasPowerSupply = $state(false);
 	objects.subscribe(
-		(objects) => (hasPowerSupply = objects.some((obj) => data.catalog[obj.code].power > 0)),
+		(objects) => (hasPowerSupply = objects.some((obj) => enhancedCatalog[obj.code]?.power > 0)),
 	);
 
 	$effect(() => {
@@ -231,8 +256,7 @@
 							}
 							return true;
 						}) as item}
-						{@const isDisabled =
-							hasPowerSupply && item.items.some((obj) => data.catalog[obj.code].power > 0)}
+						{@const isDisabled = hasPowerSupply && item.items.some((obj) => enhancedCatalog[obj.code]?.power > 0)}
 
 				<RadioGroup.Item
 					class="relative flex flex-col items-center justify-center disabled:cursor-not-allowed"
@@ -285,12 +309,20 @@
 						if (chosenFamily === undefined) return;
 
 						const family = data.families[chosenFamily];
-						let item = family.items[0];
+						const enhancedFamily = TemperatureManager.getEnhancedFamily(family, enhancedCatalog);
+						let item = enhancedFamily.items[0];
 						
 						if (hasTemperatureVariants(family)) {
-							const wwItem = family.items.find(i => i.code.includes('WW'));
-							if (wwItem) {
-								item = wwItem;
+							// Prioritizza WW se disponibile, altrimenti il primo della lista
+							const availableTemps = getAvailableTemperatures(family);
+							const wwTemp = availableTemps.find(t => t.suffix === 'WW');
+							if (wwTemp) {
+								const wwItem = enhancedFamily.items.find(i => 
+									TemperatureManager.getCurrentTemperature(i.code)?.suffix === 'WW'
+								);
+								if (wwItem) {
+									item = wwItem;
+								}
 							}
 						}
 						
@@ -370,38 +402,38 @@
 		{@const currentTemp = getCurrentTemperature(page.state.chosenItem)}
 		
 		<div class="flex items-center rounded bg-box px-5 py-3">
-		<span class="mr-4 font-medium">Temperatura:</span>
-		<div class="flex rounded border-2 border-gray-300 overflow-hidden">
-			{#each availableTemperatures as temperature}
-			<button
-				class="px-6 py-2 font-medium transition-all {currentTemp?.suffix === temperature.suffix 
-				? 'bg-yellow-400 text-black' 
-				: 'bg-white text-gray-700 hover:bg-gray-100'}"
-				onclick={() => {
-				const newCode = switchToTemperature(page.state.chosenItem, temperature);
-				const newItem = findItemByCode(family, newCode);
-				
-				if (newItem) {
-					replaceState('', {
-					chosenItem: newCode,
-					chosenFamily: page.state.chosenFamily,
-					reference: page.state.reference,
-					length: page.state.length,
-					isCustomLength: page.state.isCustomLength,
-					led: page.state.led,
-					});
-				}
-				}}
-			>
-				<div class="text-center">
-				<div class="font-bold">{temperature.label}</div>
-				<!--<div class="text-xs opacity-75">{temperature.suffix}</div>-->
-				</div>
-			</button>
-			{/each}
-		</div>
+			<span class="mr-4 font-medium">Temperatura:</span>
+			<div class="flex rounded border-2 border-gray-300 overflow-hidden">
+				{#each availableTemperatures as temperature}
+					<button
+						class="px-6 py-2 font-medium transition-all {currentTemp?.suffix === temperature.suffix 
+							? 'bg-yellow-400 text-black' 
+							: 'bg-white text-gray-700 hover:bg-gray-100'}"
+						onclick={() => {
+							const newCode = switchToTemperature(page.state.chosenItem, temperature);
+							const newItem = findItemByCode(family, newCode);
+							
+							if (newItem) {
+								replaceState('', {
+									chosenItem: newCode,
+									chosenFamily: page.state.chosenFamily,
+									reference: page.state.reference,
+									length: page.state.length,
+									isCustomLength: page.state.isCustomLength,
+									led: page.state.led,
+								});
+							}
+						}}
+					>
+						<div class="text-center">
+							<div class="font-bold">{temperature.label}</div>
+						</div>
+					</button>
+				{/each}
+			</div>
 		</div>
 	{/if}
+
 
       {@const isProfilo = family.group.toLowerCase().includes('profil') || 
                         family.displayName.toLowerCase().includes('profil') ||
@@ -509,12 +541,12 @@
         />
       {/if}
   
-      {#if data.catalog[page.state.chosenItem].juncts.length > 1 && $objects.length > 0}
-        <button class={button({ class: 'flex items-center' })} onclick={() => temporary?.rotate()}>
-          <ArrowsClockwise class="mr-1 size-7 text-foreground" />
-          Ruota
-        </button>
-      {/if}
+		{#if enhancedCatalog[page.state.chosenItem]?.juncts?.length > 1 && $objects.length > 0}
+			<button class={button({ class: 'flex items-center' })} onclick={() => temporary?.rotate()}>
+				<ArrowsClockwise class="mr-1 size-7 text-foreground" />
+				Ruota
+			</button>
+		{/if}
     {/if}
   </div>
 </main>
