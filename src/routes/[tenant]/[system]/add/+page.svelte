@@ -499,27 +499,44 @@
         />
       {/if}
   
-      {#if family.needsColorConfig}
-        <ConfigColor
-          items={family.items.map((i) => i.color)}
-          disabled={(family.needsCurveConfig && configShape === undefined) ||
-            (family.needsLengthConfig && configLength === undefined)}
-          onsubmit={(color) => {
-            const { angle, radius } = configShape ?? { angle: -1, radius: -1 };
-            const { needsCurveConfig, needsLengthConfig } = family;
-            const items = family.items
-              .filter((i) => (needsCurveConfig ? i.deg === angle && i.radius === radius : true))
-              .filter((i) => (needsLengthConfig ? i.len === configLength : true))
-              .filter((i) => i.color === color);
-            if (items.length === 0) throw new Error("what?");
-            replaceState('', {
-              chosenItem: items[0].code,
-              chosenFamily: page.state.chosenFamily,
-              reference: page.state.reference,
-            });
-          }}
-        />
-      {/if}
+		{#if family.needsColorConfig}
+		<ConfigColor
+			items={family.items.map((i) => i.color)}
+			disabled={(family.needsCurveConfig && configShape === undefined) ||
+			(family.needsLengthConfig && configLength === undefined)}
+			onsubmit={(color) => {
+			const { angle, radius } = configShape ?? { angle: -1, radius: -1 };
+			const { needsCurveConfig, needsLengthConfig } = family;
+			
+			// Ottieni la temperatura corrente
+			const currentTemp = getCurrentTemperature(page.state.chosenItem);
+			
+			const items = family.items
+				.filter((i) => (needsCurveConfig ? i.deg === angle && i.radius === radius : true))
+				.filter((i) => (needsLengthConfig ? i.len === configLength : true))
+				.filter((i) => i.color === color)
+				.filter((i) => {
+				// Filtra anche per temperatura se disponibile
+				if (currentTemp) {
+					const itemTemp = getCurrentTemperature(i.code);
+					return itemTemp?.suffix === currentTemp.suffix;
+				}
+				return true;
+				});
+				
+			if (items.length === 0) {
+				console.error("Nessun item trovato con colore:", color, "e temperatura:", currentTemp?.suffix);
+				throw new Error("what?");
+			}
+			
+			replaceState('', {
+				chosenItem: items[0].code,
+				chosenFamily: page.state.chosenFamily,
+				reference: page.state.reference,
+			});
+			}}
+		/>
+		{/if}
   
       {#if family.needsLedConfig}
         {@const chosenItem = family.items.find((i) => i.code === page.state.chosenItem)}

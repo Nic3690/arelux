@@ -2,6 +2,8 @@
 	import _ from 'lodash';
 	import { flyAndScale } from '$shad/utils';
 	import { Popover } from 'bits-ui';
+	import { page } from '$app/state';
+	import { TemperatureManager } from '$lib/config/temperatureConfig';
 
 	let {
 		items,
@@ -14,16 +16,42 @@
 		value?: string;
 		disabled?: boolean;
 	} = $props();
-	value = items[0];
+	
+	// Filtra i colori in base alla temperatura corrente se stiamo selezionando un colore
+	let filteredColors = $derived(() => {
+		// Se abbiamo un chosenItem nel page state, filtra i colori per quella temperatura
+		if (page.state.chosenItem) {
+			const currentTemp = TemperatureManager.getCurrentTemperature(page.state.chosenItem);
+			if (currentTemp) {
+				// Trova tutti gli items che hanno la stessa temperatura
+				const itemsWithSameTemp = page.data.families[page.state.chosenFamily]?.items.filter(item => {
+					const itemTemp = TemperatureManager.getCurrentTemperature(item.code);
+					return itemTemp?.suffix === currentTemp.suffix;
+				}) || [];
+				
+				// Estrai i colori unici da questi items
+				return _.uniq(itemsWithSameTemp.map(item => item.color).filter(c => c));
+			}
+		}
+		
+		// Fallback: usa tutti i colori disponibili
+		return _.uniq(items);
+	});
+	
+	// Usa $effect per impostare il valore iniziale e aggiornarlo quando cambiano i colori filtrati
+	$effect(() => {
+		if (!value || !filteredColors().includes(value)) {
+			value = filteredColors()[0] || items[0];
+		}
+	});
 
 	let open = $state(false);
-	let colors = $derived(_.uniqWith(items, _.isEqual));
 </script>
 
 <div class="flex items-center justify-center gap-3 rounded bg-box p-3">
 	Colore
 
-	{#if items.length > 1}
+	{#if filteredColors().length > 1}
 		<Popover.Root bind:open>
 			<Popover.Trigger {disabled} class="disabled:cursor-not-allowed">
 				<div
@@ -37,7 +65,7 @@
 				sideOffset={8}
 				side="top"
 			>
-				{#each colors.values() as color}
+				{#each filteredColors() as color}
 					<button
 						type="button"
 						class="h-8 w-8 cursor-pointer rounded-[8px] border-2 border-gray-500"

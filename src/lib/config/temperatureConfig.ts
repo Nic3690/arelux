@@ -191,7 +191,7 @@ export class TemperatureManager {
 		
 		if (expectedTemps.length <= 1) {
 			console.log('❌ Nessuna temperatura configurata, famiglia non modificata');
-			return family; // Nessuna modifica necessaria
+			return family;
 		}
 		
 		const cacheKey = `${family.code}_enhanced`;
@@ -215,54 +215,109 @@ export class TemperatureManager {
 		
 		if (missingTemps.length === 0) {
 			console.log('✅ Tutte le temperature sono già presenti');
-			return family; // Tutte le temperature sono già presenti
+			return family;
 		}
 		
-		// Genera varianti mancanti basandoti sugli item esistenti
 		const newItems: any[] = [];
 		
-		for (const missingSuffix of missingTemps) {
-			const missingTempConfig = TEMPERATURE_CONFIGS.find(t => t.suffix === missingSuffix);
-			if (!missingTempConfig) continue;
+		// IMPORTANTE: Se la famiglia ha configurazione colore, genera tutte le combinazioni
+		if (family.needsColorConfig) {
+			// Trova tutti i colori unici nella famiglia
+			const uniqueColors = new Set(family.items.map(item => item.color).filter(c => c));
+			console.log('🎨 Colori unici trovati:', Array.from(uniqueColors));
 			
-			// Trova un item base da cui generare la variante
-			const baseItem = family.items.find(item => {
-				const currentTemp = this.getCurrentTemperature(item.code);
-				return currentTemp !== null; // Ha già una temperatura
-			}) || family.items[0]; // Fallback al primo item
-			
-			if (!baseItem) continue;
-			
-			const newCode = this.switchTemperature(baseItem.code, missingTempConfig);
-			
-			console.log('🆕 Generando variante:', {
-				base: baseItem.code,
-				nuovo: newCode,
-				temperatura: missingTempConfig.suffix
-			});
-			
-			// Verifica che non esista già
-			if (family.items.some(item => item.code === newCode)) {
-				console.log('⚠️ Item già esistente, skip:', newCode);
-				continue;
+			for (const missingSuffix of missingTemps) {
+				const missingTempConfig = TEMPERATURE_CONFIGS.find(t => t.suffix === missingSuffix);
+				if (!missingTempConfig) continue;
+				
+				// Per ogni colore, genera la variante con la temperatura mancante
+				for (const color of uniqueColors) {
+					// Trova un item base con questo colore
+					const baseItem = family.items.find(item => {
+						const currentTemp = this.getCurrentTemperature(item.code);
+						return currentTemp !== null && item.color === color;
+					});
+					
+					if (!baseItem) {
+						console.log(`⚠️ Nessun item base trovato per colore ${color}`);
+						continue;
+					}
+					
+					const newCode = this.switchTemperature(baseItem.code, missingTempConfig);
+					
+					console.log('🆕 Generando variante colore+temperatura:', {
+						base: baseItem.code,
+						nuovo: newCode,
+						colore: color,
+						temperatura: missingTempConfig.suffix
+					});
+					
+					// Verifica che non esista già
+					if (family.items.some(item => item.code === newCode) || 
+						newItems.some(item => item.code === newCode)) {
+						console.log('⚠️ Item già esistente, skip:', newCode);
+						continue;
+					}
+					
+					const newItem = {
+						...baseItem,
+						code: newCode,
+						desc1: this.updateDescriptionTemperature(baseItem.desc1, this.getCurrentTemperature(baseItem.code), missingTempConfig),
+						desc2: this.updateDescriptionTemperature(baseItem.desc2, this.getCurrentTemperature(baseItem.code), missingTempConfig),
+						color: color, // Mantieni il colore
+						_isGenerated: true
+					};
+					
+					newItems.push(newItem);
+					
+					// Genera anche l'entry del catalog se disponibile
+					if (originalCatalog && originalCatalog[baseItem.code]) {
+						const catalogEntry = this.createCatalogEntry(baseItem, originalCatalog[baseItem.code], newCode);
+						generatedCatalogEntries.set(newCode, catalogEntry);
+						console.log('📋 Entry catalog generata per:', newCode);
+					}
+				}
 			}
-			
-			const newItem = {
-				...baseItem,
-				code: newCode,
-				desc1: this.updateDescriptionTemperature(baseItem.desc1, this.getCurrentTemperature(baseItem.code), missingTempConfig),
-				desc2: this.updateDescriptionTemperature(baseItem.desc2, this.getCurrentTemperature(baseItem.code), missingTempConfig),
-				// Flag per identificare item generati dinamicamente
-				_isGenerated: true
-			};
-			
-			newItems.push(newItem);
-			
-			// NUOVO: Genera anche l'entry del catalog se disponibile
-			if (originalCatalog && originalCatalog[baseItem.code]) {
-				const catalogEntry = this.createCatalogEntry(baseItem, originalCatalog[baseItem.code], newCode);
-				generatedCatalogEntries.set(newCode, catalogEntry);
-				console.log('📋 Entry catalog generata per:', newCode, 'basata su:', baseItem.code);
+		} else {
+			// Logica originale per famiglie senza configurazione colore
+			for (const missingSuffix of missingTemps) {
+				const missingTempConfig = TEMPERATURE_CONFIGS.find(t => t.suffix === missingSuffix);
+				if (!missingTempConfig) continue;
+				
+				const baseItem = family.items.find(item => {
+					const currentTemp = this.getCurrentTemperature(item.code);
+					return currentTemp !== null;
+				}) || family.items[0];
+				
+				if (!baseItem) continue;
+				
+				const newCode = this.switchTemperature(baseItem.code, missingTempConfig);
+				
+				console.log('🆕 Generando variante:', {
+					base: baseItem.code,
+					nuovo: newCode,
+					temperatura: missingTempConfig.suffix
+				});
+				
+				if (family.items.some(item => item.code === newCode)) {
+					console.log('⚠️ Item già esistente, skip:', newCode);
+					continue;
+				}
+				
+				const newItem = {
+					...baseItem,
+					code: newCode,
+					desc1: this.updateDescriptionTemperature(baseItem.desc1, this.getCurrentTemperature(baseItem.code), missingTempConfig),
+					desc2: this.updateDescriptionTemperature(baseItem.desc2, this.getCurrentTemperature(baseItem.code), missingTempConfig),
+					_isGenerated: true
+				};
+				
+				newItems.push(newItem);
+				
+				if (originalCatalog && originalCatalog[baseItem.code]) {
+					const catalogEntry = this.createCatalogEntry(baseItem, originalCatalog[baseItem.code], newCode);
+					generatedCatalogEntries.set(newCode, catalogEntry);
+				}
 			}
 		}
 		
