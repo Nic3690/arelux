@@ -41,6 +41,7 @@
 	let systemMoverMode = $state(false);
 
 	import { sidebarRefs, focusSidebarElement } from '$lib/index';
+	import { TemperatureManager } from '$lib/config/temperatureConfig';
 
 	function setRef(node: HTMLElement, code: string) {
 		sidebarRefs.set(code, node);
@@ -223,9 +224,10 @@ function handleLightPositionPreview(position: number) {
 			<ScrollArea.Viewport class="h-full w-full">
 				<ScrollArea.Content>
 					{#each $objects.filter((o) => !o.hidden) as item, index (item.object?.id || index + "-" + item.code)}
+						{@const baseCode = TemperatureManager.getBaseCodeForResources(item.code)}
 						{@const url = data.supabase.storage
 							.from(data.tenant)
-							.getPublicUrl(`images/${item.code}.webp`)}
+							.getPublicUrl(`images/${baseCode}.webp`)}
 
 						<div
 							class="mt-3 rounded bg-box3 ring-inset ring-primary transition-all"
