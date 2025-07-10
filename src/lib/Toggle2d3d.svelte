@@ -308,25 +308,25 @@ function generateProfilesPDF() {
                         const dotProduct = toMiddle.dot(normal);
                         curveDirection = dotProduct >= 0 ? 1 : -1;
                         
-                        console.log('🧭 Direction from geometry:', {
-                            middleWorld,
-                            midLine,
-                            toMiddle,
-                            normal,
-                            dotProduct,
-                            curveDirection
-                        });
+                        // console.log('🧭 Direction from geometry:', {
+                        //     middleWorld,
+                        //     midLine,
+                        //     toMiddle,
+                        //     normal,
+                        //     dotProduct,
+                        //     curveDirection
+                        // });
                     } else {
                         // Fallback: usa l'orientamento del mesh per determinare la direzione
                         const meshRotationY = rendererObj.mesh.rotation.y;
                         // Adatta la direzione basandosi sulla rotazione del mesh
                         curveDirection = Math.sin(meshRotationY) >= 0 ? 1 : -1;
                         
-                        console.log('🧭 Direction from mesh rotation:', {
-                            meshRotationY,
-                            sin: Math.sin(meshRotationY),
-                            curveDirection
-                        });
+                        // console.log('🧭 Direction from mesh rotation:', {
+                        //     meshRotationY,
+                        //     sin: Math.sin(meshRotationY),
+                        //     curveDirection
+                        // });
                     }
                     
                     pointCWorld = calculateBezierControlPoint(point1World, point2World, curveAngle, curveRadius, curveDirection);
@@ -334,17 +334,17 @@ function generateProfilesPDF() {
                     // DEBUG: verifica che il punto di controllo sia lontano dalla linea
                     const midLine = new Vector3().addVectors(point1World, point2World).multiplyScalar(0.5);
                     const distanceFromLine = pointCWorld.distanceTo(midLine);
-                    console.log('🎯 XFREES Curve Debug:', {
-                        code: profile.code,
-                        angle: curveAngle,
-                        radius: curveRadius,
-                        point1: point1World,
-                        point2: point2World,
-                        pointC: pointCWorld,
-                        distanceFromLine: distanceFromLine,
-                        chordLength: point1World.distanceTo(point2World),
-                        curveDirection
-                    });
+                    // console.log('🎯 XFREES Curve Debug:', {
+                    //     code: profile.code,
+                    //     angle: curveAngle,
+                    //     radius: curveRadius,
+                    //     point1: point1World,
+                    //     point2: point2World,
+                    //     pointC: pointCWorld,
+                    //     distanceFromLine: distanceFromLine,
+                    //     chordLength: point1World.distanceTo(point2World),
+                    //     curveDirection
+                    // });
                 } else {
                     pointCWorld = point2World.clone(); // Linea retta
                 }
@@ -495,7 +495,7 @@ function generateProfilesPDF() {
 
 // Funzione matematicamente corretta per calcolare il punto di controllo Bézier
 function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDegrees: number, radiusInMM: number, curveDirection: number = 1): Vector3 {
-    console.log('🧮 Calculating Bezier control point:', { angleInDegrees, radiusInMM, curveDirection });
+    // console.log('🧮 Calculating Bezier control point:', { angleInDegrees, radiusInMM, curveDirection });
     
     const midPoint = new Vector3().addVectors(point1, point2).multiplyScalar(0.5);
     const chordVector = new Vector3().subVectors(point2, point1);
@@ -511,7 +511,7 @@ function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDe
     if (angleInDegrees >= 170) {
         // Per semicerchi: raggio = metà della corda
         realRadius = chordLength / 2;
-        console.log('🌙 Semicircle: using real radius from chord length:', realRadius);
+        // console.log('🌙 Semicircle: using real radius from chord length:', realRadius);
     } else {
         // Per archi < 180°: calcola raggio dalla formula geometrica
         // chord = 2 * radius * sin(angle/2)
@@ -519,7 +519,7 @@ function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDe
         const angleRad = (angleInDegrees * Math.PI) / 180;
         const halfAngle = angleRad / 2;
         realRadius = chordLength / (2 * Math.sin(halfAngle));
-        console.log('📐 Arc: calculated real radius:', realRadius, 'vs metadata radius:', radiusInMM / 1000);
+        // console.log('📐 Arc: calculated real radius:', realRadius, 'vs metadata radius:', radiusInMM / 1000);
     }
     
     // Per un semicerchio (180°), il punto di controllo è al centro del cerchio
@@ -542,14 +542,14 @@ function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDe
     // APPLICA LA DIREZIONE CORRETTA
     const controlPoint = midPoint.clone().add(normal.multiplyScalar(controlDistance * curveDirection));
     
-    console.log('✅ Final control point calculation:', {
-        chordLength,
-        realRadius,
-        controlDistance,
-        curveDirection,
-        controlPoint,
-        'offset ratio': controlDistance / chordLength
-    });
+    // console.log('✅ Final control point calculation:', {
+    //     chordLength,
+    //     realRadius,
+    //     controlDistance,
+    //     curveDirection,
+    //     controlPoint,
+    //     'offset ratio': controlDistance / chordLength
+    // });
     
     return controlPoint;
 }

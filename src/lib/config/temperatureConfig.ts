@@ -32,20 +32,20 @@ export class TemperatureManager {
 		const familyKey = this.getFamilyConfigKey(family);
 		const expected = FAMILY_TEMPERATURE_CONFIG[familyKey] || [];
 		
-		console.log('🌡️ Temperature aspettate per', family.displayName, ':', expected);
+		// console.log('🌡️ Temperature aspettate per', family.displayName, ':', expected);
 		
 		return expected;
 	}
 	
 	private static getFamilyConfigKey(family: Family): string {
 		// DEBUG: Aggiungi logging per capire la struttura delle famiglie
-		console.log('🔍 Analizzando famiglia:', {
-			code: family.code,
-			displayName: family.displayName,
-			system: family.system,
-			group: family.group,
-			items: family.items.map(i => i.code)
-		});
+		// console.log('🔍 Analizzando famiglia:', {
+		// 	code: family.code,
+		// 	displayName: family.displayName,
+		// 	system: family.system,
+		// 	group: family.group,
+		// 	items: family.items.map(i => i.code)
+		// });
 		
 		// Logica più ampia per XNET - proviamo diversi pattern
 		if (family.system === 'XNET' || family.system === 'XNet') {
@@ -63,15 +63,15 @@ export class TemperatureManager {
 					item.code.toLowerCase().includes('nw')
 				);
 			
-			console.log('🔍 XNET famiglia luci?', isLightFamily);
+			// console.log('🔍 XNET famiglia luci?', isLightFamily);
 			
 			if (isLightFamily) {
-				console.log('✅ Famiglia XNET luci identificata:', family.displayName);
+				// console.log('✅ Famiglia XNET luci identificata:', family.displayName);
 				return 'XNET';
 			}
 		}
 		
-		console.log('❌ Famiglia non configurata per temperature:', family.displayName);
+		// console.log('❌ Famiglia non configurata per temperature:', family.displayName);
 		return family.system; // fallback al sistema
 	}
 	
@@ -139,10 +139,10 @@ export class TemperatureManager {
 		const availableTemps = this.getAvailableTemperatures(family);
 		const hasVariants = availableTemps.length > 1;
 		
-		console.log('🎛️ hasTemperatureVariants per', family.displayName, ':', {
-			availableTemps: availableTemps.map(t => t.suffix),
-			hasVariants
-		});
+		// console.log('🎛️ hasTemperatureVariants per', family.displayName, ':', {
+		// 	availableTemps: availableTemps.map(t => t.suffix),
+		// 	hasVariants
+		// });
 		
 		return hasVariants;
 	}
@@ -169,17 +169,17 @@ export class TemperatureManager {
 	
 	// NUOVO: Metodo per ottenere il codice base per le risorse fisiche
 	static getBaseCodeForResources(code: string): string {
-		console.log('🔍 getBaseCodeForResources input:', code);
+		// console.log('🔍 getBaseCodeForResources input:', code);
 		
 		// Se il codice contiene UWW (variante generata), sostituiscilo con WW (che esiste nel DB)
 		if (code.includes('UWW')) {
 			const result = code.replace(/UWW/g, 'WW');
-			console.log('✅ UWW → WW conversion:', code, '→', result);
+			// console.log('✅ UWW → WW conversion:', code, '→', result);
 			return result;
 		}
 		
 		// Per tutti gli altri casi, usa il codice originale
-		console.log('✅ Using original code:', code);
+		// console.log('✅ Using original code:', code);
 		return code;
 	}
 	
@@ -187,17 +187,17 @@ export class TemperatureManager {
 	static getEnhancedFamily(family: Family, originalCatalog?: any): Family {
 		const expectedTemps = this.getExpectedTemperatures(family);
 		
-		console.log('🔧 getEnhancedFamily per', family.displayName, 'temperature aspettate:', expectedTemps);
+		// console.log('🔧 getEnhancedFamily per', family.displayName, 'temperature aspettate:', expectedTemps);
 		
 		if (expectedTemps.length <= 1) {
-			console.log('❌ Nessuna temperatura configurata, famiglia non modificata');
+			// console.log('❌ Nessuna temperatura configurata, famiglia non modificata');
 			return family;
 		}
 		
 		const cacheKey = `${family.code}_enhanced`;
 		
 		if (generatedVariants.has(cacheKey)) {
-			console.log('💾 Usando varianti dalla cache');
+			// console.log('💾 Usando varianti dalla cache');
 			return {
 				...family,
 				items: [...family.items, ...generatedVariants.get(cacheKey)!]
@@ -205,16 +205,16 @@ export class TemperatureManager {
 		}
 		
 		const actualTemps = this.getActualAvailableTemperatures(family);
-		console.log('🌡️ Temperature attuali:', actualTemps.map(t => t.suffix));
+		// console.log('🌡️ Temperature attuali:', actualTemps.map(t => t.suffix));
 		
 		const missingTemps = expectedTemps.filter(expectedSuffix => 
 			!actualTemps.some(actual => actual.suffix === expectedSuffix)
 		);
 		
-		console.log('❓ Temperature mancanti:', missingTemps);
+		// console.log('❓ Temperature mancanti:', missingTemps);
 		
 		if (missingTemps.length === 0) {
-			console.log('✅ Tutte le temperature sono già presenti');
+			// console.log('✅ Tutte le temperature sono già presenti');
 			return family;
 		}
 		
@@ -224,7 +224,7 @@ export class TemperatureManager {
 		if (family.needsColorConfig) {
 			// Trova tutti i colori unici nella famiglia
 			const uniqueColors = new Set(family.items.map(item => item.color).filter(c => c));
-			console.log('🎨 Colori unici trovati:', Array.from(uniqueColors));
+			// console.log('🎨 Colori unici trovati:', Array.from(uniqueColors));
 			
 			for (const missingSuffix of missingTemps) {
 				const missingTempConfig = TEMPERATURE_CONFIGS.find(t => t.suffix === missingSuffix);
@@ -239,23 +239,23 @@ export class TemperatureManager {
 					});
 					
 					if (!baseItem) {
-						console.log(`⚠️ Nessun item base trovato per colore ${color}`);
+						// console.log(`⚠️ Nessun item base trovato per colore ${color}`);
 						continue;
 					}
 					
 					const newCode = this.switchTemperature(baseItem.code, missingTempConfig);
 					
-					console.log('🆕 Generando variante colore+temperatura:', {
-						base: baseItem.code,
-						nuovo: newCode,
-						colore: color,
-						temperatura: missingTempConfig.suffix
-					});
+					// console.log('🆕 Generando variante colore+temperatura:', {
+					// 	base: baseItem.code,
+					// 	nuovo: newCode,
+					// 	colore: color,
+					// 	temperatura: missingTempConfig.suffix
+					// });
 					
 					// Verifica che non esista già
 					if (family.items.some(item => item.code === newCode) || 
 						newItems.some(item => item.code === newCode)) {
-						console.log('⚠️ Item già esistente, skip:', newCode);
+						// console.log('⚠️ Item già esistente, skip:', newCode);
 						continue;
 					}
 					
@@ -274,7 +274,7 @@ export class TemperatureManager {
 					if (originalCatalog && originalCatalog[baseItem.code]) {
 						const catalogEntry = this.createCatalogEntry(baseItem, originalCatalog[baseItem.code], newCode);
 						generatedCatalogEntries.set(newCode, catalogEntry);
-						console.log('📋 Entry catalog generata per:', newCode);
+						// console.log('📋 Entry catalog generata per:', newCode);
 					}
 				}
 			}
@@ -293,14 +293,14 @@ export class TemperatureManager {
 				
 				const newCode = this.switchTemperature(baseItem.code, missingTempConfig);
 				
-				console.log('🆕 Generando variante:', {
-					base: baseItem.code,
-					nuovo: newCode,
-					temperatura: missingTempConfig.suffix
-				});
+				// console.log('🆕 Generando variante:', {
+				// 	base: baseItem.code,
+				// 	nuovo: newCode,
+				// 	temperatura: missingTempConfig.suffix
+				// });
 				
 				if (family.items.some(item => item.code === newCode)) {
-					console.log('⚠️ Item già esistente, skip:', newCode);
+					// console.log('⚠️ Item già esistente, skip:', newCode);
 					continue;
 				}
 				
@@ -321,7 +321,7 @@ export class TemperatureManager {
 			}
 		}
 		
-		console.log('✨ Varianti generate:', newItems.length);
+		// console.log('✨ Varianti generate:', newItems.length);
 		
 		// Salva in cache
 		generatedVariants.set(cacheKey, newItems);
@@ -331,11 +331,11 @@ export class TemperatureManager {
 			items: [...family.items, ...newItems]
 		};
 		
-		console.log('📦 Famiglia enhanced:', {
-			original: family.items.length,
-			generated: newItems.length,
-			total: enhancedFamily.items.length
-		});
+		// console.log('📦 Famiglia enhanced:', {
+		// 	original: family.items.length,
+		// 	generated: newItems.length,
+		// 	total: enhancedFamily.items.length
+		// });
 		
 		return enhancedFamily;
 	}

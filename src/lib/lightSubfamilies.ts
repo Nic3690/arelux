@@ -14,13 +14,39 @@ export interface LightSubfamily {
 export function extractSubfamilies(family: Family, catalog: Record<string, CatalogEntry>): Map<string, LightSubfamily> {
   const subfamilies = new Map<string, LightSubfamily>();
   
+  // Codici sottofamiglia validi
+  const VALID_SUBFAMILY_CODES = ['OP', 'GB', 'SU', 'SP'];
+  
   // Raggruppa per sottofamiglia
   for (const item of family.items) {
-    const match = item.code.match(/^([A-Z]+\d+[A-Z]*)\s+([A-Z]{2})\s+/);
+    let baseModel: string | null = null;
+    let subfamilyCode: string | null = null;
     
-    if (match) {
-      const baseModel = match[1];
-      const subfamilyCode = match[2];
+    // Strategia: cerca i codici sottofamiglia validi nel codice item
+    for (const code of VALID_SUBFAMILY_CODES) {
+      // Cerca il codice sottofamiglia con possibili variazioni:
+      // - Preceduto da spazio: "XNRS03WW OP"
+      // - Senza spazio: "XNRS11WWRGB"
+      // - Seguito da suffissi: "XNRS11WWR GBUWW"
+      
+      // Pattern 1: codice sottofamiglia con spazio prima
+      let regex = new RegExp(`^([A-Z]+\\d+[A-Z]*)\\s+${code}(?:\\s|$|[A-Z])`);
+      let match = item.code.match(regex);
+      
+      if (!match) {
+        // Pattern 2: codice sottofamiglia senza spazio
+        regex = new RegExp(`^([A-Z]+\\d+[A-Z]*?)${code}(?:[A-Z]*)?(?:\\s|$)`);
+        match = item.code.match(regex);
+      }
+      
+      if (match) {
+        baseModel = match[1];
+        subfamilyCode = code;
+        break;
+      }
+    }
+    
+    if (baseModel && subfamilyCode) {
       const power = Math.abs(catalog[item.code]?.power || 0);
       
       if (!subfamilies.has(subfamilyCode)) {
@@ -34,10 +60,18 @@ export function extractSubfamilies(family: Family, catalog: Record<string, Catal
       
       const subfamily = subfamilies.get(subfamilyCode)!;
       
-      // Aggiungi modello se non esiste già
-      if (!subfamily.models.some(m => m.baseModel === baseModel)) {
+      // Normalizza il baseModel rimuovendo suffissi temperatura se presenti
+      const normalizedBaseModel = baseModel.replace(/[U]?WW$/, '');
+      
+      // Verifica se questo modello esiste già
+      const existingModel = subfamily.models.find(m => 
+        m.baseModel === normalizedBaseModel || 
+        m.baseModel === baseModel
+      );
+      
+      if (!existingModel) {
         subfamily.models.push({
-          baseModel,
+          baseModel: normalizedBaseModel,
           power,
           sampleCode: item.code
         });
@@ -56,7 +90,7 @@ export function extractSubfamilies(family: Family, catalog: Record<string, Catal
 // Mappatura nomi sottofamiglie
 const SUBFAMILY_NAMES: Record<string, string> = {
   'OP': 'Proiettori lineari',
-  'GB': 'Sferiche',
+  'GB': 'Sferiche', 
   'SU': 'Sospensione',
   'SP': 'Proiettori orientabili',
 };
@@ -82,5 +116,17 @@ export function sortSubfamilies(subfamilies: LightSubfamily[]): LightSubfamily[]
 
 // Funzione per verificare se una famiglia ha sottofamiglie
 export function hasLightSubfamilies(family: Family): boolean {
-  return family.items.some(item => /^[A-Z]+\d+[A-Z]*\s+[A-Z]{2}\s+/.test(item.code));
+  const VALID_SUBFAMILY_CODES = ['OP', 'GB', 'SU', 'SP'];
+  
+  return family.items.some(item => {
+    // Cerca uno dei codici sottofamiglia validi nel codice item
+    return VALID_SUBFAMILY_CODES.some(code => {
+      // Pattern 1: con spazio
+      const regex1 = new RegExp(`\\s+${code}(?:\\s|$|[A-Z])`);
+      // Pattern 2: senza spazio
+      const regex2 = new RegExp(`[A-Z]${code}(?:[A-Z]*)?(?:\\s|$)`);
+      
+      return regex1.test(item.code) || regex2.test(item.code);
+    });
+  });
 }

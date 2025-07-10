@@ -20,12 +20,12 @@ export async function loadModel(
 	// USA IL CODICE BASE per le risorse (file fisici)
 	const baseCode = TemperatureManager.getBaseCodeForResources(code);
 	
-	console.log('📂 Loading model:', { original: code, base: baseCode, variant });
+	// console.log('📂 Loading model:', { original: code, base: baseCode, variant });
 	
 	const path = (variant === 'model' ? 'models' : variant) + `/${baseCode}.glb`;
 	const url = state.supabase.storage.from(state.tenant).getPublicUrl(path).data.publicUrl;
 	
-	console.log('🌐 Model URL:', url);
+	// console.log('🌐 Model URL:', url);
 	
 	return (await state.loader.loadAsync(url)).scene;
 }

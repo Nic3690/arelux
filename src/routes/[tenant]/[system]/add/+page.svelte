@@ -92,6 +92,53 @@
 	let selectedPower: { baseModel: string; power: number; sampleCode: string } | undefined = $state();
 	let showPowerPanel = $state(false);
 
+	// Nuovo stato per le famiglie luci quando mode === "Luci"
+	let lightFamilies = $derived(() => {
+		if (mode !== 'Luci') return [];
+		
+		// Ottieni tutte le famiglie del gruppo "Luci"
+		const families = Object.values(data.families)
+			.filter((fam) => fam.system === data.system)
+			.filter((fam) => fam.group === 'Luci')
+			.filter((fam) => fam.visible);
+		
+		console.log('🔦 Famiglie Luci trovate:', families.map(f => f.displayName));
+		
+		// Estrai le sottofamiglie da tutte le famiglie luci
+		const allSubfamilies = new Map<string, LightSubfamily>();
+		
+		for (const family of families) {
+			console.log(`📋 Analizzando famiglia ${family.displayName} con ${family.items.length} items`);
+			console.log('Items:', family.items.map(i => i.code));
+			
+			if (hasLightSubfamilies(family)) {
+				console.log(family);
+				const subfamiliesMap = extractSubfamilies(family, enhancedCatalog);
+				
+				// Merge subfamilies, combining models from different families
+				for (const [code, subfamily] of subfamiliesMap) {
+					if (allSubfamilies.has(code)) {
+						// Merge models
+						const existing = allSubfamilies.get(code)!;
+						for (const model of subfamily.models) {
+							if (!existing.models.some(m => m.baseModel === model.baseModel)) {
+								existing.models.push(model);
+							}
+						}
+						// Sort models by power
+						existing.models.sort((a, b) => a.power - b.power);
+					} else {
+						allSubfamilies.set(code, subfamily);
+					}
+				}
+			}
+		}
+		
+		console.log('🎯 Sottofamiglie totali trovate:', Array.from(allSubfamilies.keys()));
+		
+		return sortSubfamilies(Array.from(allSubfamilies.values()));
+	});
+
 	// Funzione per ottenere le sottofamiglie quando una famiglia è selezionata
 	const lightSubfamilies = $derived(() => {
 		if (!chosenFamily) return [];
@@ -102,9 +149,9 @@
 		return sortSubfamilies(Array.from(subfamiliesMap.values()));
 	});
 
-	// Resetta la selezione quando cambia la famiglia
+	// Resetta la selezione quando cambia la famiglia o il mode
 	$effect(() => {
-		if (chosenFamily) {
+		if (chosenFamily || mode) {
 			selectedSubfamily = undefined;
 			selectedPower = undefined;
 			showPowerPanel = false;
@@ -126,8 +173,8 @@
 			renderer?.handles.setVisible(false);
 			renderer?.setOpacity(1);
 		} else {
-			// Per famiglie con sottofamiglie, mostra handles solo dopo selezione potenza
-			if (lightSubfamilies().length > 0) {
+			// Per famiglie con sottofamiglie o mode Luci, mostra handles solo dopo selezione potenza
+			if (lightSubfamilies().length > 0 || (mode === 'Luci' && lightFamilies().length > 0)) {
 				if (selectedPower) {
 					renderer?.handles.selectObject(selectedPower.sampleCode).setVisible(true);
 				} else {
@@ -158,19 +205,44 @@
 				}
 
 				// Se abbiamo sottofamiglie, usa l'item selezionato tramite potenza
-				let chosenItem = data.families[chosenFamily as string].items[0].code;
-				if (selectedPower) {
-					const targetItem = data.families[chosenFamily as string].items.find(
-						item => item.code.startsWith(selectedPower ? selectedPower.baseModel: "") && 
+				let chosenItem;
+				if (mode === 'Luci' && selectedPower) {
+					// Nel mode Luci, usa direttamente il sampleCode della potenza selezionata
+					chosenItem = selectedPower.sampleCode;
+				} else if (chosenFamily && selectedPower && selectedSubfamily) {
+					// Per famiglie singole con sottofamiglie
+					const targetItem = data.families[chosenFamily].items.find(
+						item => item.code.startsWith(selectedPower!.baseModel) && 
 						       item.code.includes(selectedSubfamily!.code)
 					);
-					if (targetItem) {
-						chosenItem = targetItem.code;
+					chosenItem = targetItem?.code || data.families[chosenFamily].items[0].code;
+				} else if (chosenFamily) {
+					// Famiglia normale senza sottofamiglie
+					chosenItem = data.families[chosenFamily].items[0].code;
+				} else {
+					console.error('No chosen item found');
+					return;
+				}
+
+				// Trova la famiglia corretta per l'item scelto
+				let familyForItem = chosenFamily;
+				if (mode === 'Luci' && !chosenFamily) {
+					// Trova la famiglia che contiene questo item
+					for (const [famCode, fam] of Object.entries(data.families)) {
+						if (fam.items.some(i => i.code === chosenItem)) {
+							familyForItem = famCode;
+							break;
+						}
 					}
 				}
 
+				if (!familyForItem) {
+					console.error('No family found for item:', chosenItem);
+					return;
+				}
+
 				pushState('', {
-					chosenFamily: chosenFamily as string,
+					chosenFamily: familyForItem,
 					chosenItem: chosenItem,
 					reference,
 				});
@@ -263,7 +335,16 @@
 						class="z-20 flex flex-col gap-3 rounded bg-box3 p-6"
 					>
 						{#each data.modes as thisMode}
-							<Button.Root on:click={() => (mode = thisMode)}>
+							<Button.Root on:click={() => {
+								mode = thisMode;
+								// Reset selezioni quando cambi mode
+								selectedSubfamily = undefined;
+								selectedPower = undefined;
+								showPowerPanel = false;
+								// Reset handles
+								renderer?.handles.setVisible(false);
+								renderer?.setOpacity(1);
+							}}>
 								<DropdownMenu.Item class="flex w-36 items-center ">
 									<span class="overflow-x-hidden text-ellipsis text-nowrap">
 										{thisMode}
@@ -274,11 +355,74 @@
 					</DropdownMenu.Content>
 				</DropdownMenu.Root>
 
-				{#if chosenFamily && lightSubfamilies().length > 0}
+				{#if mode === 'Luci' && lightFamilies().length > 0}
+					<!-- Mostra direttamente le sottofamiglie per il mode Luci -->
+					<RadioGroup.Root
+						class="flex h-full min-h-0 shrink flex-col gap-6 overflow-y-scroll rounded bg-box p-6"
+						value={selectedSubfamily?.code ?? undefined}
+						onValueChange={(code) => {
+							selectedSubfamily = lightFamilies().find(sf => sf.code === code);
+							showPowerPanel = true;
+							selectedPower = undefined;
+						}}
+					>
+						{#if mode === 'Luci'}
+							<span class="pb-3 text-sm">
+								Capacità: {$objects && getPowerBudget(enhancedCatalog) + 'W'}
+							</span>
+						{/if}
+
+						{#each lightFamilies() as subfamily}
+							{@const iconCode = TemperatureManager.getBaseCodeForResources(subfamily.iconItem)}
+							{@const url = data.supabase.storage
+								.from(data.tenant)
+								.getPublicUrl(`images/${iconCode}.webp`).data.publicUrl}
+							
+							<RadioGroup.Item
+								class="relative flex flex-col items-center justify-center"
+								value={subfamily.code}
+								id={subfamily.code}
+								onclick={() => {
+									selectedSubfamily = subfamily;
+									showPowerPanel = true;
+									selectedPower = undefined;
+								}}
+							>
+								<div class="relative">
+									<img
+										src={url}
+										width="125"
+										height="125"
+										alt=""
+										onload={() => loaded.add(url)}
+										class={cn(
+											'h-[125px] rounded-full outline outline-0 outline-primary transition-all',
+											selectedSubfamily?.code === subfamily.code && 'outline-4',
+											loaded.has(url) || 'opacity-0',
+										)}
+									/>
+									
+									{#if selectedSubfamily?.code === subfamily.code}
+										<div class="absolute top-0 left-0 w-[125px] h-[125px] rounded-full border-2 border-yellow-400 pointer-events-none"></div>
+									{/if}
+									
+									<div
+										class={cn(
+											'absolute top-0 z-10 h-[125px] w-[125px] animate-pulse rounded-full bg-gray-400',
+											loaded.has(url) && 'hidden',
+										)}
+									></div>
+								</div>
+								
+								{subfamily.displayName}
+							</RadioGroup.Item>
+						{/each}
+					</RadioGroup.Root>
+				{:else if chosenFamily && lightSubfamilies().length > 0}
 					<!-- Mostra sottofamiglie per famiglie con pattern sottofamiglia -->
 					<RadioGroup.Root
 						class="flex h-full min-h-0 shrink flex-col gap-6 overflow-y-scroll rounded bg-box p-6"
-						value={selectedSubfamily?.code}
+						value={selectedSubfamily?.code ?? undefined}
 						onValueChange={(code) => {
 							selectedSubfamily = lightSubfamilies().find(sf => sf.code === code);
 							showPowerPanel = true;
@@ -414,19 +558,23 @@
 					</RadioGroup.Root>
 				{/if}
 
-				<Button.Root
-					class={button()}
-					disabled={chosenFamily === undefined || (lightSubfamilies().length > 0 && !selectedPower)}
-					on:click={() => {
+				{#if mode !== 'Luci'}
+					<Button.Root
+						class={button()}
+						disabled={(chosenFamily === undefined) || 
+								(lightSubfamilies().length > 0 && !selectedPower)}
+						on:click={() => {
+						
+						// Gestione normale per famiglie
 						if (chosenFamily === undefined) return;
 
 						const family = data.families[chosenFamily];
 						const enhancedFamily = TemperatureManager.getEnhancedFamily(family, enhancedCatalog);
 						
 						let item: typeof enhancedFamily.items[0] | undefined;
-						if (selectedPower) {
+						if (selectedPower && selectedSubfamily) {
 							item = enhancedFamily.items.find(
-								i => i.code.startsWith(selectedPower ? selectedPower.baseModel : "") && 
+								i => i.code.startsWith(selectedPower!.baseModel) && 
 									i.code.includes(selectedSubfamily!.code)
 							);
 						} else {
@@ -440,9 +588,10 @@
 							const availableTemps = getAvailableTemperatures(family);
 							const wwTemp = availableTemps.find(t => t.suffix === 'WW');
 							if (wwTemp) {
+								const itemPrefix = item.code.split(' ')[0];
 								const wwItem = enhancedFamily.items.find(i => 
 									TemperatureManager.getCurrentTemperature(i.code)?.suffix === 'WW' &&
-									i.code.startsWith(item ? item.code.split(' ')[0] : "")
+									i.code.startsWith(itemPrefix)
 								);
 								if (wwItem) {
 									item = wwItem;
@@ -476,12 +625,13 @@
 						}
 					}}
 				>
-					{#if chosenFamily !== undefined && (data.families[chosenFamily].needsConfig || hasTemperatureVariants(data.families[chosenFamily]))}
+					{#if (chosenFamily !== undefined && (data.families[chosenFamily].needsConfig || hasTemperatureVariants(data.families[chosenFamily]))) || (mode === 'Luci' && selectedPower)}
 						AVANTI
 					{:else}
 						AGGIUNGI
 					{/if}
 				</Button.Root>
+				{/if}
 			{:else}
 				<Button.Root
 					class={button({ class: 'mt-auto' })}
@@ -531,6 +681,80 @@
 						class="flex flex-col items-center gap-2 group"
 						onclick={() => {
 							selectedPower = model;
+							
+							// IMPORTANTE: Mostra subito le handles quando selezioni una potenza!
+							if (renderer && selectedPower) {
+								renderer.handles.selectObject(selectedPower.sampleCode).setVisible(true);
+								renderer.setOpacity(0.4);
+								
+								// Imposta il callback per quando clicchi su una handle
+								renderer.setClickCallback((handle) => {
+									let reference: typeof page.state.reference = {
+										typ: 'junction',
+										id: handle.other.id,
+										junction: handle.otherJunctId,
+									};
+
+									if ((handle as LineHandleMesh).isLineHandle) {
+										reference = {
+											typ: 'line',
+											id: handle.other.id,
+											junction: handle.otherJunctId,
+											pos: {
+												x: (handle as LineHandleMesh).clickedPoint?.x ?? 0,
+												y: (handle as LineHandleMesh).clickedPoint?.y ?? 0,
+												z: (handle as LineHandleMesh).clickedPoint?.z ?? 0,
+											},
+										};
+									}
+
+									// Trova la famiglia per questo item
+									let familyForItem: string | undefined;
+									for (const [famCode, fam] of Object.entries(data.families)) {
+										if (fam.items.some(i => i.code === selectedPower!.sampleCode)) {
+											familyForItem = famCode;
+											break;
+										}
+									}
+									
+									if (!familyForItem) {
+										console.error('Famiglia non trovata per item:', selectedPower!.sampleCode);
+										return;
+									}
+
+									// Naviga direttamente alla configurazione o aggiungi l'oggetto
+									const family = data.families[familyForItem];
+									const item = family.items.find(i => i.code === selectedPower!.sampleCode);
+									
+									if (!item) {
+										console.error('Item non trovato:', selectedPower!.sampleCode);
+										return;
+									}
+									
+									if (family.needsConfig || hasTemperatureVariants(family)) {
+										pushState('', {
+											chosenFamily: familyForItem,
+											chosenItem: item.code,
+											reference,
+										});
+									} else if (family.hasModel) {
+										// Aggiungi l'oggetto direttamente
+										renderer!.addObject(item.code).then((object) => {
+											if (reference.typ === 'junction') {
+												renderer!.getObjectById(reference.id)?.attach(object);
+											} else {
+												renderer!.getObjectById(reference.id)?.attachLine(object, reference.pos);
+											}
+											
+											finishEdit(renderer!, object, null, {
+												chosenFamily: familyForItem,
+												chosenItem: item.code,
+												reference,
+											});
+										});
+									}
+								});
+							}
 						}}
 					>
 						<div class="relative">
