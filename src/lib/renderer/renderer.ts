@@ -670,6 +670,7 @@ export class Renderer {
 	private lightManager: LightManager;
 	private virtualRoomManager: VirtualRoomManager;
 	private clickHandler: ObjectClickHandler;
+	private configurationManager: ConfigurationManager;
 
 	#webgl!: WebGLRenderer;
 	#scene: Scene;
@@ -750,6 +751,8 @@ export class Renderer {
 		this.lightManager = new LightManager(this);
 		this.virtualRoomManager = new VirtualRoomManager(this, this.#scene);
 		this.clickHandler = new ObjectClickHandler(this, this.lightManager);
+
+		this.configurationManager = new ConfigurationManager(this);
 
 		this.reinitWebgl(canvas);
 		this.reinitControls(controls);
@@ -1337,5 +1340,113 @@ export class Renderer {
 			}
 		}
 		return false;
+	}
+
+	findConnectedConfiguration(startObject: TemporaryObject): Set<TemporaryObject> {
+		return this.configurationManager.findConnectedConfiguration(startObject);
+	}
+	
+	moveConfiguration(configuration: Set<TemporaryObject>, deltaX: number, deltaY: number, deltaZ: number): void {
+		this.configurationManager.moveConfiguration(configuration, deltaX, deltaY, deltaZ);
+	}
+	
+	highlightConfiguration(configuration: Set<TemporaryObject> | null): void {
+		this.configurationManager.highlightConfiguration(configuration);
+	}
+	
+	findConfigurationContaining(object: TemporaryObject): Set<TemporaryObject> | null {
+		return this.configurationManager.findConfigurationContaining(object);
+	}
+}
+
+class ConfigurationManager {
+	private renderer: Renderer;
+
+	constructor(renderer: Renderer) {
+		this.renderer = renderer;
+	}
+
+	// Trova tutti gli oggetti connessi a partire da un oggetto iniziale
+	findConnectedConfiguration(startObject: TemporaryObject): Set<TemporaryObject> {
+		const configuration = new Set<TemporaryObject>();
+		const toVisit: TemporaryObject[] = [startObject];
+		
+		while (toVisit.length > 0) {
+			const current = toVisit.pop()!;
+			
+			if (configuration.has(current)) continue;
+			configuration.add(current);
+			
+			// Aggiungi oggetti connessi tramite junctions
+			for (const junction of current.getJunctions()) {
+				if (junction !== null && !configuration.has(junction)) {
+					toVisit.push(junction);
+				}
+			}
+			
+			// Aggiungi oggetti connessi tramite line junctions
+			for (const lineJunction of current.getLineJunctions()) {
+				if (lineJunction !== null && !configuration.has(lineJunction)) {
+					toVisit.push(lineJunction);
+				}
+			}
+			
+			// Cerca anche connessioni inverse (oggetti che hanno questo oggetto nelle loro junctions)
+			for (const obj of this.renderer.getObjects()) {
+				if (configuration.has(obj)) continue;
+				
+				// Controlla se obj è connesso a current tramite junctions
+				if (obj.getJunctions().includes(current)) {
+					toVisit.push(obj);
+				}
+				
+				// Controlla se obj è connesso a current tramite line junctions
+				if (obj.getLineJunctions().includes(current)) {
+					toVisit.push(obj);
+				}
+			}
+		}
+		
+		return configuration;
+	}
+
+	// Sposta una configurazione specifica
+	moveConfiguration(configuration: Set<TemporaryObject>, deltaX: number, deltaY: number, deltaZ: number): void {
+		const delta = new Vector3(deltaX, deltaY, deltaZ);
+		
+		for (const obj of configuration) {
+			if (obj.mesh) {
+				obj.mesh.position.add(delta);
+			}
+		}
+	}
+
+	// Evidenzia una configurazione
+	highlightConfiguration(configuration: Set<TemporaryObject> | null): void {
+		this.renderer.setOpacity(1);
+		
+		if (configuration && configuration.size > 0) {
+			// Riduci opacità per tutti gli oggetti non nella configurazione
+			for (const obj of this.renderer.getObjects()) {
+				if (!configuration.has(obj)) {
+					obj.setOpacity(0.4);
+				}
+			}
+			
+			// Assicurati che gli oggetti nella configurazione siano visibili
+			for (const obj of configuration) {
+				obj.setOpacity(1);
+			}
+		}
+	}
+
+	// Trova la configurazione che contiene un oggetto specifico
+	findConfigurationContaining(object: TemporaryObject): Set<TemporaryObject> | null {
+		for (const obj of this.renderer.getObjects()) {
+			if (obj === object) {
+				return this.findConnectedConfiguration(obj);
+			}
+		}
+		return null;
 	}
 }

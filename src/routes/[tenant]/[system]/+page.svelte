@@ -1,3 +1,4 @@
+<!-- src/routes/[tenant]/[system]/+page.svelte -->
 <script lang="ts">
 	import AreluxLogo from '$lib/Logo.svelte';
 	import DownloadConfirmPopup from '$lib/DownloadConfirmPopup.svelte';
@@ -39,6 +40,7 @@
 	let pointer = $state(new Vector2());
 	let invertedControls = $state(false);
 	let systemMoverMode = $state(false);
+	let selectedConfiguration = $state<Set<TemporaryObject> | null>(null);
 
 	import { sidebarRefs, focusSidebarElement } from '$lib/index';
 	import { TemperatureManager } from '$lib/config/temperatureConfig';
@@ -71,6 +73,7 @@
 			} else {
 				if (systemMoverMode) {
 					systemMoverMode = false;
+					selectedConfiguration = null;
 				}
 			}
 		} else {
@@ -91,8 +94,13 @@
 					selectedLight = null;
 					renderer?.setOpacity(1);
 				}
+				// Reset della configurazione selezionata
+				selectedConfiguration = null;
 			}
 		} else {
+			// Quando si disattiva, ripristina l'opacità e cancella la selezione
+			renderer?.setOpacity(1);
+			selectedConfiguration = null;
 		}
 	}
 
@@ -110,14 +118,21 @@
 				toast.error("Impossibile spostare la luce alla posizione specificata");
 			}
 		}
-}
-
-function handleLightPositionPreview(position: number) {
-	if (selectedLight && renderer) {
-		lightPosition = position;
-		renderer.updateLightPositionFeedback(selectedLight, position);
 	}
-}
+
+	function handleLightPositionPreview(position: number) {
+		if (selectedLight && renderer) {
+			lightPosition = position;
+			renderer.updateLightPositionFeedback(selectedLight, position);
+		}
+	}
+
+	function handleConfigurationSelected(config: Set<TemporaryObject> | null) {
+		selectedConfiguration = config;
+		if (config === null) {
+			renderer?.setOpacity(1);
+		}
+	}
 
 	function remove(item: SavedObject) {
 		
@@ -144,47 +159,90 @@ function handleLightPositionPreview(position: number) {
 			.setScene('normal');
 		renderer.handles.setVisible(false);
 	
-	controlsEl.addEventListener('pointerdown', (event) => {
-		if (lightMoverMode && renderer) {
-		lights = renderer.getLights();
+		controlsEl.addEventListener('pointerdown', (event) => {
+			// Gestione click per SystemMover
+			if (systemMoverMode && renderer) {
+				pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+				pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-		pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-		pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+				const intersectables = renderer.getObjects()
+					.filter(obj => obj.mesh)
+					.map(obj => obj.mesh) as Object3D[];
 
-		const intersectables = lights
-		.filter(obj => obj.mesh)
-		.map(obj => obj.mesh) as Object3D[];
-
-		const intersections = renderer.raycast(pointer, intersectables);
-		
-		if (intersections.length > 0) {
-			for (const light of lights) {
-			let found = false;
-			light.mesh?.traverse((child) => {
-				if (intersections.some(i => i.object.uuid === child.uuid)) {
-				selectedLight = light;
-
-				if (selectedLight.getCurvePosition() === undefined) {
-					selectedLight.setCurvePosition(0.5);
-				}
+				const intersections = renderer.raycast(pointer, intersectables);
 				
-				lightPosition = selectedLight.getCurvePosition();
-
-				if (renderer) {
-					invertedControls = renderer.getLightMovementDirection(selectedLight);
+				if (intersections.length > 0) {
+					// Trova l'oggetto cliccato
+					let clickedObject: TemporaryObject | undefined;
+					
+					for (const obj of renderer.getObjects()) {
+						let found = false;
+						obj.mesh?.traverse((child) => {
+							if (intersections.some(i => i.object.uuid === child.uuid)) {
+								clickedObject = obj;
+								found = true;
+							}
+						});
+						if (found) break;
+					}
+					
+					if (clickedObject) {
+						// Trova la configurazione connessa
+						const configuration = renderer.findConnectedConfiguration(clickedObject);
+						selectedConfiguration = configuration;
+						
+						// Evidenzia la configurazione
+						renderer.highlightConfiguration(configuration);
+						
+						// Frame sulla configurazione (opzionale)
+						if (configuration.size > 0) {
+							const firstObj = Array.from(configuration)[0];
+							renderer.frameObject(firstObj);
+						}
+					}
 				}
-
-				if (renderer) {
-					renderer.highlightLight(selectedLight);
-				}
-				found = true;
-				}
-			});
-			if (found) break;
 			}
-		}
-		}
-	});
+			// Gestione click per LightMover
+			else if (lightMoverMode && renderer) {
+				lights = renderer.getLights();
+
+				pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+				pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+				const intersectables = lights
+					.filter(obj => obj.mesh)
+					.map(obj => obj.mesh) as Object3D[];
+
+				const intersections = renderer.raycast(pointer, intersectables);
+				
+				if (intersections.length > 0) {
+					for (const light of lights) {
+						let found = false;
+						light.mesh?.traverse((child) => {
+							if (intersections.some(i => i.object.uuid === child.uuid)) {
+								selectedLight = light;
+
+								if (selectedLight.getCurvePosition() === undefined) {
+									selectedLight.setCurvePosition(0.5);
+								}
+								
+								lightPosition = selectedLight.getCurvePosition();
+
+								if (renderer) {
+									invertedControls = renderer.getLightMovementDirection(selectedLight);
+								}
+
+								if (renderer) {
+									renderer.highlightLight(selectedLight);
+								}
+								found = true;
+							}
+						});
+						if (found) break;
+					}
+				}
+			}
+		});
 	});
 
 	$effect(() => {
@@ -368,8 +426,10 @@ function handleLightPositionPreview(position: number) {
 			active={systemMoverMode}
 			disabled={$objects.length === 0}
 			{renderer}
+			{selectedConfiguration}
 			onToggle={toggleSystemMoverMode}
 			onMove={handleSystemMove}
+			onConfigurationSelected={handleConfigurationSelected}
 		/>
 	</div>
 

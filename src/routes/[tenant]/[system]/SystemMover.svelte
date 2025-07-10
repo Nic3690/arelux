@@ -10,24 +10,30 @@
     import type { MouseEventHandler } from 'svelte/elements';
     import type { Renderer } from '$lib/renderer/renderer';
     import { toast } from 'svelte-sonner';
-	import { Check } from 'phosphor-svelte';
+    import { Check } from 'phosphor-svelte';
+    import type { TemporaryObject } from '$lib/renderer/objects';
 
     let { 
         active = false,
         disabled = false,
         renderer = undefined as Renderer | undefined,
+        selectedConfiguration = null as Set<TemporaryObject> | null,
         onToggle = () => {},
-        onMove = () => {}
+        onMove = () => {},
+        onConfigurationSelected = (config: Set<TemporaryObject> | null) => {}
     } = $props();
 
     const MOVE_INCREMENT = 2.54;
 
     function hasVerticalProfiles(): boolean {
-        if (!renderer) return false;
-        const profiles = renderer.getObjects().filter(obj => 
+        if (!renderer || !selectedConfiguration) return false;
+        
+        // Controlla solo i profili nella configurazione selezionata
+        const profiles = Array.from(selectedConfiguration).filter(obj => 
             obj.getCatalogEntry().line_juncts && obj.getCatalogEntry().line_juncts.length > 0 ||
             obj.getCatalogEntry().juncts && obj.getCatalogEntry().juncts.length >= 2
         );
+        
         if (profiles.length === 0) return false;
         
         return profiles.every(obj => {
@@ -43,7 +49,6 @@
                 }
             }
             
-            // Controlla se è verticale in una qualsiasi delle proprietà
             return code.includes('verticale') || 
                    code.includes('vertical') ||
                    familyDisplayName.includes('verticale') ||
@@ -52,7 +57,7 @@
     }
 
     function handleMove(direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') {
-        if (!renderer) return;
+        if (!renderer || !selectedConfiguration) return;
 
         let deltaX = 0, deltaY = 0, deltaZ = 0;
 
@@ -65,24 +70,31 @@
             case 'z-': deltaZ = -MOVE_INCREMENT; break;
         }
 
-        renderer.moveAllObjects(deltaX, deltaY, deltaZ);
+        renderer.moveConfiguration(selectedConfiguration, deltaX, deltaY, deltaZ);
         onMove();
     }
 
     function centerInRoom() {
-        if (!renderer) return;
-        renderer.centerSystemInRoom();
-        toast.success('Sistema centrato nella stanza');
-        onMove();
+        if (!renderer || !selectedConfiguration) return;
+        
+        // TODO: Implementare il centering per la configurazione specifica
+        toast.info('Centra configurazione nella stanza - funzionalità in sviluppo');
+    }
+
+    function confirmAndClose() {
+        onConfigurationSelected(null);
+        onToggle();
     }
 </script>
 
 <div class="relative flex flex-col gap-2">
-    {#if active}
+    {#if active && selectedConfiguration}
         <div class="absolute bottom-full mb-2 right-0 flex flex-col gap-3 rounded bg-box p-4 min-w-64 shadow-lg border">
             <div class="text-center">
-                <div class="text-sm font-medium">Sposta Oggetti</div>
-                <div class="text-xs text-gray-600">Incrementi di 10cm</div>
+                <div class="text-sm font-medium">Sposta Configurazione</div>
+                <div class="text-xs text-gray-600">
+                    {selectedConfiguration.size} oggetti connessi • Incrementi di 10cm
+                </div>
             </div>
 
             <!-- Controlli movimento per assi -->
@@ -95,14 +107,14 @@
                         class="flex h-10 w-10 items-center justify-center rounded bg-yellow-400 hover:bg-yellow-300 transition-colors"
                         title="Sposta a sinistra (-10cm)"
                     >
-                        <ArrowUp size={18} />
+                        <ArrowLeft size={18} />
                     </button>
                     <button 
                         onclick={() => handleMove('x+')}
                         class="flex h-10 w-10 items-center justify-center rounded bg-yellow-400 hover:bg-yellow-300 transition-colors"
                         title="Sposta a destra (+10cm)"
                     >
-                        <ArrowDown size={18} />
+                        <ArrowRight size={18} />
                     </button>
                 </div>
 
@@ -141,16 +153,16 @@
                 <div class="flex items-center gap-3">
                     <span class="w-6 font-bold text-center text-lg">Z</span>
                     <button 
-                        onclick={() => handleMove('z+')}
+                        onclick={() => handleMove('z-')}
                         class="flex h-10 w-10 items-center justify-center rounded bg-yellow-400 hover:bg-yellow-300 transition-colors"
-                        title="Sposta avanti (+10cm)"
+                        title="Sposta indietro (-10cm)"
                     >
                         <ArrowUp size={18} />
                     </button>
                     <button 
-                        onclick={() => handleMove('z-')}
+                        onclick={() => handleMove('z+')}
                         class="flex h-10 w-10 items-center justify-center rounded bg-yellow-400 hover:bg-yellow-300 transition-colors"
-                        title="Sposta indietro (-10cm)"
+                        title="Sposta avanti (+10cm)"
                     >
                         <ArrowDown size={18} />
                     </button>
@@ -161,16 +173,14 @@
                 <button 
                     onclick={centerInRoom}
                     class={cn(button({ color: 'secondary' }), 'w-full flex items-center justify-center gap-2')}
-                    title="Centra gli oggetti nella stanza virtuale"
+                    title="Centra la configurazione nella stanza virtuale"
                 >
                     <House size={16} />
                     <span>Centra in Stanza</span>
                 </button>
                 
                 <button 
-                    onclick={() => {
-                        onToggle();
-                    }}
+                    onclick={confirmAndClose}
                     class={cn(button(), 'w-full flex items-center justify-center gap-2')}
                     title="Conferma la posizione attuale e chiudi"
                 >
@@ -178,6 +188,10 @@
                     <span>Conferma</span>
                 </button>
             </div>
+        </div>
+    {:else if active}
+        <div class="absolute bottom-full mb-2 right-0 text-center px-3 py-2 bg-box rounded shadow-lg border min-w-64">
+            Clicca su un oggetto per selezionare la configurazione da spostare
         </div>
     {/if}
 
@@ -188,7 +202,7 @@
         )}
         onclick={onToggle as MouseEventHandler<HTMLButtonElement>}
         {disabled}
-        title={active ? 'Disattiva modalità sposta oggetti' : 'Attiva modalità sposta oggetti'}
+        title={active ? 'Disattiva modalità sposta configurazione' : 'Attiva modalità sposta configurazione'}
     >
         <ArrowsOutCardinal size={20} />
         <span>Sposta sistema</span>
