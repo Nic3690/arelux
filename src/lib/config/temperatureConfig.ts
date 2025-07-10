@@ -108,12 +108,14 @@ export class TemperatureManager {
 	}
 	
 	private static isValidTemperatureSuffix(code: string, suffix: string): boolean {
-		const regex = new RegExp(`\\b${suffix}\\b|${suffix}(?=[^A-Z])|${suffix}$`);
+		// Aggiunta regex specifica per gestire suffissi seguiti da R (per luci curve)
+		const regex = new RegExp(`\\b${suffix}\\b|${suffix}(?=[^A-Z])|${suffix}$|${suffix}R\\b`);
 		return regex.test(code);
 	}
 	
 	static getCurrentTemperature(code: string): TemperatureConfig | null {
 		for (const tempConfig of TEMPERATURE_CONFIGS) {
+			// Controlla sia il pattern normale che quello con R
 			if (code.includes(tempConfig.suffix) && 
 				this.isValidTemperatureSuffix(code, tempConfig.suffix)) {
 				return tempConfig; // Ritorna l'oggetto completo
@@ -126,10 +128,10 @@ export class TemperatureManager {
 		const currentTemp = this.getCurrentTemperature(code);
 		
 		if (currentTemp) {
-			return code.replace(
-				new RegExp(currentTemp.suffix, 'g'), 
-				newTemperature.suffix
-			);
+			// Crea una regex che cattura anche la R opzionale dopo il suffisso
+			const regex = new RegExp(`${currentTemp.suffix}(R?)`, 'g');
+			// Sostituisce mantenendo la R se presente
+			return code.replace(regex, newTemperature.suffix + '$1');
 		}
 		
 		return code + newTemperature.suffix;
@@ -171,9 +173,10 @@ export class TemperatureManager {
 	static getBaseCodeForResources(code: string): string {
 		// console.log('🔍 getBaseCodeForResources input:', code);
 		
-		// Se il codice contiene UWW (variante generata), sostituiscilo con WW (che esiste nel DB)
+		// Se il codice contiene UWW o UWWR (variante generata), sostituiscilo con WW/WWR
 		if (code.includes('UWW')) {
-			const result = code.replace(/UWW/g, 'WW');
+			// Gestisce sia UWW che UWWR
+			const result = code.replace(/UWW(R?)/g, 'WW$1');
 			// console.log('✅ UWW → WW conversion:', code, '→', result);
 			return result;
 		}
@@ -370,8 +373,11 @@ export class TemperatureManager {
 	): string {
 		if (!description || !oldTemp) return description;
 		
+		// Gestisce sia i suffissi normali che quelli con R
+		const suffixRegex = new RegExp(`${oldTemp.suffix}(R?)`, 'g');
+		
 		return description
-			.replace(new RegExp(oldTemp.suffix, 'g'), newTemp.suffix)
+			.replace(suffixRegex, newTemp.suffix + '$1')
 			.replace(new RegExp(oldTemp.label, 'g'), newTemp.label)
 			.replace(new RegExp(oldTemp.kelvin.toString(), 'g'), newTemp.kelvin.toString());
 	}
