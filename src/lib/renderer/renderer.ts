@@ -1021,14 +1021,16 @@ export class Renderer {
 		this.#objects.push(obj);
 	
 		if (obj.mesh) {
-			if (this.#objects.length === 1) {
-				const bbox = new Box3().setFromObject(obj.mesh);
-				const center = bbox.getCenter(new Vector3());
+			const bbox = new Box3().setFromObject(obj.mesh);
+			const center = bbox.getCenter(new Vector3());
 
-				obj.mesh.position.x -= center.x;
-				obj.mesh.position.z -= center.z;
-				if (this.isVerticalProfile(obj)) obj.mesh.position.z -= (this.getCurrentRoomDimensions().depth / 2) * 25;
-				obj.mesh.position.y -= bbox.max.y;
+			obj.mesh.position.x -= center.x;
+			obj.mesh.position.z -= center.z;
+			
+			obj.mesh.position.y -= bbox.max.y;
+			
+			if (this.isVerticalProfile(obj)) {
+				obj.mesh.position.z -= (this.getCurrentRoomDimensions().depth / 2) * 25;
 			}
 			
 			this.#originalPositions.set(obj.id, obj.mesh.position.clone());
