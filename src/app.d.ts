@@ -135,6 +135,7 @@ export type SavedObject = {
 
 	/** Empty unless the object is actually two or more objects */
 	subobjects: SavedObject[];
+	isAutoConnector?: boolean;
 };
 
 /** The settings of a tenant */

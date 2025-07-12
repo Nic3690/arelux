@@ -14,6 +14,7 @@ import Handlebars from 'handlebars';
 import type { Vector3Like } from 'three';
 import type { RendererObject } from './renderer/objects';
 import _ from 'lodash';
+import { getRequiredConnector4Family } from './connectorRules';
 
 export let objects: Writable<SavedObject[]> = writable([]);
 
@@ -128,7 +129,6 @@ export async function finishEdit(
 
 	if (stateOverride?.isCustomLength && stateOverride?.length && item?.len) {
 		if (obj.mesh) {
-			// Reset dello scale prima di applicare quello nuovo
 			const isVertical = renderer.isVerticalProfile?.(obj) ?? false;
 			if (isVertical) {
 				obj.mesh.scale.setY(1);
@@ -150,6 +150,46 @@ export async function finishEdit(
 			object: obj,
 		}),
 	);
+
+	// Controllo connettori automatici DOPO aver aggiunto l'oggetto
+	const junctions = obj.getJunctions();
+	for (let i = 0; i < junctions.length; i++) {
+		const connectedObj = junctions[i];
+		if (connectedObj) {
+			const connectedSavedObj = get(objects).find(o => o.object?.id === connectedObj.id);
+			if (connectedSavedObj) {
+				let parentFamily = '';
+				let currentFamily = family.group;
+				
+				for (const [_, fam] of Object.entries(page.data.families)) {
+					if (fam.items.some(item => item.code === connectedSavedObj.code)) {
+						parentFamily = fam.group;
+						break;
+					}
+				}
+				
+				const connectorCode = getRequiredConnector4Family(
+					{ code: connectedSavedObj.code, family: parentFamily, system: page.data.catalog[connectedSavedObj.code]?.system || '' },
+					{ code: state.chosenItem, family: currentFamily, system: page.data.catalog[state.chosenItem]?.system || '' }
+				);
+				console.log(connectorCode);
+				
+				if (connectorCode) {
+					objects.update((objs) =>
+						objs.concat({
+							code: connectorCode,
+							desc1: 'Connettore automatico',
+							desc2: '',
+							subobjects: [],
+							length: 0,
+							hidden: true,
+							isAutoConnector: true,
+						}),
+					);
+				}
+			}
+		}
+	}
 
 	lastAdded.set(obj.id);
 	goto(`/${page.data.tenant}/${page.data.system}`);
