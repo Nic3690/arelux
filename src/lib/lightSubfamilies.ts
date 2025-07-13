@@ -21,21 +21,20 @@ export function extractSubfamilies(family: Family, catalog: Record<string, Catal
   for (const item of family.items) {
     let baseModel: string | null = null;
     let subfamilyCode: string | null = null;
+    let isCurved = false;
+    
+    // Controlla se è una luce curva
+    isCurved = item.code.includes('WWR') || item.code.includes('UWWR');
     
     // Strategia: cerca i codici sottofamiglia validi nel codice item
     for (const code of VALID_SUBFAMILY_CODES) {
-      // Cerca il codice sottofamiglia con possibili variazioni:
-      // - Preceduto da spazio: "XNRS03WW OP"
-      // - Senza spazio: "XNRS11WWRGB"
-      // - Seguito da suffissi: "XNRS11WWR GBUWW"
-      
       // Pattern 1: codice sottofamiglia con spazio prima
-      let regex = new RegExp(`^([A-Z]+\\d+[A-Z]*)\\s+${code}(?:\\s|$|[A-Z])`);
+      let regex = new RegExp(`^([A-Z]+\\d+)(?:[U]?WW[R]?)?\\s+${code}(?:\\s|$|[A-Z])`);
       let match = item.code.match(regex);
       
       if (!match) {
         // Pattern 2: codice sottofamiglia senza spazio
-        regex = new RegExp(`^([A-Z]+\\d+[A-Z]*?)${code}(?:[A-Z]*)?(?:\\s|$)`);
+        regex = new RegExp(`^([A-Z]+\\d+)(?:[U]?WW[R]?)?${code}(?:[A-Z]*)?(?:\\s|$)`);
         match = item.code.match(regex);
       }
       
@@ -60,13 +59,12 @@ export function extractSubfamilies(family: Family, catalog: Record<string, Catal
       
       const subfamily = subfamilies.get(subfamilyCode)!;
       
-      // Normalizza il baseModel rimuovendo suffissi temperatura se presenti
-      const normalizedBaseModel = baseModel.replace(/[U]?WW$/, '');
+      // Crea il baseModel normalizzato con distinzione dritta/curva
+      const normalizedBaseModel = isCurved ? `${baseModel}R` : baseModel;
       
       // Verifica se questo modello esiste già
       const existingModel = subfamily.models.find(m => 
-        m.baseModel === normalizedBaseModel || 
-        m.baseModel === baseModel
+        m.baseModel === normalizedBaseModel && m.power === power
       );
       
       if (!existingModel) {
@@ -79,9 +77,20 @@ export function extractSubfamilies(family: Family, catalog: Record<string, Catal
     }
   }
   
-  // Ordina i modelli per potenza
+  // Ordina i modelli per potenza e poi per tipo (dritte prima delle curve)
   for (const subfamily of subfamilies.values()) {
-    subfamily.models.sort((a, b) => a.power - b.power);
+    subfamily.models.sort((a, b) => {
+      // Prima ordina per potenza
+      if (a.power !== b.power) {
+        return a.power - b.power;
+      }
+      // A parità di potenza, metti le dritte prima delle curve
+      const aIsCurved = a.baseModel.endsWith('R');
+      const bIsCurved = b.baseModel.endsWith('R');
+      if (aIsCurved && !bIsCurved) return 1;
+      if (!aIsCurved && bIsCurved) return -1;
+      return 0;
+    });
   }
   
   return subfamilies;
