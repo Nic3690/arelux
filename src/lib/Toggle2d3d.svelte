@@ -165,9 +165,7 @@
 		generateProfilesPDF();
 	}
 
-// Funzione completa generateProfilesPDF() - VERSIONE DEFINITIVA
-
-function generateProfilesPDF() {
+	function generateProfilesPDF() {
     import('jspdf').then(({ jsPDF }) => {
         const pdf = new jsPDF({
             orientation: 'landscape',
@@ -204,7 +202,6 @@ function generateProfilesPDF() {
 
             const catalogEntry = rendererObj.getCatalogEntry();
             
-            // CASO 1: Profili XNET con line_juncts (dati precisi)
             if (catalogEntry.line_juncts && catalogEntry.line_juncts.length > 0) {
                 const lineJunct = catalogEntry.line_juncts[0];
                 
@@ -216,9 +213,8 @@ function generateProfilesPDF() {
                 
                 const midPoint = new Vector3().addVectors(point1World, point2World).multiplyScalar(0.5);
                 const distanceFromMid = pointCWorld.distanceTo(midPoint);
-                const isCurved = distanceFromMid > 0.01; // Soglia molto bassa per XNET
+                const isCurved = distanceFromMid > 0.01;
 
-                // Trova metadati famiglia per lunghezza arco
                 let curveAngle = 0;
                 let curveRadius = 0;
                 for (const family of Object.values(renderer!.families)) {
@@ -242,7 +238,6 @@ function generateProfilesPDF() {
                     curveRadius
                 });
 
-                // Calcola bounding box
                 if (isCurved) {
                     const curve = new QuadraticBezierCurve3(point1World, pointCWorld, point2World);
                     for (let i = 0; i <= 20; i++) {
@@ -259,7 +254,6 @@ function generateProfilesPDF() {
                     maxZ = Math.max(maxZ, point1World.z, point2World.z);
                 }
             } 
-            // CASO 2: Profili XFREES e altri con solo juncts (calcolo da metadati)
             else if (catalogEntry.juncts && catalogEntry.juncts.length >= 2) {
                 const junct1 = catalogEntry.juncts[0];
                 const junct2 = catalogEntry.juncts[catalogEntry.juncts.length - 1];
@@ -269,7 +263,6 @@ function generateProfilesPDF() {
                 
                 const effectiveLength = profile.length || point1World.distanceTo(point2World) * 1000;
                 
-                // Trova metadati della famiglia
                 let isCurved = false;
                 let curveAngle = 0;
                 let curveRadius = 0;
@@ -284,69 +277,43 @@ function generateProfilesPDF() {
                     }
                 }
 
-                // Calcola il punto di controllo matematicamente corretto
                 let pointCWorld;
                 if (isCurved) {
-                    // PRIMA: prova a determinare la direzione corretta dai juncts multipli
-                    let curveDirection = 1; // Default
+                    let curveDirection = 1;
+                    
+                    const isXFREES = profile.code.includes('FE') || 
+                                   renderer!.catalog[profile.code]?.system?.toLowerCase() === 'xfree_s' ||
+                                   renderer!.catalog[profile.code]?.system?.toLowerCase() === 'xfrees';
                     
                     if (catalogEntry.juncts.length > 2) {
-                        // Se ci sono più juncts, usa quello centrale per determinare la direzione
                         const middleIndex = Math.floor(catalogEntry.juncts.length / 2);
                         const middleJunct = catalogEntry.juncts[middleIndex];
                         const middleWorld = rendererObj.mesh.localToWorld(new Vector3().copy(middleJunct));
                         
-                        // Calcola dove dovrebbe essere il punto centrale di una linea retta
                         const midLine = new Vector3().addVectors(point1World, point2World).multiplyScalar(0.5);
                         
-                        // Determina da che lato è il punto centrale reale
                         const chordDirection = new Vector3().subVectors(point2World, point1World).normalize();
                         const toMiddle = new Vector3().subVectors(middleWorld, midLine);
                         const normal = new Vector3(-chordDirection.z, 0, chordDirection.x);
                         
-                        // Se il prodotto scalare è negativo, la curvatura va nell'altra direzione
                         const dotProduct = toMiddle.dot(normal);
                         curveDirection = dotProduct >= 0 ? 1 : -1;
-                        
-                        // console.log('🧭 Direction from geometry:', {
-                        //     middleWorld,
-                        //     midLine,
-                        //     toMiddle,
-                        //     normal,
-                        //     dotProduct,
-                        //     curveDirection
-                        // });
                     } else {
-                        // Fallback: usa l'orientamento del mesh per determinare la direzione
                         const meshRotationY = rendererObj.mesh.rotation.y;
-                        // Adatta la direzione basandosi sulla rotazione del mesh
                         curveDirection = Math.sin(meshRotationY) >= 0 ? 1 : -1;
-                        
-                        // console.log('🧭 Direction from mesh rotation:', {
-                        //     meshRotationY,
-                        //     sin: Math.sin(meshRotationY),
-                        //     curveDirection
-                        // });
+                    }
+                    
+                    if (isXFREES) {
+                        if (curveAngle === 180 && curveRadius === 300) {
+                            curveDirection = 1;
+                        } else {
+                            curveDirection = -curveDirection;
+                        }
                     }
                     
                     pointCWorld = calculateBezierControlPoint(point1World, point2World, curveAngle, curveRadius, curveDirection);
-                    
-                    // DEBUG: verifica che il punto di controllo sia lontano dalla linea
-                    const midLine = new Vector3().addVectors(point1World, point2World).multiplyScalar(0.5);
-                    const distanceFromLine = pointCWorld.distanceTo(midLine);
-                    // console.log('🎯 XFREES Curve Debug:', {
-                    //     code: profile.code,
-                    //     angle: curveAngle,
-                    //     radius: curveRadius,
-                    //     point1: point1World,
-                    //     point2: point2World,
-                    //     pointC: pointCWorld,
-                    //     distanceFromLine: distanceFromLine,
-                    //     chordLength: point1World.distanceTo(point2World),
-                    //     curveDirection
-                    // });
                 } else {
-                    pointCWorld = point2World.clone(); // Linea retta
+                    pointCWorld = point2World.clone();
                 }
 
                 profileData.push({
@@ -361,7 +328,6 @@ function generateProfilesPDF() {
                     curveRadius
                 });
 
-                // Calcola bounding box
                 if (isCurved) {
                     const curve = new QuadraticBezierCurve3(point1World, pointCWorld, point2World);
                     for (let i = 0; i <= 20; i++) {
@@ -380,7 +346,6 @@ function generateProfilesPDF() {
             }
         }
 
-        // Calcola layout PDF
         const pageWidth = 297;
         const pageHeight = 210;
         const margin = 20;
@@ -407,16 +372,14 @@ function generateProfilesPDF() {
         pdf.setTextColor(0, 0, 0);
         pdf.setFontSize(8);
 
-        // Disegna i profili
         for (const profile of profileData) {
             if (profile.isCurved) {
-                // Gestione curve: sempre con Bézier quadratica
                 const point1_3d = new Vector3(profile.point1.x, 0, profile.point1.z);
                 const point2_3d = new Vector3(profile.point2.x, 0, profile.point2.z);
                 const pointC_3d = new Vector3(profile.pointC.x, 0, profile.pointC.z);
                 
                 const curve = new QuadraticBezierCurve3(point1_3d, pointC_3d, point2_3d);
-                const segments = 60; // Più segmenti per curve smooth
+                const segments = 60;
                 
                 for (let i = 0; i < segments; i++) {
                     const t1 = i / segments;
@@ -431,11 +394,9 @@ function generateProfilesPDF() {
                     pdf.line(pdf1.x, pdf1.y, pdf2.x, pdf2.y);
                 }
                 
-                // Posiziona testo al centro della curva
                 const midPoint = curve.getPointAt(0.5);
                 const midPDF = worldToPDF(midPoint.x, midPoint.z);
 
-                // Calcola lunghezza arco reale
                 let realLength = profile.length;
                 if (profile.curveAngle > 0 && profile.curveRadius > 0) {
                     realLength = (profile.curveAngle / 360) * 2 * Math.PI * profile.curveRadius;
@@ -445,7 +406,6 @@ function generateProfilesPDF() {
                 pdf.text(curveText, midPDF.x, midPDF.y - 3, { align: 'center' });
                 
             } else {
-                // Gestione linee rette
                 const startPDF = worldToPDF(profile.point1.x, profile.point1.z);
                 const endPDF = worldToPDF(profile.point2.x, profile.point2.z);
 
@@ -470,7 +430,6 @@ function generateProfilesPDF() {
             }
         }
 
-        // Calcola dimensioni totali
         const totalWidth = (maxX - minX) * 1000;
         const totalLength = (maxZ - minZ) * 1000;
 
