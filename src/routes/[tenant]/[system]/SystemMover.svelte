@@ -77,8 +77,11 @@
     function centerInRoom() {
         if (!renderer || !selectedConfiguration) return;
         
-        // TODO: Implementare il centering per la configurazione specifica
-        toast.info('Centra configurazione nella stanza - funzionalità in sviluppo');
+        renderer.centerConfigurationInRoom(selectedConfiguration);
+
+        onMove();
+
+        toast.success('Configurazione centrata nella stanza');
     }
 
     function confirmAndClose() {

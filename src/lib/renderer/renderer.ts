@@ -1359,6 +1359,10 @@ export class Renderer {
 	findConfigurationContaining(object: TemporaryObject): Set<TemporaryObject> | null {
 		return this.configurationManager.findConfigurationContaining(object);
 	}
+
+	centerConfigurationInRoom(configuration: Set<TemporaryObject>): void {
+		this.configurationManager.centerConfigurationInRoom(configuration);
+	}
 }
 
 class ConfigurationManager {
@@ -1450,5 +1454,101 @@ class ConfigurationManager {
 			}
 		}
 		return null;
+	}
+	centerConfigurationInRoom(configuration: Set<TemporaryObject>): void {
+		if (configuration.size === 0) return;
+
+		// Separa profili da altri oggetti nella configurazione
+		const profiles: TemporaryObject[] = [];
+		const otherObjects: TemporaryObject[] = [];
+
+		for (const obj of configuration) {
+			if (obj.mesh) {
+				if (RendererUtils.isProfile(obj)) {
+					profiles.push(obj);
+				} else {
+					otherObjects.push(obj);
+				}
+			}
+		}
+
+		if (profiles.length === 0 && otherObjects.length === 0) return;
+
+		let configurationCenter: Vector3;
+
+		// Calcola il centro della configurazione
+		if (profiles.length > 0) {
+			configurationCenter = this.calculateProfilesCenter(profiles);
+		} else {
+			const bbox = new Box3();
+			for (const obj of otherObjects) {
+				if (obj.mesh) {
+					bbox.expandByObject(obj.mesh);
+				}
+			}
+			configurationCenter = bbox.getCenter(new Vector3());
+		}
+
+		// Calcola l'offset per centrare nella stanza (0,0,0)
+		const roomCenter = new Vector3(0, 0, 0);
+		const offset = roomCenter.clone().sub(configurationCenter);
+		offset.y = 0; // Mantieni l'altezza originale
+
+		// Applica l'offset solo agli oggetti della configurazione
+		for (const obj of configuration) {
+			if (obj.mesh) {
+				obj.mesh.position.add(offset);
+			}
+		}
+	}
+
+	// Helper method per calcolare il centro dei profili
+	private calculateProfilesCenter(profiles: TemporaryObject[]): Vector3 {
+		if (profiles.length === 0) {
+			return new Vector3(0, 0, 0);
+		}
+
+		if (profiles.length === 1) {
+			const profile = profiles[0];
+			if (!profile.mesh) return new Vector3(0, 0, 0);
+
+			const lineJuncts = profile.getCatalogEntry().line_juncts;
+			if (lineJuncts.length === 0) return new Vector3(0, 0, 0);
+
+			const lineJunct = lineJuncts[0];
+			
+			const point1World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point1));
+			const point2World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point2));
+			
+			return new Vector3()
+				.addVectors(point1World, point2World)
+				.multiplyScalar(0.5);
+		}
+
+		// Per configurazioni con più profili
+		const extremePoints: Vector3[] = [];
+
+		for (const profile of profiles) {
+			if (!profile.mesh) continue;
+
+			const lineJuncts = profile.getCatalogEntry().line_juncts;
+			if (lineJuncts.length === 0) continue;
+
+			const lineJunct = lineJuncts[0];
+			
+			const point1World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point1));
+			const point2World = profile.mesh.localToWorld(new Vector3().copy(lineJunct.point2));
+			
+			extremePoints.push(point1World, point2World);
+		}
+
+		// Calcola il baricentro
+		const barycenter = new Vector3();
+		for (const point of extremePoints) {
+			barycenter.add(point);
+		}
+		barycenter.divideScalar(extremePoints.length);
+
+		return barycenter;
 	}
 }
