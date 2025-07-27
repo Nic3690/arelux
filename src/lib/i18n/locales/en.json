@@ -91,5 +91,27 @@
     "chooseFormat": "Choose the format to download your configuration:",
     "technical2D": "Download 2D PDF technical drawing",
     "model3D": "Download 3D GLTF model"
+  },
+  "database": {
+    "terms": {
+      "luce": "Light",
+      "luci": "Lights",
+      "profilo": "Profile",
+      "profili": "Profiles",
+      "curva": "Curved",
+      "curvo": "Curved",
+      "dritta": "Straight",
+      "dritto": "Straight",
+      "sospensione": "Suspension",
+      "incasso": "Recessed",
+      "superficie": "Surface",
+      "angolare": "Angular",
+      "lineare": "Linear",
+      "connettore": "Connector",
+      "connettori": "Connectors",
+      "alimentatore": "Power Supply",
+      "alimentatori": "Power Supplies",
+      "profiliSospensione": "Suspended profiles"
+    }
   }
 }

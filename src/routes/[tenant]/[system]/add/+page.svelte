@@ -26,6 +26,7 @@
 	import { TemperatureManager, type TemperatureConfig } from '$lib/config/temperatureConfig';
 	import { extractSubfamilies, hasLightSubfamilies, sortSubfamilies, type LightSubfamily } from '$lib/lightSubfamilies';
 	import { _ } from 'svelte-i18n';
+	import DbText from '$lib/i18n/DbText.svelte';
 
 	function hasTemperatureVariants(family: Family): boolean {
 		const enhancedFamily = TemperatureManager.getEnhancedFamily(family, enhancedCatalog);
@@ -553,7 +554,7 @@
 									></div>
 								</div>
 
-								{item.displayName}
+								<DbText text={item.displayName} />
 							</RadioGroup.Item>
 						{/each}
 					</RadioGroup.Root>

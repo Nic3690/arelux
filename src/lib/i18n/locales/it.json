@@ -91,5 +91,27 @@
     "chooseFormat": "Scegli il formato per scaricare la tua configurazione:",
     "technical2D": "Scarica schema tecnico PDF in 2D",
     "model3D": "Scarica modello tridimensionale GLTF in 3D"
+  },
+  "database": {
+    "terms": {
+      "luce": "Luce",
+      "luci": "Luci",
+      "profilo": "Profilo",
+      "profili": "Profili",
+      "curva": "Curva",
+      "curvo": "Curvo",
+      "dritta": "Dritta",
+      "dritto": "Dritto",
+      "sospensione": "Sospensione",
+      "incasso": "Incasso",
+      "superficie": "Superficie",
+      "angolare": "Angolare",
+      "lineare": "Lineare",
+      "connettore": "Connettore",
+      "connettori": "Connettori",
+      "alimentatore": "Alimentatore",
+      "alimentatori": "Alimentatori",
+      "profiliSospensione": "Profili a sospensione"
+    }
   }
 }
