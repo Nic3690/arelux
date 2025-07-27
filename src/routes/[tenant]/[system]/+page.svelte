@@ -19,6 +19,7 @@
 	import LightMover from './LightMover.svelte';
 	import SystemMover from './SystemMover.svelte';
 	import { Vector3 } from 'three';
+	import { _ } from 'svelte-i18n';
 
 	let { data } = $props();
 	let renderer = $state<Renderer | undefined>(undefined);
@@ -269,7 +270,7 @@
 	<div class="row-span-3 flex flex-col gap-3">
 		<a href="/{data.tenant}" class="inline-flex">
 			<ArrowLeft class="translate-y-1" />
-			Indietro
+			{$_('common.back')}
 		</a>
 
 		{#if $objects.length === 0}

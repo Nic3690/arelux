@@ -1,0 +1,88 @@
+{
+  "common": {
+    "back": "Back",
+    "add": "Add",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "next": "Next",
+    "download": "Download",
+    "configure": "Configure",
+    "save": "Save",
+    "close": "Close",
+    "search": "Search",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Information"
+  },
+  "home": {
+    "title": "Choose the system you want to configure:",
+    "yourConfiguration": "Your configuration",
+    "noComponents": "There are no components in your configuration yet",
+    "configure": "Configure"
+  },
+  "config": {
+    "modifyObject": "Modify the object to insert",
+    "selectComponents": "Choose your components or continue",
+    "selectDrivers": "Select which drivers you want to install",
+    "totalPower": "Total power: {power}W",
+    "quantity": "Quantity: {quantity}",
+    "capacity": "Capacity: {capacity}",
+    "chooseFamily": "Choose a family...",
+    "noFamilyFound": "No family found",
+    "temperature": "Temperature",
+    "color": "Color",
+    "length": "Length",
+    "angle": "Angle",
+    "radius": "Radius",
+    "modifyCurvature": "Modify curvature"
+  },
+  "invoice": {
+    "title": "Quote",
+    "password": "Code",
+    "insertPassword": "Insert password",
+    "insertEmail": "Enter your email here to view the quote:",
+    "emailPlaceholder": "john.doe@example.com",
+    "thankYou": "Thank you!",
+    "emailSent": "Quote sent, check your email",
+    "emailError": "There was an error sending the email",
+    "invalidEmail": "Enter a valid email",
+    "send": "Send"
+  },
+  "lights": {
+    "moveLight": "Move light",
+    "selectLight": "Click on a light to select and move it",
+    "position": "Position: {percent}%",
+    "positionOccupied": "Position occupied",
+    "positionFree": "Position free",
+    "confirmPosition": "Confirm position",
+    "noLightsFound": "No lights found. Add a light to the project first.",
+    "cannotMoveLight": "Cannot move light to specified position"
+  },
+  "system": {
+    "moveSystem": "Move system",
+    "moveObjects": "Move Objects",
+    "increments": "10cm increments",
+    "centerInRoom": "Center in Room",
+    "noObjects": "No objects to move. Add elements to the project first.",
+    "systemCentered": "System centered in room"
+  },
+  "room": {
+    "virtualRoom": "Virtual Room",
+    "settings": "Virtual Room Settings",
+    "width": "Width",
+    "height": "Height",
+    "depth": "Depth",
+    "modifyDimensions": "Modify virtual room dimensions to fit your project:",
+    "dimensions": "Dimensions"
+  },
+  "download": {
+    "configuration": "Download Configuration",
+    "chooseFormat": "Choose the format to download your configuration:",
+    "technical2D": "Download 2D PDF technical drawing",
+    "model3D": "Download 3D GLTF model"
+  }
+}

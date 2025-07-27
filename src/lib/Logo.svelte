@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import LanguageSwitcher from './LanguageSwitcher.svelte';
 
 	export let top: boolean = true;
 
@@ -16,5 +17,9 @@
 	<div class="bg-primary text-black px-3 py-1 rounded-md font-bold text-sm">
 		BETA
 	</div>
+</div>
+<!-- Language Switcher posizionato nell'angolo -->
+<div style="position: absolute; {top ? 'top' : 'bottom'}: 20px; right: 100px;">
+	<LanguageSwitcher />
 </div>
 <div></div>

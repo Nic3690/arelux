@@ -1,0 +1,88 @@
+{
+  "common": {
+    "back": "Indietro",
+    "add": "Aggiungi",
+    "confirm": "Conferma",
+    "cancel": "Annulla",
+    "delete": "Elimina",
+    "edit": "Modifica",
+    "next": "Avanti",
+    "download": "Scarica",
+    "configure": "Configura",
+    "save": "Salva",
+    "close": "Chiudi",
+    "search": "Cerca",
+    "loading": "Caricamento...",
+    "error": "Errore",
+    "success": "Successo",
+    "warning": "Attenzione",
+    "info": "Informazione"
+  },
+  "home": {
+    "title": "Scegli il sistema che vuoi configurare:",
+    "yourConfiguration": "La tua configurazione",
+    "noComponents": "Non ci sono ancora componenti nella tua configurazione",
+    "configure": "Configura"
+  },
+  "config": {
+    "modifyObject": "Modifica l'oggetto da inserire",
+    "selectComponents": "Scegli i tuoi componenti o prosegui",
+    "selectDrivers": "Seleziona quali driver vuoi installare",
+    "totalPower": "Potenza totale: {power}W",
+    "quantity": "Quantità: {quantity}",
+    "capacity": "Capacità: {capacity}",
+    "chooseFamily": "Scegli una famiglia...",
+    "noFamilyFound": "Nessuna famiglia trovata",
+    "temperature": "Temperatura",
+    "color": "Colore",
+    "length": "Lunghezza",
+    "angle": "Angolo",
+    "radius": "Raggio",
+    "modifyCurvature": "Modifica curvatura"
+  },
+  "invoice": {
+    "title": "Preventivo",
+    "password": "Codice",
+    "insertPassword": "Inserisci la password",
+    "insertEmail": "Inserisci qui la tua mail per poter visualizzare il preventivo:",
+    "emailPlaceholder": "mario.rossi@example.com",
+    "thankYou": "Grazie mille!",
+    "emailSent": "Preventivo inviato, controlla la tua mail",
+    "emailError": "C'è stato un errore durante l'invio della mail",
+    "invalidEmail": "Inserisci un'email valida",
+    "send": "Invia"
+  },
+  "lights": {
+    "moveLight": "Sposta luce",
+    "selectLight": "Clicca su una luce per selezionarla e spostarla",
+    "position": "Posizione: {percent}%",
+    "positionOccupied": "Posizione occupata",
+    "positionFree": "Posizione libera",
+    "confirmPosition": "Conferma posizione",
+    "noLightsFound": "Non sono state trovate luci. Aggiungi prima una luce al progetto.",
+    "cannotMoveLight": "Impossibile spostare la luce alla posizione specificata"
+  },
+  "system": {
+    "moveSystem": "Sposta sistema",
+    "moveObjects": "Sposta Oggetti",
+    "increments": "Incrementi di 10cm",
+    "centerInRoom": "Centra in Stanza",
+    "noObjects": "Non ci sono oggetti da spostare. Aggiungi prima degli elementi al progetto.",
+    "systemCentered": "Sistema centrato nella stanza"
+  },
+  "room": {
+    "virtualRoom": "Stanza Virtuale",
+    "settings": "Impostazioni Stanza Virtuale",
+    "width": "Larghezza",
+    "height": "Altezza",
+    "depth": "Profondità",
+    "modifyDimensions": "Modifica le dimensioni della stanza virtuale per adattarla al tuo progetto:",
+    "dimensions": "Dimensioni"
+  },
+  "download": {
+    "configuration": "Scarica Configurazione",
+    "chooseFormat": "Scegli il formato per scaricare la tua configurazione:",
+    "technical2D": "Scarica schema tecnico PDF in 2D",
+    "model3D": "Scarica modello tridimensionale GLTF in 3D"
+  }
+}
