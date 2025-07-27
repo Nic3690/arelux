@@ -659,7 +659,7 @@ function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDe
 		disabled={virtualRoomDisabled}
 		title={virtualRoomDisabled 
 			? "Aggiungi degli oggetti per attivare la stanza virtuale" 
-			: (showVirtualRoom ? "Nascondi stanza virtuale" : "Mostra stanza virtuale")
+			: (showVirtualRoom ? $_('config.hideVirtual') : $_("config.showVirtual"))
 		}
 	>
 		<House size={20} />

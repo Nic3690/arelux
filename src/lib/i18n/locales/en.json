@@ -40,7 +40,9 @@
     "length": "Length",
     "angle": "Angle",
     "radius": "Radius",
-    "modifyCurvature": "Modify curvature"
+    "modifyCurvature": "Modify curvature",
+    "hideVirtual": "Nascondi stanza virtuale",
+    "showVirtual": "Mostra stanza virtuale"
   },
   "invoice": {
     "title": "Quote",

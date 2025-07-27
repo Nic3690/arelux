@@ -13,15 +13,15 @@
 	let imagesLoading = true;
 
 	const defaultDescription = 'Lorem ipsum dolor sit amet. Non quae dolorem est quod accusamus est voluptatem earum sit cupiditate pariatur rem enim molestias est voluptatibus tempore. Sit omnis doloribus At quia rerum ut corporis nostrum aut maxime dolor est dolore nisi et voluptate corrupti eum tempora consectetur.';
-	
-	function getDescription(systemId: string): string {
+
+	$: getDescription = (systemId: string): string => {
         const descriptionKeys: Record<string, string> = {
             'xnet': 'home.XNET',
             'xfree_s': 'home.XFREES',
         };
         
         return descriptionKeys[systemId] ? $_(descriptionKeys[systemId]) : defaultDescription;
-    }
+    };
 
 	interface System {
 		id: string;
@@ -43,6 +43,29 @@
 	}
 	
 	let systems: System[] = [];
+	let selectedSystem: System = {
+		id: '',
+		name: '',
+		description: defaultDescription,
+		mainImage: '',
+		productImage1: '',
+		productImage2: '',
+		productImage3: ''
+	};
+
+	$: if (systems.length > 0) {
+		systems = systems.map(system => ({
+			...system,
+			description: getDescription(system.id.toLowerCase().replace(' ', '_'))
+		}));
+
+		if (selectedSystem.id) {
+			selectedSystem = {
+				...selectedSystem,
+				description: getDescription(selectedSystem.id.toLowerCase().replace(' ', '_'))
+			};
+		}
+	}
 
 	onMount(async () => {
 		imagesLoading = true;
@@ -72,16 +95,6 @@
 		imagesLoading = false;
 	});
 
-	let selectedSystem: System = {
-		id: '',
-		name: '',
-		description: defaultDescription,
-		mainImage: '',
-		productImage1: '',
-		productImage2: '',
-		productImage3: ''
-	};
-
 	function selectSystem(system: System): void {
 		selectedSystem = system;
 	}
@@ -91,6 +104,11 @@
 			window.location.href = `/${$page.params.tenant}/${selectedSystem.id}`;
 		}
 	}
+
+	$: console.log('Descrizioni aggiornate:', {
+		xnet: getDescription('xnet'),
+		xfree_s: getDescription('xfree_s')
+	});
 </script>
 
 <div class="flex flex-col h-screen">

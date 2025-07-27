@@ -40,7 +40,9 @@
     "length": "Lunghezza",
     "angle": "Angolo",
     "radius": "Raggio",
-    "modifyCurvature": "Modifica curvatura"
+    "modifyCurvature": "Modifica curvatura",
+    "hideVirtual": "Nascondi stanza virtuale",
+    "showVirtual": "Mostra stanza virtuale"
   },
   "invoice": {
     "title": "Preventivo",
