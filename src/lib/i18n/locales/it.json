@@ -94,24 +94,19 @@
   },
   "database": {
     "terms": {
-      "luce": "Luce",
-      "luci": "Luci",
-      "profilo": "Profilo",
-      "profili": "Profili",
-      "curva": "Curva",
-      "curvo": "Curvo",
-      "dritta": "Dritta",
-      "dritto": "Dritto",
-      "sospensione": "Sospensione",
-      "incasso": "Incasso",
-      "superficie": "Superficie",
-      "angolare": "Angolare",
-      "lineare": "Lineare",
-      "connettore": "Connettore",
-      "connettori": "Connettori",
-      "alimentatore": "Alimentatore",
-      "alimentatori": "Alimentatori",
-      "profiliSospensione": "Profili a sospensione"
+      "Profili a sospensione": "Profili a sospensione",
+      "Profili incasso": "Profili incasso",
+      "Profili superficiali": "Profili superficiali",
+      "Profili ad incasso verticale": "Profili ad incasso verticale",
+      "Connettore a L": "Connettore a L",
+      "Connettore a T": "Connettore a T",
+      "Connettore a X": "Connettore a X",
+      "Connettore ad angolo esterno": "Connettore ad angolo esterno",
+      "Connettore ad angolo interno": "Connettore ad angolo interno",
+      "Connettore ciclico corto": "Connettore ciclico corto",
+      "Connettore ciclico lungo": "Connettore ciclico lungo",
+      "Tappo senza alimentazione": "Tappo senza alimentazione",
+      "Proiettori lineari": "Proiettori lineari"
     }
   }
 }

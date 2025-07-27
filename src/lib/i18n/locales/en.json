@@ -94,24 +94,19 @@
   },
   "database": {
     "terms": {
-      "luce": "Light",
-      "luci": "Lights",
-      "profilo": "Profile",
-      "profili": "Profiles",
-      "curva": "Curved",
-      "curvo": "Curved",
-      "dritta": "Straight",
-      "dritto": "Straight",
-      "sospensione": "Suspension",
-      "incasso": "Recessed",
-      "superficie": "Surface",
-      "angolare": "Angular",
-      "lineare": "Linear",
-      "connettore": "Connector",
-      "connettori": "Connectors",
-      "alimentatore": "Power Supply",
-      "alimentatori": "Power Supplies",
-      "profiliSospensione": "Suspended profiles"
+      "Profili a sospensione": "Suspended profiles",
+      "Profili incasso": "Recessed profiles",
+      "Profili superficiali": "Surface profiles",
+      "Profili ad incasso verticale": "Vertical recessed profiles",
+      "Connettore a L": "L-shaped connector",
+      "Connettore a T": "T-shaped connector",
+      "Connettore a X": "X-shaped connector",
+      "Connettore ad angolo esterno": "External angle connector",
+      "Connettore ad angolo interno": "Internal angle connector",
+      "Connettore ciclico corto": "Short cyclic connector",
+      "Connettore ciclico lungo": "Long cyclic connector",
+      "Tappo senza alimentazione": "Cap without power supply",
+      "Proiettori lineari": "Linear projectors"
     }
   }
 }
