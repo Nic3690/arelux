@@ -262,10 +262,8 @@ export const load: LayoutLoad = async ({ params }) => {
 	const tenant = params.tenant;
 	if (!(await supabase.storage.listBuckets()).data?.some((x) => x.name === tenant)) error(404);
 
-	// Carica il catalogo originale
 	const originalCatalog = await loadCatalog(supabase, tenant);
 
-	// Carica le famiglie, sistemi, joiners e settings
 	const [families, systems, joiners, settings] = await Promise.all([
 		loadFamilies(supabase, originalCatalog, tenant),
 		loadSystems(supabase, tenant),
@@ -273,38 +271,22 @@ export const load: LayoutLoad = async ({ params }) => {
 		loadSettings(supabase, tenant),
 	]);
 
-	// IMPORTANTE: Prima genera le famiglie enhanced
-	// Questo popola il generatedCatalogEntries nel TemperatureManager
-	// console.log('🔧 Generando famiglie enhanced...');
 	const enhancedFamilies: Record<string, Family> = {};
 	for (const [code, family] of Object.entries(families)) {
 		enhancedFamilies[code] = TemperatureManager.getEnhancedFamily(family, originalCatalog);
 	}
 
-	// POI genera l'enhanced catalog che include le entry generate
-	// console.log('🔧 Generando enhanced catalog...');
 	const enhancedCatalog = TemperatureManager.getEnhancedCatalog(originalCatalog);
-	
-	// Debug: verifica che le varianti siano state generate
+
 	const generatedVariants = Object.keys(enhancedCatalog).filter(k => 
 		!originalCatalog[k] && (k.includes('UWW') || k.includes('WW'))
 	);
-	// console.log('✅ Varianti generate nel catalog:', generatedVariants.length);
-	// console.log('📋 Esempi di varianti generate:', generatedVariants.slice(0, 5));
-	
-	// Debug specifico per XNRS14UWW SU SBK
-	const targetCode = 'XNRS14UWW SU SBK';
-	// console.log(`🔍 Verifica ${targetCode}:`, {
-	// 	inOriginal: !!originalCatalog[targetCode],
-	// 	inEnhanced: !!enhancedCatalog[targetCode],
-	// 	catalogEntry: enhancedCatalog[targetCode]
-	// });
 
 	return {
 		supabase,
-		catalog: enhancedCatalog, // Usa l'enhanced catalog
+		catalog: enhancedCatalog,
 		tenant,
-		families: enhancedFamilies, // Usa le famiglie enhanced
+		families: enhancedFamilies,
 		systems,
 		joiners,
 		settings,
