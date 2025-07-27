@@ -12,6 +12,7 @@
     import { toast } from 'svelte-sonner';
     import { Check } from 'phosphor-svelte';
     import type { TemporaryObject } from '$lib/renderer/objects';
+    import { _ } from 'svelte-i18n';
 
     let { 
         active = false,
@@ -208,6 +209,6 @@
         title={active ? 'Disattiva modalità sposta configurazione' : 'Attiva modalità sposta configurazione'}
     >
         <ArrowsOutCardinal size={20} />
-        <span>Sposta sistema</span>
+        <span>{$_('system.moveSystem')}</span>
     </button>
 </div>

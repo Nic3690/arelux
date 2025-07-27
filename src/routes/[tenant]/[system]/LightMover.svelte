@@ -7,6 +7,7 @@
     import type { MouseEventHandler } from 'svelte/elements';
     import type { Renderer } from '$lib/renderer/renderer';
     import type { TemporaryObject } from '$lib/renderer/objects';
+    import { _ } from 'svelte-i18n';
 
     let { 
         active = false,
@@ -165,7 +166,7 @@
         {disabled}
     >
         <LightbulbFilament size={20} />
-        <span>Sposta luce</span>
+        <span>{$_('lights.moveLight')}</span>
     </button>
 </div>
 

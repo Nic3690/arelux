@@ -274,9 +274,9 @@
 		</a>
 
 		{#if $objects.length === 0}
-			<span>Non ci sono ancora componenti nella tua configurazione</span>
+			<span>{$_('home.noComponents')}</span>
 		{:else}
-			<span>La tua configurazione</span>
+			<span>{$_('home.yourConfiguration')}</span>
 		{/if}
 
 		<ScrollArea.Root>
@@ -337,15 +337,15 @@
 		</ScrollArea.Root>
 
 		<Button.Root class={button({ class: 'mt-auto' })} href="/{data.tenant}/{data.system}/add">
-			AGGIUNGI
+			{$_('common.add')}
 		</Button.Root>
 
 		<!-- Preventivo -->
 		<div class="flex flex-col gap-2 rounded bg-box p-5">
-			<span>Preventivo</span>
+			<span>{$_('invoice.title')}</span>
 			{#if data.settings.password.length !== 0}
 				<Dialog.Root bind:open={codeDialogOpen}>
-					<Dialog.Trigger class={button({ size: 'xs' })}>Codice</Dialog.Trigger>
+					<Dialog.Trigger class={button({ size: 'xs' })}>{$_('invoice.password')}</Dialog.Trigger>
 					<Dialog.Portal>
 						<Dialog.Overlay
 							transition={fade}
@@ -399,7 +399,7 @@
 				class={button({ color: 'secondary', size: 'xs' })}
 				on:click={() => (showDownloadPopup = true)}
 			>
-				Scarica
+				{$_('common.download')}
 			</Button.Root>
 		</div>
 	</div>

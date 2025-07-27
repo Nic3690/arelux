@@ -16,6 +16,7 @@
 	import { virtualRoomVisible, virtualRoomDimensions } from './virtualRoomStore';
 	import { arc } from './config/svgutils';
 	import { CarProfile } from 'phosphor-svelte';
+	import { _ } from 'svelte-i18n';
 
 	let { 
 		is3d = $bindable(page.data.settings.allow3d), 
@@ -755,26 +756,26 @@ function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDe
 				class="fixed left-[50%] top-[50%] z-50 w-full max-w-[94%] translate-x-[-50%] translate-y-[-50%] rounded bg-background p-5 shadow-popover outline-none lg:w-2/5"
 			>
 				<Dialog.Title class="flex w-full items-center text-left text-2xl font-bold">
-					Scarica Configurazione
+					{$_('download.configuration')}
 				</Dialog.Title>
 				<Separator.Root class="-mx-5 mb-3 mt-3 block h-px bg-muted" />
 
 				<Dialog.Description>
-					<p class="mb-6">Scegli il formato per scaricare la tua configurazione:</p>
+					<p class="mb-6">{$_('download.chooseFormat')}</p>
 					
 					<div class="flex flex-col gap-4">
 						<button 
 							class="w-full py-4 text-lg text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 bg-yellow-400 hover:bg-yellow-300"
 							onclick={handleDownload2D}
 						>
-							Scarica schema tecnico PDF in 2D
+							{$_('download.technical2D')}
 						</button>
 
 						<button 
 							class="w-full py-4 text-lg text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 bg-yellow-400 hover:bg-yellow-300"
 							onclick={handleDownload3D}
 						>
-							Scarica modello tridimensionale GLTF in 3D
+							{$_('download.model3D')}
 						</button>
 					</div>
 
@@ -783,7 +784,7 @@ function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDe
 							class="flex-1 text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 border border-gray-300 bg-white hover:bg-gray-100 py-2"
 							onclick={() => showDownloadDialog = false}
 						>
-							Annulla
+							{$_('common.cancel')}
 						</button>
 					</div>
 				</Dialog.Description>
@@ -813,16 +814,16 @@ function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDe
 				class="fixed left-[50%] top-[50%] z-50 w-full max-w-[94%] translate-x-[-50%] translate-y-[-50%] rounded bg-background p-5 shadow-popover outline-none lg:w-2/5"
 			>
 				<Dialog.Title class="flex w-full items-center text-left text-2xl font-bold">
-					Impostazioni Stanza Virtuale
+					{$_('room.settings')}
 				</Dialog.Title>
 				<Separator.Root class="-mx-5 mb-3 mt-3 block h-px bg-muted" />
 
 				<Dialog.Description>
-					<p class="mb-4">Modifica le dimensioni della stanza virtuale per adattarla al tuo progetto:</p>
+					<p class="mb-4">{$_('room.modifyDimensions')}</p>
 					
 					<div class="flex flex-col gap-4">
 						<div class="flex items-center">
-							<label for="tempRoomWidth" class="mr-2 w-24">Larghezza:</label>
+							<label for="tempRoomWidth" class="mr-2 w-24">{$_('room.width')}</label>
 							<input 
 								id="tempRoomWidth" 
 								type="range" 
@@ -835,7 +836,7 @@ function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDe
 							<span class="ml-2 w-16 text-right">{(tempRoomWidth / 10).toFixed(1)}m</span>
 						</div>
 						<div class="flex items-center">
-							<label for="tempRoomHeight" class="mr-2 w-24">Altezza:</label>
+							<label for="tempRoomHeight" class="mr-2 w-24">{$_('room.height')}</label>
 							<input 
 								id="tempRoomHeight" 
 								type="range" 
@@ -848,7 +849,7 @@ function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDe
 							<span class="ml-2 w-16 text-right">{(tempRoomHeight / 10).toFixed(1)}m</span>
 						</div>
 						<div class="flex items-center">
-							<label for="tempRoomDepth" class="mr-2 w-24">Profondità:</label>
+							<label for="tempRoomDepth" class="mr-2 w-24">{$_('room.depth')}</label>
 							<input 
 								id="tempRoomDepth" 
 								type="range" 
@@ -867,13 +868,13 @@ function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDe
 							class="flex-1 text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 border border-gray-300 bg-white hover:bg-gray-100 py-2"
 							onclick={cancelRoomSettings}
 						>
-							Annulla
+							{$_('common.cancel')}
 						</button>
 						<button 
 							class="flex-1 text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 bg-yellow-400 hover:bg-yellow-300 py-2"
 							onclick={confirmRoomSettings}
 						>
-							Conferma
+							{$_('common.confirm')}
 						</button>
 					</div>
 				</Dialog.Description>

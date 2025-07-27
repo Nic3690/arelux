@@ -1,7 +1,7 @@
 {
   "common": {
     "back": "Back",
-    "add": "Add",
+    "add": "ADD",
     "confirm": "Confirm",
     "cancel": "Cancel",
     "delete": "Delete",
@@ -22,7 +22,9 @@
     "title": "Choose the system you want to configure:",
     "yourConfiguration": "Your configuration",
     "noComponents": "There are no components in your configuration yet",
-    "configure": "Configure"
+    "configure": "Configure",
+    "XNET": "XNET is a recessed track system for professional lighting. Ideal for shops, galleries, and commercial spaces, it offers an elegant and discreet solution for lighting spaces that require versatility and performance.",
+    "XFREES": "XFREES offers a flexible ceiling track lighting system. Perfect for modern homes and versatile spaces requiring adaptable solutions for different lighting needs."
   },
   "config": {
     "modifyObject": "Modify the object to insert",

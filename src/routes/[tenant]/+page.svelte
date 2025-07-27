@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import Logo from '$lib/Logo.svelte';
 	import { slide } from 'svelte/transition';
+	import { _ } from 'svelte-i18n';
 	
 	export let data: PageData;
 
@@ -13,10 +14,14 @@
 
 	const defaultDescription = 'Lorem ipsum dolor sit amet. Non quae dolorem est quod accusamus est voluptatem earum sit cupiditate pariatur rem enim molestias est voluptatibus tempore. Sit omnis doloribus At quia rerum ut corporis nostrum aut maxime dolor est dolore nisi et voluptate corrupti eum tempora consectetur.';
 	
-	const descriptions: Record<string, string> = {
-		'xnet': 'XNET è un sistema di binari a incasso per illuminazione professionale. Ideale per negozi, gallerie e spazi commerciali. Offre una soluzione elegante e discreta per l\'illuminazione di ambienti che richiedono versatilità e prestazioni.',
-		'xfree_s': 'XFREES offre un sistema di illuminazione flessibile con binari a soffitto. Perfetto per abitazioni moderne e spazi versatili che necessitano di soluzioni adattabili alle diverse esigenze di illuminazione.',
-	};
+	function getDescription(systemId: string): string {
+        const descriptionKeys: Record<string, string> = {
+            'xnet': 'home.XNET',
+            'xfree_s': 'home.XFREES',
+        };
+        
+        return descriptionKeys[systemId] ? $_(descriptionKeys[systemId]) : defaultDescription;
+    }
 
 	interface System {
 		id: string;
@@ -52,7 +57,7 @@
 			return {
 				id: systemId,
 				name: getSystemName(id),
-				description: descriptions[id] || defaultDescription,
+				description: getDescription(id),
 				mainImage,
 				productImage1,
 				productImage2,
@@ -90,7 +95,7 @@
 
 <div class="flex flex-col h-screen">
 	<div class="flex pt-10 pb-10 px-6 items-center justify-between">
-		<h1 class="text-xl font-medium">Scegli il sistema che vuoi configurare:</h1>
+		<h1 class="text-xl font-medium">{$_('home.title')}</h1>
 		<Logo top={true} />
 	</div>
 
@@ -122,7 +127,7 @@
 				class="w-full py-3 mt-4 mb-6 rounded-full bg-yellow-400 font-medium"
 				on:click={goToConfig}
 			>
-				Configura
+				{$_('common.configure')}
 			</button>
 		</div>
 

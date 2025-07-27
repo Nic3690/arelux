@@ -1,7 +1,7 @@
 {
   "common": {
     "back": "Indietro",
-    "add": "Aggiungi",
+    "add": "AGGIUNGI",
     "confirm": "Conferma",
     "cancel": "Annulla",
     "delete": "Elimina",
@@ -22,7 +22,9 @@
     "title": "Scegli il sistema che vuoi configurare:",
     "yourConfiguration": "La tua configurazione",
     "noComponents": "Non ci sono ancora componenti nella tua configurazione",
-    "configure": "Configura"
+    "configure": "Configura",
+    "XNET": "XNET è un sistema di binari a incasso per illuminazione professionale. Ideale per negozi, gallerie e spazi commerciali. Offre una soluzione elegante e discreta per l'illuminazione di ambienti che richiedono versatilità e prestazioni.",
+    "XFREES": "XFREES offre un sistema di illuminazione flessibile con binari a soffitto. Perfetto per abitazioni moderne e spazi versatili che necessitano di soluzioni adattabili alle diverse esigenze di illuminazione."
   },
   "config": {
     "modifyObject": "Modifica l'oggetto da inserire",
