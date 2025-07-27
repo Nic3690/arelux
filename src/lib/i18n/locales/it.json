@@ -92,6 +92,12 @@
     "technical2D": "Scarica schema tecnico PDF in 2D",
     "model3D": "Scarica modello tridimensionale GLTF in 3D"
   },
+  "subfamilies": {
+    "OP": "Proiettori lineari",
+    "GB": "Sferiche",
+    "SU": "Sospensione", 
+    "SP": "Proiettori orientabili"
+  },
   "database": {
     "terms": {
       "Profili a sospensione": "Profili a sospensione",
@@ -105,8 +111,7 @@
       "Connettore ad angolo interno": "Connettore ad angolo interno",
       "Connettore ciclico corto": "Connettore ciclico corto",
       "Connettore ciclico lungo": "Connettore ciclico lungo",
-      "Tappo senza alimentazione": "Tappo senza alimentazione",
-      "Proiettori lineari": "Proiettori lineari"
+      "Tappo senza alimentazione": "Tappo senza alimentazione"
     }
   }
 }

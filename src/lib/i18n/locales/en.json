@@ -92,6 +92,12 @@
     "technical2D": "Download 2D PDF technical drawing",
     "model3D": "Download 3D GLTF model"
   },
+  "subfamilies": {
+    "OP": "Linear projectors",
+    "GB": "Sphericals",
+    "SU": "Suspended", 
+    "SP": "Adjustable projectors"
+  },
   "database": {
     "terms": {
       "Profili a sospensione": "Suspended profiles",
@@ -105,8 +111,7 @@
       "Connettore ad angolo interno": "Internal angle connector",
       "Connettore ciclico corto": "Short cyclic connector",
       "Connettore ciclico lungo": "Long cyclic connector",
-      "Tappo senza alimentazione": "Cap without power supply",
-      "Proiettori lineari": "Linear projectors"
+      "Tappo senza alimentazione": "Cap without power supply"
     }
   }
 }

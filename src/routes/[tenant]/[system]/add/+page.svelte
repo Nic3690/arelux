@@ -24,7 +24,7 @@
 	import { Vector3 } from 'three';
 	import type { Family } from '../../../../app';
 	import { TemperatureManager, type TemperatureConfig } from '$lib/config/temperatureConfig';
-	import { extractSubfamilies, hasLightSubfamilies, sortSubfamilies, type LightSubfamily } from '$lib/lightSubfamilies';
+	import { extractSubfamilies, getSubfamilyName, hasLightSubfamilies, sortSubfamilies, type LightSubfamily } from '$lib/lightSubfamilies';
 	import { _ } from 'svelte-i18n';
 	import DbText from '$lib/i18n/DbText.svelte';
 
@@ -98,36 +98,28 @@
 	let lightFamilies = $derived(() => {
 		if (mode !== 'Luci') return [];
 		
-		// Ottieni tutte le famiglie del gruppo "Luci"
 		const families = Object.values(data.families)
 			.filter((fam) => fam.system === data.system)
 			.filter((fam) => fam.group === 'Luci')
 			.filter((fam) => fam.visible);
 		
-		console.log('🔦 Famiglie Luci trovate:', families.map(f => f.displayName));
-		
-		// Estrai le sottofamiglie da tutte le famiglie luci
 		const allSubfamilies = new Map<string, LightSubfamily>();
 		
 		for (const family of families) {
-			console.log(`📋 Analizzando famiglia ${family.displayName} con ${family.items.length} items`);
-			console.log('Items:', family.items.map(i => i.code));
-			
 			if (hasLightSubfamilies(family)) {
-				console.log(family);
 				const subfamiliesMap = extractSubfamilies(family, enhancedCatalog);
 				
-				// Merge subfamilies, combining models from different families
 				for (const [code, subfamily] of subfamiliesMap) {
+					// Aggiorna il displayName con la traduzione
+					subfamily.displayName = getSubfamilyName(code, $_);
+					
 					if (allSubfamilies.has(code)) {
-						// Merge models
 						const existing = allSubfamilies.get(code)!;
 						for (const model of subfamily.models) {
 							if (!existing.models.some(m => m.baseModel === model.baseModel)) {
 								existing.models.push(model);
 							}
 						}
-						// Sort models by power
 						existing.models.sort((a, b) => a.power - b.power);
 					} else {
 						allSubfamilies.set(code, subfamily);
@@ -135,8 +127,6 @@
 				}
 			}
 		}
-		
-		console.log('🎯 Sottofamiglie totali trovate:', Array.from(allSubfamilies.keys()));
 		
 		return sortSubfamilies(Array.from(allSubfamilies.values()));
 	});
@@ -148,7 +138,14 @@
 		if (!hasLightSubfamilies(family)) return [];
 		
 		const subfamiliesMap = extractSubfamilies(family, enhancedCatalog);
-		return sortSubfamilies(Array.from(subfamiliesMap.values()));
+		const subfamilies = Array.from(subfamiliesMap.values());
+		
+		// Aggiungi traduzioni
+		subfamilies.forEach(subfamily => {
+			subfamily.displayName = getSubfamilyName(subfamily.code, $_);
+		});
+		
+		return sortSubfamilies(subfamilies);
 	});
 
 	// Resetta la selezione quando cambia la famiglia o il mode
@@ -368,12 +365,6 @@
 							selectedPower = undefined;
 						}}
 					>
-						{#if mode === 'Luci'}
-							<span class="pb-3 text-sm">
-								Capacità: {$objects && getPowerBudget(enhancedCatalog) + 'W'}
-							</span>
-						{/if}
-
 						{#each lightFamilies() as subfamily}
 							{@const iconCode = TemperatureManager.getBaseCodeForResources(subfamily.iconItem)}
 							{@const url = data.supabase.storage
@@ -431,11 +422,6 @@
 							selectedPower = undefined;
 						}}
 					>
-						{#if mode === 'power'}
-							<span class="pb-3 text-sm">
-								Capacità: {$objects && getPowerBudget(data.catalog) + 'W'}
-							</span>
-						{/if}
 
 						{#each lightSubfamilies() as subfamily}
 							{@const iconCode = TemperatureManager.getBaseCodeForResources(subfamily.iconItem)}
@@ -489,11 +475,6 @@
 						class="flex h-full min-h-0 shrink flex-col gap-6 overflow-y-scroll rounded bg-box p-6"
 						bind:value={chosenFamily}
 					>
-						{#if mode === 'power'}
-							<span class="pb-3 text-sm">
-								Capacità: {$objects && getPowerBudget(data.catalog) + 'W'}
-							</span>
-						{/if}
 
 						{#each Object.values(data.families)
 							.sort((a, b) => {

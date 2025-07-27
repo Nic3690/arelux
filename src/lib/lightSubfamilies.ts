@@ -51,7 +51,7 @@ export function extractSubfamilies(family: Family, catalog: Record<string, Catal
       if (!subfamilies.has(subfamilyCode)) {
         subfamilies.set(subfamilyCode, {
           code: subfamilyCode,
-          displayName: getSubfamilyName(subfamilyCode),
+          displayName: subfamilyCode, // Placeholder - verrà sostituito dalla traduzione
           iconItem: item.code,
           models: []
         });
@@ -96,13 +96,22 @@ export function extractSubfamilies(family: Family, catalog: Record<string, Catal
   return subfamilies;
 }
 
-// Mappatura nomi sottofamiglie
-const SUBFAMILY_NAMES: Record<string, string> = {
-  'OP': 'Proiettori lineari',
-  'GB': 'Sferiche', 
-  'SU': 'Sospensione',
-  'SP': 'Proiettori orientabili',
-};
+// Funzione per ottenere il nome tradotto della sottofamiglia
+export function getSubfamilyName(code: string, translateFn?: (key: string) => string): string {
+  if (translateFn) {
+    return translateFn(`subfamilies.${code}`);
+  }
+  
+  // Fallback per retrocompatibilità
+  const SUBFAMILY_NAMES: Record<string, string> = {
+    'OP': 'Proiettori lineari',
+    'GB': 'Sferiche', 
+    'SU': 'Sospensione',
+    'SP': 'Proiettori orientabili',
+  };
+  
+  return SUBFAMILY_NAMES[code] || code;
+}
 
 const SUBFAMILY_ORDER: Record<string, number> = {
   'OP': 1,
@@ -110,10 +119,6 @@ const SUBFAMILY_ORDER: Record<string, number> = {
   'SU': 3,
   'SP': 4,
 };
-
-export function getSubfamilyName(code: string): string {
-  return SUBFAMILY_NAMES[code] || code;
-}
 
 export function sortSubfamilies(subfamilies: LightSubfamily[]): LightSubfamily[] {
   return subfamilies.sort((a, b) => {
