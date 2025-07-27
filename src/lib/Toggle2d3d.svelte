@@ -41,6 +41,16 @@
 	let tempRoomHeight = $state(roomHeight);
 	let tempRoomDepth = $state(roomDepth);
 
+	const tooltipText = $derived(
+		virtualRoomDisabled 
+			? "Aggiungi degli oggetti per attivare la stanza virtuale" 
+			: (showVirtualRoom ? $_('config.hideVirtual') : $_("config.showVirtual"))
+		);
+	
+	const roomSettingsTooltip = $derived($_('config.editRoomSize'));
+	const helpTooltip = $derived($_('config.helpInfo'));
+	const downloadTooltip = $derived($_('config.download'));
+
 	$effect(() => {
 		virtualRoomVisible.set(showVirtualRoom);
 	});
@@ -657,10 +667,7 @@ function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDe
 		class={`h-12 w-12 font-bold flex items-center justify-center text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 border border-gray-300 ${showVirtualRoom ? 'bg-yellow-400' : 'bg-white hover:bg-yellow-400'}`}
 		onclick={toggleVirtualRoom}
 		disabled={virtualRoomDisabled}
-		title={virtualRoomDisabled 
-			? "Aggiungi degli oggetti per attivare la stanza virtuale" 
-			: (showVirtualRoom ? $_('config.hideVirtual') : $_("config.showVirtual"))
-		}
+		title={tooltipText}
 	>
 		<House size={20} />
 	</button>
@@ -668,7 +675,7 @@ function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDe
 	<button 
 		class="h-12 w-12 font-bold flex items-center justify-center text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 border border-gray-300 bg-white hover:bg-yellow-400"
 		onclick={openRoomSettings}
-		title="Modifica dimensioni stanza"
+		title={roomSettingsTooltip}
 	>
 		<ArrowsHorizontal size={20} />
 	</button>
@@ -677,7 +684,7 @@ function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDe
 	<button 
 		class="h-12 w-12 font-bold mt-2 text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 border border-gray-300 bg-white hover:bg-yellow-400 flex items-center justify-center"
 		onclick={() => showHelpDialog = true}
-		title="Aiuto e informazioni"
+		title={helpTooltip}
 	>
 		<span class="text-xl">?</span>
 	</button>
@@ -739,7 +746,7 @@ function calculateBezierControlPoint(point1: Vector3, point2: Vector3, angleInDe
 	<button 
 		class="h-12 w-12 font-bold flex items-center justify-center text-center rounded-md transition-all shadow-btn active:scale-98 active:shadow-btn-active disabled:cursor-not-allowed disabled:text-black/40 disabled:shadow-none disabled:grayscale disabled:active:scale-100 border border-gray-300 bg-white hover:bg-yellow-400"
 		onclick={() => showDownloadDialog = true}
-		title="Scarica configurazione"
+		title={downloadTooltip}
 	>
 		<Download size={20} />
 	</button>

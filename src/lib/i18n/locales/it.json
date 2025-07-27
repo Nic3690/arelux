@@ -42,7 +42,10 @@
     "radius": "Raggio",
     "modifyCurvature": "Modifica curvatura",
     "hideVirtual": "Nascondi stanza virtuale",
-    "showVirtual": "Mostra stanza virtuale"
+    "showVirtual": "Mostra stanza virtuale",
+    "editRoomSize": "Modifica dimensioni stanza",
+    "helpInfo": "Aiuto e informazioni",
+    "download": "Scarica configurazione"
   },
   "invoice": {
     "title": "Preventivo",

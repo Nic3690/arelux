@@ -41,8 +41,11 @@
     "angle": "Angle",
     "radius": "Radius",
     "modifyCurvature": "Modify curvature",
-    "hideVirtual": "Nascondi stanza virtuale",
-    "showVirtual": "Mostra stanza virtuale"
+    "hideVirtual": "Hide virtual room",
+    "showVirtual": "Show virtual room",
+    "editRoomSize": "Edit room size",
+    "helpInfo": "Help and info",
+    "download": "Download configuration"
   },
   "invoice": {
     "title": "Quote",

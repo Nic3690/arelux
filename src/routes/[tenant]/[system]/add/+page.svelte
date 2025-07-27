@@ -25,6 +25,7 @@
 	import type { Family } from '../../../../app';
 	import { TemperatureManager, type TemperatureConfig } from '$lib/config/temperatureConfig';
 	import { extractSubfamilies, hasLightSubfamilies, sortSubfamilies, type LightSubfamily } from '$lib/lightSubfamilies';
+	import { _ } from 'svelte-i18n';
 
 	function hasTemperatureVariants(family: Family): boolean {
 		const enhancedFamily = TemperatureManager.getEnhancedFamily(family, enhancedCatalog);
@@ -316,10 +317,10 @@
 		<div class="row-span-3 flex max-h-full flex-col gap-6">
 			<a href="/{data.tenant}/{data.system}" class="inline-flex">
 				<ArrowLeft class="translate-y-1" />
-				Indietro
+				{$_("common.back")}
 			</a>
 
-			<span>Modifica l'oggetto da inserire</span>
+			<span>{$_("config.modifyObject")}</span>
 
 			{#if page.state.chosenFamily === undefined}
 				<DropdownMenu.Root>
@@ -628,7 +629,7 @@
 					{#if (chosenFamily !== undefined && (data.families[chosenFamily].needsConfig || hasTemperatureVariants(data.families[chosenFamily]))) || (mode === 'Luci' && selectedPower)}
 						AVANTI
 					{:else}
-						AGGIUNGI
+						{$_("common.add")}
 					{/if}
 				</Button.Root>
 				{/if}
