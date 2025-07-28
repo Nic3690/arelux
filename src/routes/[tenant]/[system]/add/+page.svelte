@@ -27,6 +27,7 @@
 	import { extractSubfamilies, getSubfamilyName, hasLightSubfamilies, sortSubfamilies, type LightSubfamily } from '$lib/lightSubfamilies';
 	import { _ } from 'svelte-i18n';
 	import DbText from '$lib/i18n/DbText.svelte';
+	import { object } from 'zod';
 
 	function hasTemperatureVariants(family: Family, itemCode?: string): boolean {
 		console.log(itemCode);
@@ -825,7 +826,10 @@
 							  (family.needsLengthConfig && !family.isLed)}
 
 			{#if isProfilo}
-				{#if family.system === "XNet" || family.system === "XFree S"}
+				{@const currentItem = page.state.chosenItem ? family.items.find(item => item.code === page.state.chosenItem) : null}
+				{@const isCurrentItemCurved = currentItem && currentItem.deg > 0}
+				
+				{#if (family.system === "XNet" || family.system === "XFree S") && !configShape?.angle && !isCurrentItemCurved}
 					<ConfigLength
 						{family}
 						onsubmit={(objectCode, length, isCustom) => {
@@ -840,7 +844,7 @@
 							});
 						}}
 					/>
-				{:else if family.needsLengthConfig && !family.arbitraryLength}
+				{:else if family.needsLengthConfig && !family.arbitraryLength && !configShape?.angle && !isCurrentItemCurved}
 					<ConfigLength
 						{family}
 						onsubmit={(objectCode, length, isCustom) => {
@@ -855,7 +859,7 @@
 							});
 						}}
 					/>
-				{:else if family.needsLengthConfig && family.arbitraryLength}
+				{:else if family.needsLengthConfig && family.arbitraryLength && !configShape?.angle && !isCurrentItemCurved}
 					<ConfigLengthArbitrary
 						value={arbitraryLength}
 						onsubmit={(length) => {
