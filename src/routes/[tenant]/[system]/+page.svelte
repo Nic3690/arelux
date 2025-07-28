@@ -361,7 +361,7 @@
 							<Dialog.Title
 								class="flex w-full items-center justify-center text-lg font-semibold tracking-tight"
 							>
-								Inserisci la password
+								{$_("invoice.insertPassword")}
 							</Dialog.Title>
 							<Separator.Root class="-mx-5 mb-6 mt-5 block h-px bg-muted" />
 							<input
@@ -380,7 +380,7 @@
 							/>
 							<div class="mt-3 flex items-center justify-center">
 								<button type="button" class={button({ class: 'w-full' })} onclick={submitCode}>
-									Invia
+									{$_("invoice.send")}
 								</button>
 							</div>
 							<Dialog.Close

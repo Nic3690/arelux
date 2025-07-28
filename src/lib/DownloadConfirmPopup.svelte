@@ -214,13 +214,13 @@
 			onclick={() =>
 				pushState('', { currentPage: (page.state.currentPage ?? 0) + 1 } as App.PageState)}
 		>
-			Avanti <ArrowRight size={22} class="ml-1" />
+			{$_("invoice.next")} <ArrowRight size={22} class="ml-1" />
 		</Button.Root>
 	{:else if page.state.currentPage === 1 || (!askForLeds && page.state.currentPage === undefined)}
-		<span class="text-5xl font-semibold">Seleziona quali driver vuoi installare</span>
+		<span class="text-5xl font-semibold">{$_("config.selectDrivers")}</span>
 
 		<span class="py-6 text-2xl font-light">
-			Potenza totale: {power}W.
+			{$_("config.totalPower")}: {power}W.
 		</span>
 		<div class="grid grid-cols-2 gap-3">
 			<span class="text-center">INTRACK</span>
@@ -240,7 +240,7 @@
 						</span>
 
 						<span class="text-sm text-muted-foreground">
-							Quantità: {Math.max(Math.ceil(power / intrackDriver.power), minDrivers)}
+							{$_("config.quantity")}: {Math.max(Math.ceil(power / intrackDriver.power), minDrivers)}
 						</span>
 					</div>
 
@@ -281,7 +281,7 @@
 						</span>
 
 						<span class="text-sm text-muted-foreground">
-							Quantità: {Math.max(Math.ceil(power / remoteDriver.power), minDrivers)}
+							{$_("config.quantity")}: {Math.max(Math.ceil(power / remoteDriver.power), minDrivers)}
 						</span>
 					</div>
 
@@ -315,7 +315,7 @@
 					class={button({ class: 'flex', color: 'secondary' })}
 					onclick={() => history.back()}
 				>
-					<ArrowLeft size={22} class="mr-1" /> Indietro
+					<ArrowLeft size={22} class="mr-1" /> {$_("common.back")}
 				</Button.Root>
 			{/if}
 			<Button.Root
@@ -326,13 +326,13 @@
 					else pushState('', { currentPage: (page.state.currentPage ?? 1) + 1 } as App.PageState);
 				}}
 			>
-				Avanti <ArrowRight size={22} class="ml-1" />
+				{$_("invoice.next")} <ArrowRight size={22} class="ml-1" />
 			</Button.Root>
 		</div>
 	{:else if page.state.currentPage === 2}
-		<span class="text-5xl font-semibold">Seleziona quali teste vuoi installare</span>
+		<span class="text-5xl font-semibold">{$_("invoice.heads")}</span>
 		<span class="py-6 text-2xl font-light">
-			Potenza totale: {power}W.
+			{$_("config.totalPower")}: {power}W.
 		</span>
 		<div class="grid grid-cols-2 gap-3">
 			{#each powerSupplies as psu}
@@ -352,7 +352,7 @@
 						</span>
 
 						<span class="text-sm text-muted-foreground">
-							Quantità: {Math.max(
+							{$_("config.quantity")}: {Math.max(
 								Math.ceil(power / drivers.find((d) => d.code === currentDriver)!.power),
 								minDrivers,
 							)}
@@ -388,7 +388,7 @@
 				class={button({ class: 'flex', color: 'secondary' })}
 				onclick={() => history.back()}
 			>
-				<ArrowLeft size={22} class="mr-1" /> Indietro
+				<ArrowLeft size={22} class="mr-1" /> {$_("common.back")}
 			</Button.Root>
 			<Button.Root
 				class={button({ class: 'flex' })}
@@ -396,11 +396,11 @@
 				onclick={() =>
 					pushState('', { currentPage: (page.state.currentPage ?? 1) + 1 } as App.PageState)}
 			>
-				Avanti <ArrowRight size={22} class="ml-1" />
+				{$_("invoice.next")} <ArrowRight size={22} class="ml-1" />
 			</Button.Root>
 		</div>
 	{:else if page.state.currentPage === 3}
-		<span class="mb-6 text-5xl font-semibold">Seleziona quale scatola vuoi installare</span>
+		<span class="mb-6 text-5xl font-semibold">{$_("invoice.box")}</span>
 
 		<div class="flex flex-col gap-3">
 			{#each boxes as box}
@@ -420,7 +420,7 @@
 						</span>
 
 						<span class="text-sm text-muted-foreground">
-							Quantità: {Math.max(
+							{$_("config.quantity")}: {Math.max(
 								Math.ceil(power / drivers.find((d) => d.code === currentDriver)!.power),
 								minDrivers,
 							)}
@@ -456,7 +456,7 @@
 				class={button({ class: 'flex', color: 'secondary' })}
 				onclick={() => history.back()}
 			>
-				<ArrowLeft size={22} class="mr-1" /> Indietro
+				<ArrowLeft size={22} class="mr-1" /> {$_("common.back")}
 			</Button.Root>
 			<Button.Root
 				class={button({ class: 'flex' })}
@@ -464,14 +464,14 @@
 				onclick={() =>
 					pushState('', { currentPage: (page.state.currentPage ?? 1) + 1 } as App.PageState)}
 			>
-				Avanti <ArrowRight size={22} class="ml-1" />
+				{$_("invoice.next")} <ArrowRight size={22} class="ml-1" />
 			</Button.Root>
 		</div>
 	{:else if page.state.currentPage === 4}
-		<span class="text-5xl font-semibold">Grazie mille!</span>
+		<span class="text-5xl font-semibold">{$_("invoice.thankYou")}</span>
 
 		<span class="pt-6 text-2xl font-light">
-			Inserisci qui la tua mail per poter visualizzare il preventivo:
+			{$_("invoice.insertEmail")}
 		</span>
 
 		<Input
@@ -486,7 +486,7 @@
 				class={button({ class: 'flex', color: 'secondary' })}
 				onclick={() => history.back()}
 			>
-				<ArrowLeft size={22} class="mr-1" /> Indietro
+				<ArrowLeft size={22} class="mr-1" /> {$_("common.back")}
 			</Button.Root>
 			<button
 				type="button"

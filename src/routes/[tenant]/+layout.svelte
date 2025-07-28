@@ -3,6 +3,7 @@
 	import '../../app.pcss';
 	import { storable } from '$lib/storable';
 	import { button } from '$lib';
+	import { _ } from 'svelte-i18n';
 
 	let { data, children } = $props();
 
@@ -33,7 +34,7 @@
 
 			<input type="password" bind:value class="border" />
 			<br />
-			<button onclick={() => password.set(value)} class={button()}>Invia</button>
+			<button onclick={() => password.set(value)} class={button()}>{$_("invoice.send")}</button>
 		</div>
 	{/if}
 {:else}

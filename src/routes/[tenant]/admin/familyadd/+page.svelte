@@ -9,6 +9,7 @@
 	import { toast } from 'svelte-sonner';
 	import { page } from '$app/state';
 	import { selectedSystem } from '$lib';
+	import { _ } from 'svelte-i18n';
 
 	let { data } = $props();
 	let imageInput: HTMLInputElement | undefined = $state();
@@ -51,7 +52,7 @@
 <h1 class="py-6 text-center text-4xl">Add a new family</h1>
 
 <div class="flex items-center justify-center">
-	<Button href=".">Indietro</Button>
+	<Button href=".">{$_("common.back")}</Button>
 </div>
 
 <form

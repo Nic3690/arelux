@@ -30,8 +30,8 @@
     "modifyObject": "Modifica l'oggetto da inserire",
     "selectComponents": "Scegli i tuoi componenti o prosegui",
     "selectDrivers": "Seleziona quali driver vuoi installare",
-    "totalPower": "Potenza totale: {power}W",
-    "quantity": "Quantità: {quantity}",
+    "totalPower": "Potenza totale",
+    "quantity": "Quantità",
     "capacity": "Capacità: {capacity}",
     "chooseFamily": "Scegli una famiglia...",
     "noFamilyFound": "Nessuna famiglia trovata",
@@ -58,7 +58,10 @@
     "emailSent": "Preventivo inviato, controlla la tua mail",
     "emailError": "C'è stato un errore durante l'invio della mail",
     "invalidEmail": "Inserisci un'email valida",
-    "send": "Invia"
+    "send": "Invia",
+    "next": "Avanti",
+    "heads": "Seleziona quali teste vuoi installare:",
+    "box": "Seleziona quali scatole vuoi installare:"
   },
   "lights": {
     "moveLight": "Sposta luce",

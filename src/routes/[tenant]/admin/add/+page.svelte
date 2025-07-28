@@ -5,6 +5,7 @@
 	import LampConfig from './LampConfig.svelte';
 	import type { PageData } from './$types';
 	import { Renderer } from '$lib/renderer/renderer';
+	import { _ } from 'svelte-i18n';
 
 	let expanded: boolean = true;
 	export let data: PageData;
@@ -34,7 +35,7 @@
 	>
 		{#if expanded}
 			<div class="flex h-dvh max-h-dvh flex-col gap-3 overflow-y-scroll {expanded ? 'p-6' : ''}">
-				<Button href="/{data.tenant}/admin" class="w-full">Indietro</Button>
+				<Button href="/{data.tenant}/admin" class="w-full">{$_("common.back")}</Button>
 
 				<div class="flex gap-3">
 					<Button variant="secondary" class="w-1/3" on:click={() => renderer?.moveCamera(100, 0, 0)}

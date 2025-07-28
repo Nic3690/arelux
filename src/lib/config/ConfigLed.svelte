@@ -174,7 +174,7 @@
 						class={button({ class: 'w-full', color: 'secondary' })}
 						onclick={() => (step -= 1)}
 					>
-						Indietro
+						{$_("common.back")}
 					</Button.Root>
 					<Button.Root
 						disabled={selectedLength === undefined}

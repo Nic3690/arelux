@@ -30,8 +30,8 @@
     "modifyObject": "Modify the object to insert",
     "selectComponents": "Choose your components or continue",
     "selectDrivers": "Select which drivers you want to install",
-    "totalPower": "Total power: {power}W",
-    "quantity": "Quantity: {quantity}",
+    "totalPower": "Total power",
+    "quantity": "Quantity",
     "capacity": "Capacity: {capacity}",
     "chooseFamily": "Choose a family...",
     "noFamilyFound": "No family found",
@@ -58,7 +58,10 @@
     "emailSent": "Quote sent, check your email",
     "emailError": "There was an error sending the email",
     "invalidEmail": "Enter a valid email",
-    "send": "Send"
+    "send": "Enter",
+    "next": "Next",
+    "heads": "Select which heads you want to install:",
+    "box": "Select which boxes you want to install:"
   },
   "lights": {
     "moveLight": "Move light",

@@ -8,6 +8,7 @@
 	import { toast } from 'svelte-sonner';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
+	import { _ } from 'svelte-i18n';
 
 	let { data } = $props();
 	let imageInput: HTMLInputElement | undefined = $state();
@@ -52,7 +53,7 @@
 <h1 class="py-6 text-center text-4xl">Add a new system</h1>
 
 <div class="flex items-center justify-center">
-	<Button href=".">Indietro</Button>
+	<Button href=".">{$_("common.back")}</Button>
 </div>
 
 <form method="POST" enctype="multipart/form-data" class="container flex flex-col gap-3" use:enhance>
