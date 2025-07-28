@@ -112,6 +112,7 @@
       "Profili superficiali": "Profili superficiali",
       "Profilo ad incasso verticale": "Profilo ad incasso verticale",
       "Connettore a L": "Connettore a L",
+      "Connettore ad L": "Connettore ad L",
       "Connettore a T": "Connettore a T",
       "Connettore a X": "Connettore a X",
       "Connettore ad angolo esterno": "Connettore ad angolo esterno",
@@ -132,6 +133,7 @@
       "Profilo ad incasso": "Profilo ad incasso",
       "Incasso": "Incasso",
       "Connettore": "Connettore",
+      "Connettori": "Connettori",
       "Angolo interno": "Angolo interno",
       "Angolo esterno": "Angolo esterno",
       "Luce": "Luce",
@@ -141,7 +143,12 @@
       "Connettore ciclico": "Connettore ciclico",
       "Corto": "Corto",
       "Lungo": "Lungo",
-      "Verticale": "Verticale"
+      "Verticale": "Verticale",
+      "Profili dritti": "Profili dritti",
+      "Profilo dritto": "Profilo dritto",
+      "Profili curvi": "Profili curvi",
+      "Raggio": "Raggio",
+      "Profilo da": "Profilo da"
     }
   }
 }

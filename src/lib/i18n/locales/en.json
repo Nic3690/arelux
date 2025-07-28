@@ -112,6 +112,7 @@
       "Profili superficiali": "Surface profiles",
       "Profilo ad incasso verticale": "Vertical recessed profiles",
       "Connettore a L": "L-shaped connector",
+      "Connettore ad L": "L-shaped connector",
       "Connettore a T": "T-shaped connector",
       "Connettore a X": "X-shaped connector",
       "Connettore ad angolo esterno": "External angle connector",
@@ -132,6 +133,7 @@
       "Profilo ad incasso": "Recessed profile",
       "Incasso": "Recessed",
       "Connettore": "Connector",
+      "Connettori": "Connectors",
       "Angolo interno": "Internal angle",
       "Angolo esterno": "External angle",
       "Luce": "Light",
@@ -141,7 +143,12 @@
       "Connettore ciclico": "Cyclic connector",
       "Corto": "Short",
       "Lungo": "Long",
-      "Verticale": "Vertical"
+      "Verticale": "Vertical",
+      "Profili dritti": "Linear profiles",
+      "Profilo dritto": "Linear profile",
+      "Profili curvi": "Curved profiles",
+      "Raggio": "Radius",
+      "Profilo da": "Profile"
     }
   }
 }
