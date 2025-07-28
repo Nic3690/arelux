@@ -28,14 +28,15 @@
 	import { _ } from 'svelte-i18n';
 	import DbText from '$lib/i18n/DbText.svelte';
 
-	function hasTemperatureVariants(family: Family): boolean {
+	function hasTemperatureVariants(family: Family, itemCode?: string): boolean {
+		console.log(itemCode);
 		const enhancedFamily = TemperatureManager.getEnhancedFamily(family, enhancedCatalog);
-		return TemperatureManager.hasTemperatureVariants(enhancedFamily);
+		return TemperatureManager.hasTemperatureVariants(enhancedFamily, itemCode);
 	}
 
-	function getAvailableTemperatures(family: Family): TemperatureConfig[] {
+	function getAvailableTemperatures(family: Family, itemCode?: string): TemperatureConfig[] {
 		const enhancedFamily = TemperatureManager.getEnhancedFamily(family, enhancedCatalog);
-		return TemperatureManager.getAvailableTemperatures(enhancedFamily);
+		return TemperatureManager.getAvailableTemperatures(enhancedFamily, itemCode);
 	}
 
 	function getCurrentTemperature(code: string): TemperatureConfig | null {
@@ -48,7 +49,11 @@
 
 	function findItemByCode(family: Family, code: string) {
 		const enhancedFamily = TemperatureManager.getEnhancedFamily(family, enhancedCatalog);
-		return enhancedFamily.items.find(item => item.code === code);
+		console.log('🔍 Cercando:', code);
+		console.log('📦 Items disponibili:', enhancedFamily.items.map(i => i.code));
+		const found = enhancedFamily.items.find(item => item.code === code);
+		console.log('✅ Trovato:', found ? found.code : 'NESSUNO');
+		return found;
 	}
 
 	function getEnhancedCatalog() {
@@ -778,8 +783,8 @@
 		{#if page.state.chosenFamily !== undefined}
 			{@const family = data.families[page.state.chosenFamily]}
 
-			{#if hasTemperatureVariants(family)}
-				{@const availableTemperatures = getAvailableTemperatures(family)}
+			{#if hasTemperatureVariants(family, page.state.chosenItem)}
+				{@const availableTemperatures = getAvailableTemperatures(family, page.state.chosenItem)}
 				{@const currentTemp = getCurrentTemperature(page.state.chosenItem)}
 				
 				<div class="flex items-center rounded bg-box px-5 py-3">

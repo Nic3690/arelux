@@ -11,45 +11,54 @@ export const TEMPERATURE_CONFIGS: TemperatureConfig[] = [
 	{ suffix: 'UWW', label: '2700K', kelvin: 2700, priority: 1 },
 	{ suffix: 'WW', label: '3000K', kelvin: 3000, priority: 2 },
 	{ suffix: 'NW', label: '4000K', kelvin: 4000, priority: 3 },
-	// Aggiungi qui altre temperature future
 ];
 
-// Configurazione per famiglie che dovrebbero avere varianti di temperatura
 const FAMILY_TEMPERATURE_CONFIG: Record<string, string[]> = {
-	// Famiglie XNET luci dovrebbero avere UWW e WW
 	'XNET': ['UWW', 'WW'],
-	// Aggiungi altre famiglie che necessitano temperature specifiche
 };
 
-// Cache per varianti generate dinamicamente
+// NUOVO: Configurazione per oggetti specifici che hanno temperature diverse dalla famiglia
+const OBJECT_TEMPERATURE_CONFIG: Record<string, string[]> = {
+	'XNRS01': ['UWW', 'WW', 'NW'],
+	'XNRS02': ['UWW', 'WW', 'NW'],
+	'XNRS03': ['UWW', 'WW', 'NW'],
+	// Aggiungi qui altre luci con configurazioni specifiche
+};
+
 const generatedVariants = new Map<string, any[]>();
 const generatedCatalogEntries = new Map<string, any>();
 
 export class TemperatureManager {
 	
-	static getExpectedTemperatures(family: Family): string[] {
-		// Logica per determinare quali temperature dovrebbe avere una famiglia
+	static getExpectedTemperatures(family: Family, itemCode?: string): string[] {
+		if (itemCode) {
+			if (OBJECT_TEMPERATURE_CONFIG[itemCode]) {
+				return OBJECT_TEMPERATURE_CONFIG[itemCode];
+			}
+
+			let baseCode = itemCode;
+
+			const parts = baseCode.split(' ');
+			const mainCode = parts[0];
+
+			baseCode = mainCode.replace(/UWW[R]?$/g, '');
+			baseCode = baseCode.replace(/WW[R]?$/g, '');
+			baseCode = baseCode.replace(/NW[R]?$/g, '');
+
+			
+			if (OBJECT_TEMPERATURE_CONFIG[baseCode]) {
+				return OBJECT_TEMPERATURE_CONFIG[baseCode];
+			}
+		}
+
 		const familyKey = this.getFamilyConfigKey(family);
 		const expected = FAMILY_TEMPERATURE_CONFIG[familyKey] || [];
-		
-		// console.log('🌡️ Temperature aspettate per', family.displayName, ':', expected);
 		
 		return expected;
 	}
 	
 	private static getFamilyConfigKey(family: Family): string {
-		// DEBUG: Aggiungi logging per capire la struttura delle famiglie
-		// console.log('🔍 Analizzando famiglia:', {
-		// 	code: family.code,
-		// 	displayName: family.displayName,
-		// 	system: family.system,
-		// 	group: family.group,
-		// 	items: family.items.map(i => i.code)
-		// });
-		
-		// Logica più ampia per XNET - proviamo diversi pattern
 		if (family.system === 'XNET' || family.system === 'XNet') {
-			// Controlla se è una famiglia di luci/LED
 			const isLightFamily = 
 				family.displayName.toLowerCase().includes('led') || 
 				family.displayName.toLowerCase().includes('luce') ||
@@ -62,28 +71,22 @@ export class TemperatureManager {
 					item.code.toLowerCase().includes('ww') ||
 					item.code.toLowerCase().includes('nw')
 				);
-			
-			// console.log('🔍 XNET famiglia luci?', isLightFamily);
-			
+
 			if (isLightFamily) {
-				// console.log('✅ Famiglia XNET luci identificata:', family.displayName);
 				return 'XNET';
 			}
 		}
-		
-		// console.log('❌ Famiglia non configurata per temperature:', family.displayName);
-		return family.system; // fallback al sistema
+
+		return family.system;
 	}
 	
-	static getAvailableTemperatures(family: Family): TemperatureConfig[] {
-		const expectedTemps = this.getExpectedTemperatures(family);
+	static getAvailableTemperatures(family: Family, itemCode?: string): TemperatureConfig[] {
+		const expectedTemps = this.getExpectedTemperatures(family, itemCode);
 		
 		if (expectedTemps.length === 0) {
-			// Logica originale per famiglie senza configurazione specifica
 			return this.getActualAvailableTemperatures(family);
 		}
-		
-		// Per famiglie configurate, ritorna le temperature aspettate
+
 		return TEMPERATURE_CONFIGS.filter(temp => 
 			expectedTemps.includes(temp.suffix)
 		).sort((a, b) => a.priority - b.priority);
@@ -108,17 +111,15 @@ export class TemperatureManager {
 	}
 	
 	private static isValidTemperatureSuffix(code: string, suffix: string): boolean {
-		// Aggiunta regex specifica per gestire suffissi seguiti da R (per luci curve)
 		const regex = new RegExp(`\\b${suffix}\\b|${suffix}(?=[^A-Z])|${suffix}$|${suffix}R\\b`);
 		return regex.test(code);
 	}
 	
 	static getCurrentTemperature(code: string): TemperatureConfig | null {
 		for (const tempConfig of TEMPERATURE_CONFIGS) {
-			// Controlla sia il pattern normale che quello con R
 			if (code.includes(tempConfig.suffix) && 
 				this.isValidTemperatureSuffix(code, tempConfig.suffix)) {
-				return tempConfig; // Ritorna l'oggetto completo
+				return tempConfig;
 			}
 		}
 		return null;
@@ -128,217 +129,119 @@ export class TemperatureManager {
 		const currentTemp = this.getCurrentTemperature(code);
 		
 		if (currentTemp) {
-			// Crea una regex che cattura anche la R opzionale dopo il suffisso
 			const regex = new RegExp(`${currentTemp.suffix}(R?)`, 'g');
-			// Sostituisce mantenendo la R se presente
 			return code.replace(regex, newTemperature.suffix + '$1');
 		}
 		
 		return code + newTemperature.suffix;
 	}
 	
-	static hasTemperatureVariants(family: Family): boolean {
-		const availableTemps = this.getAvailableTemperatures(family);
+	static hasTemperatureVariants(family: Family, itemCode?: string): boolean {
+		const availableTemps = this.getAvailableTemperatures(family, itemCode);
 		const hasVariants = availableTemps.length > 1;
-		
-		// console.log('🎛️ hasTemperatureVariants per', family.displayName, ':', {
-		// 	availableTemps: availableTemps.map(t => t.suffix),
-		// 	hasVariants
-		// });
 		
 		return hasVariants;
 	}
-	
-	// NUOVO: Genera entry del catalog per item dinamici
+
 	static getEnhancedCatalog(originalCatalog: any): any {
 		const enhancedCatalog = { ...originalCatalog };
-		
-		// Aggiungi tutte le entry generate al catalog
+
 		for (const [itemCode, catalogEntry] of generatedCatalogEntries.entries()) {
 			enhancedCatalog[itemCode] = catalogEntry;
 		}
 		
 		return enhancedCatalog;
 	}
-	
-	// Helper per creare entry del catalog per item generati
+
 	private static createCatalogEntry(baseItem: any, baseCatalogEntry: any, newCode: string): any {
 		return {
 			...baseCatalogEntry,
 			code: newCode,
 		};
 	}
-	
-	// NUOVO: Metodo per ottenere il codice base per le risorse fisiche
+
 	static getBaseCodeForResources(code: string): string {
-		// console.log('🔍 getBaseCodeForResources input:', code);
-		
-		// Se il codice contiene UWW o UWWR (variante generata), sostituiscilo con WW/WWR
 		if (code.includes('UWW')) {
-			// Gestisce sia UWW che UWWR
 			const result = code.replace(/UWW(R?)/g, 'WW$1');
-			// console.log('✅ UWW → WW conversion:', code, '→', result);
 			return result;
 		}
-		
-		// Per tutti gli altri casi, usa il codice originale
-		// console.log('✅ Using original code:', code);
+
+		if (code.includes('NW')) {
+			const result = code.replace(/NW(R?)/g, 'WW$1');
+			return result;
+		}
 		return code;
 	}
-	
-	// NUOVO: Genera varianti mancanti per una famiglia
+
 	static getEnhancedFamily(family: Family, originalCatalog?: any): Family {
-		const expectedTemps = this.getExpectedTemperatures(family);
-		
-		// console.log('🔧 getEnhancedFamily per', family.displayName, 'temperature aspettate:', expectedTemps);
-		
-		if (expectedTemps.length <= 1) {
-			// console.log('❌ Nessuna temperatura configurata, famiglia non modificata');
-			return family;
-		}
-		
 		const cacheKey = `${family.code}_enhanced`;
 		
 		if (generatedVariants.has(cacheKey)) {
-			// console.log('💾 Usando varianti dalla cache');
 			return {
 				...family,
 				items: [...family.items, ...generatedVariants.get(cacheKey)!]
 			};
 		}
 		
-		const actualTemps = this.getActualAvailableTemperatures(family);
-		// console.log('🌡️ Temperature attuali:', actualTemps.map(t => t.suffix));
-		
-		const missingTemps = expectedTemps.filter(expectedSuffix => 
-			!actualTemps.some(actual => actual.suffix === expectedSuffix)
-		);
-		
-		// console.log('❓ Temperature mancanti:', missingTemps);
-		
-		if (missingTemps.length === 0) {
-			// console.log('✅ Tutte le temperature sono già presenti');
-			return family;
-		}
-		
 		const newItems: any[] = [];
-		
-		// IMPORTANTE: Se la famiglia ha configurazione colore, genera tutte le combinazioni
-		if (family.needsColorConfig) {
-			// Trova tutti i colori unici nella famiglia
-			const uniqueColors = new Set(family.items.map(item => item.color).filter(c => c));
-			// console.log('🎨 Colori unici trovati:', Array.from(uniqueColors));
+
+		for (const baseItem of family.items) {
+			const parts = baseItem.code.split(' ');
+			const mainCode = parts[0];
 			
-			for (const missingSuffix of missingTemps) {
-				const missingTempConfig = TEMPERATURE_CONFIGS.find(t => t.suffix === missingSuffix);
-				if (!missingTempConfig) continue;
-				
-				// Per ogni colore, genera la variante con la temperatura mancante
-				for (const color of uniqueColors) {
-					// Trova un item base con questo colore
-					const baseItem = family.items.find(item => {
-						const currentTemp = this.getCurrentTemperature(item.code);
-						return currentTemp !== null && item.color === color;
-					});
-					
-					if (!baseItem) {
-						// console.log(`⚠️ Nessun item base trovato per colore ${color}`);
-						continue;
-					}
-					
-					const newCode = this.switchTemperature(baseItem.code, missingTempConfig);
-					
-					// console.log('🆕 Generando variante colore+temperatura:', {
-					// 	base: baseItem.code,
-					// 	nuovo: newCode,
-					// 	colore: color,
-					// 	temperatura: missingTempConfig.suffix
-					// });
-					
-					// Verifica che non esista già
-					if (family.items.some(item => item.code === newCode) || 
-						newItems.some(item => item.code === newCode)) {
-						// console.log('⚠️ Item già esistente, skip:', newCode);
-						continue;
-					}
-					
-					const newItem = {
-						...baseItem,
-						code: newCode,
-						desc1: this.updateDescriptionTemperature(baseItem.desc1, this.getCurrentTemperature(baseItem.code), missingTempConfig),
-						desc2: this.updateDescriptionTemperature(baseItem.desc2, this.getCurrentTemperature(baseItem.code), missingTempConfig),
-						color: color, // Mantieni il colore
-						_isGenerated: true
-					};
-					
-					newItems.push(newItem);
-					
-					// Genera anche l'entry del catalog se disponibile
-					if (originalCatalog && originalCatalog[baseItem.code]) {
-						const catalogEntry = this.createCatalogEntry(baseItem, originalCatalog[baseItem.code], newCode);
-						generatedCatalogEntries.set(newCode, catalogEntry);
-						// console.log('📋 Entry catalog generata per:', newCode);
-					}
-				}
+			let extractedBase = mainCode.replace(/UWW[R]?$/g, '');
+			extractedBase = extractedBase.replace(/WW[R]?$/g, '');
+			extractedBase = extractedBase.replace(/NW[R]?$/g, '');
+			
+			const expectedTemps = this.getExpectedTemperatures(family, extractedBase);
+			
+			if (expectedTemps.length <= 1) {
+				continue;
 			}
-		} else {
-			// Logica originale per famiglie senza configurazione colore
-			for (const missingSuffix of missingTemps) {
-				const missingTempConfig = TEMPERATURE_CONFIGS.find(t => t.suffix === missingSuffix);
+			
+			const currentTemp = this.getCurrentTemperature(baseItem.code);
+
+			for (const expectedSuffix of expectedTemps) {
+				if (currentTemp && currentTemp.suffix === expectedSuffix) {
+					continue;
+				}
+				
+				const missingTempConfig = TEMPERATURE_CONFIGS.find(t => t.suffix === expectedSuffix);
 				if (!missingTempConfig) continue;
 				
-				const baseItem = family.items.find(item => {
-					const currentTemp = this.getCurrentTemperature(item.code);
-					return currentTemp !== null;
-				}) || family.items[0];
-				
-				if (!baseItem) continue;
-				
-				const newCode = this.switchTemperature(baseItem.code, missingTempConfig);
-				
-				// console.log('🆕 Generando variante:', {
-				// 	base: baseItem.code,
-				// 	nuovo: newCode,
-				// 	temperatura: missingTempConfig.suffix
-				// });
-				
-				if (family.items.some(item => item.code === newCode)) {
-					// console.log('⚠️ Item già esistente, skip:', newCode);
+				const newCode = currentTemp ? 
+					this.switchTemperature(baseItem.code, missingTempConfig) :
+					baseItem.code + missingTempConfig.suffix;
+
+				if (family.items.some(item => item.code === newCode) || 
+					newItems.some(item => item.code === newCode)) {
 					continue;
 				}
 				
 				const newItem = {
 					...baseItem,
 					code: newCode,
-					desc1: this.updateDescriptionTemperature(baseItem.desc1, this.getCurrentTemperature(baseItem.code), missingTempConfig),
-					desc2: this.updateDescriptionTemperature(baseItem.desc2, this.getCurrentTemperature(baseItem.code), missingTempConfig),
+					desc1: this.updateDescriptionTemperature(baseItem.desc1, currentTemp, missingTempConfig),
+					desc2: this.updateDescriptionTemperature(baseItem.desc2, currentTemp, missingTempConfig),
+					color: baseItem.color,
 					_isGenerated: true
 				};
 				
 				newItems.push(newItem);
-				
+
 				if (originalCatalog && originalCatalog[baseItem.code]) {
 					const catalogEntry = this.createCatalogEntry(baseItem, originalCatalog[baseItem.code], newCode);
 					generatedCatalogEntries.set(newCode, catalogEntry);
 				}
 			}
 		}
-		
-		// console.log('✨ Varianti generate:', newItems.length);
-		
-		// Salva in cache
+
 		generatedVariants.set(cacheKey, newItems);
 		
 		const enhancedFamily = {
 			...family,
 			items: [...family.items, ...newItems]
 		};
-		
-		// console.log('📦 Famiglia enhanced:', {
-		// 	original: family.items.length,
-		// 	generated: newItems.length,
-		// 	total: enhancedFamily.items.length
-		// });
 		
 		return enhancedFamily;
 	}
@@ -372,8 +275,6 @@ export class TemperatureManager {
 		newTemp: TemperatureConfig
 	): string {
 		if (!description || !oldTemp) return description;
-		
-		// Gestisce sia i suffissi normali che quelli con R
 		const suffixRegex = new RegExp(`${oldTemp.suffix}(R?)`, 'g');
 		
 		return description
@@ -381,8 +282,7 @@ export class TemperatureManager {
 			.replace(new RegExp(oldTemp.label, 'g'), newTemp.label)
 			.replace(new RegExp(oldTemp.kelvin.toString(), 'g'), newTemp.kelvin.toString());
 	}
-	
-	// Metodo helper per verificare se un item è stato generato dinamicamente
+
 	static isGeneratedItem(itemCode: string): boolean {
 		return generatedCatalogEntries.has(itemCode);
 	}
