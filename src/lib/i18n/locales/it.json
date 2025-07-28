@@ -63,7 +63,7 @@
   "lights": {
     "moveLight": "Sposta luce",
     "selectLight": "Clicca su una luce per selezionarla e spostarla",
-    "position": "Posizione: {percent}%",
+    "position": "Posizione:",
     "positionOccupied": "Posizione occupata",
     "positionFree": "Posizione libera",
     "confirmPosition": "Conferma posizione",
@@ -76,7 +76,10 @@
     "increments": "Incrementi di 10cm",
     "centerInRoom": "Centra in Stanza",
     "noObjects": "Non ci sono oggetti da spostare. Aggiungi prima degli elementi al progetto.",
-    "systemCentered": "Sistema centrato nella stanza"
+    "systemCentered": "Sistema centrato nella stanza",
+    "selectPosition": "Clicca su un oggetto per selezionare la configurazione da spostare",
+    "moveTitle": "Sposta Configurazione",
+    "connectedObjects": "oggetti connessi"
   },
   "room": {
     "virtualRoom": "Stanza Virtuale",
@@ -123,10 +126,19 @@
       "Curva": "Curva",
       "Superficie": "Superficie",
       "Profilo": "Profilo",
+      "Profilo ad incasso": "Profilo ad incasso",
+      "Incasso": "Incasso",
+      "Connettore": "Connettore",
+      "Angolo interno": "Angolo interno",
+      "Angolo esterno": "Angolo esterno",
       "Luce": "Luce",
       "Luce sospesa": "Luce sospesa",
       "Luce sferica": "Luce sferica",
-      "Proiettore regolabile": "Proiettore regolabile"
+      "Proiettore regolabile": "Proiettore regolabile",
+      "Connettore ciclico": "Connettore ciclico",
+      "Corto": "Corto",
+      "Lungo": "Lungo",
+      "Verticale": "Verticale"
     }
   }
 }

@@ -15,6 +15,7 @@
 	import { pushState } from '$app/navigation';
 	import { cn } from '$shad/utils';
 	import type { SavedObject } from '../app';
+	import { _ } from 'svelte-i18n';
 	// @ts-ignore
 	import html2pdf from 'html2pdf.js';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -496,7 +497,7 @@
 				{#if sendingEmail}
 					<LoaderCircle class="mr-1 animate-spin" size={28} />
 				{/if}
-				Conferma
+				{$_("common.confirm")}
 			</button>
 		</div>
 	{/if}

@@ -7,6 +7,8 @@
 	import X from 'phosphor-svelte/lib/X';
 	import type { SupabaseClient } from '@supabase/supabase-js';
 	import type { Database } from '$lib/dbschema';
+	import { _ } from 'svelte-i18n';
+
 	type Props = {
 		family: Family;
 		/** If length is undefined, disables opening the popup */
@@ -179,7 +181,7 @@
 						class={button({ class: 'w-full' })}
 						onclick={submit}
 					>
-						Conferma
+						{$_("common.confirm")}
 					</Button.Root>
 				{:else}
 					<div></div>

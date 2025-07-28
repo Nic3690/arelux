@@ -125,35 +125,35 @@
             </div>
 
             <div class="text-center text-xs text-gray-500 mb-2">
-                Posizione: {Math.round(position * 100)}%
+                {$_("lights.position")} {Math.round(position * 100)}%
             </div>
             
             {#if !isValidPosition}
                 <div class="text-center">
-                    <div class="text-sm text-red-600 mb-2">Posizione occupata</div>
+                    <div class="text-sm text-red-600 mb-2">{$_("lights.positionOccupied")}</div>
                     <button 
                         onclick={confirmPosition}
                         disabled={!isValidPosition}
                         class={cn(button(), 'disabled:opacity-50 disabled:cursor-not-allowed')}
                     >
-                        Conferma posizione
+                        {$_("lights.confirmPosition")}
                     </button>
                 </div>
             {:else}
                 <div class="text-center">
-                    <div class="text-sm text-green-600 mb-2">Posizione libera</div>
+                    <div class="text-sm text-green-600 mb-2">{$_("lights.positionFree")}</div>
                     <button 
                         onclick={confirmPosition}
                         class={cn(button())}
                     >
-                        Conferma posizione
+                        {$_("lights.confirmPosition")}
                     </button>
                 </div>
             {/if}
         </div>
     {:else if active}
         <div class="absolute bottom-full mb-2 right-0 text-center px-3 py-2 bg-box rounded shadow-lg border min-w-64">
-            Clicca su una luce per selezionarla e spostarla
+            {$_("lights.selectLight")}
         </div>
     {/if}
 

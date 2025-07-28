@@ -4,6 +4,7 @@
 	import { Popover } from 'bits-ui';
 	import { page } from '$app/state';
 	import { TemperatureManager } from '$lib/config/temperatureConfig';
+	import { _ as fnct } from 'svelte-i18n';
 
 	let {
 		items,
@@ -49,7 +50,7 @@
 </script>
 
 <div class="flex items-center justify-center gap-3 rounded bg-box p-3">
-	Colore
+	{$fnct("config.color")}
 
 	{#if filteredColors().length > 1}
 		<Popover.Root bind:open>

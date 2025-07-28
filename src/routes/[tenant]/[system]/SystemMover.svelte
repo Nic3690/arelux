@@ -95,9 +95,9 @@
     {#if active && selectedConfiguration}
         <div class="absolute bottom-full mb-2 right-0 flex flex-col gap-3 rounded bg-box p-4 min-w-64 shadow-lg border">
             <div class="text-center">
-                <div class="text-sm font-medium">Sposta Configurazione</div>
+                <div class="text-sm font-medium">{$_("system.moveTitle")}</div>
                 <div class="text-xs text-gray-600">
-                    {selectedConfiguration.size} oggetti connessi • Incrementi di 10cm
+                    {selectedConfiguration.size} {$_("system.connectedObjects")} • {$_("system.increments")}
                 </div>
             </div>
 
@@ -180,7 +180,7 @@
                     title="Centra la configurazione nella stanza virtuale"
                 >
                     <House size={16} />
-                    <span>Centra in Stanza</span>
+                    <span>{$_("system.centerInRoom")}</span>
                 </button>
                 
                 <button 
@@ -189,13 +189,13 @@
                     title="Conferma la posizione attuale e chiudi"
                 >
                     <Check size={16} />
-                    <span>Conferma</span>
+                    <span>{$_("common.confirm")}</span>
                 </button>
             </div>
         </div>
     {:else if active}
         <div class="absolute bottom-full mb-2 right-0 text-center px-3 py-2 bg-box rounded shadow-lg border min-w-64">
-            Clicca su un oggetto per selezionare la configurazione da spostare
+            {$_("system.selectPosition")}
         </div>
     {/if}
 

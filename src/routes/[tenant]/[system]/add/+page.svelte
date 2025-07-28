@@ -783,7 +783,7 @@
 				{@const currentTemp = getCurrentTemperature(page.state.chosenItem)}
 				
 				<div class="flex items-center rounded bg-box px-5 py-3">
-					<span class="mr-4 font-medium">Temperatura:</span>
+					<span class="mr-4 font-medium">{$_("config.temperature")}:</span>
 					<div class="flex rounded border-2 border-gray-300 overflow-hidden">
 						{#each availableTemperatures as temperature}
 							<button
