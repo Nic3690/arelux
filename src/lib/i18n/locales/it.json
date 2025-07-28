@@ -6,7 +6,7 @@
     "cancel": "Annulla",
     "delete": "Elimina",
     "edit": "Modifica",
-    "next": "Avanti",
+    "next": "AVANTI",
     "download": "Scarica",
     "configure": "Configura",
     "save": "Salva",
@@ -38,8 +38,9 @@
     "temperature": "Temperatura",
     "color": "Colore",
     "length": "Lunghezza",
-    "angle": "Angolo",
-    "radius": "Raggio",
+    "angle": "Angolo:",
+    "radius": "Raggio:",
+    "rotate": "Ruota",
     "modifyCurvature": "Modifica curvatura",
     "hideVirtual": "Nascondi stanza virtuale",
     "showVirtual": "Mostra stanza virtuale",
@@ -103,7 +104,7 @@
       "Profili a sospensione": "Profili a sospensione",
       "Profili incasso": "Profili incasso",
       "Profili superficiali": "Profili superficiali",
-      "Profili ad incasso verticale": "Profili ad incasso verticale",
+      "Profilo ad incasso verticale": "Profilo ad incasso verticale",
       "Connettore a L": "Connettore a L",
       "Connettore a T": "Connettore a T",
       "Connettore a X": "Connettore a X",
@@ -111,7 +112,12 @@
       "Connettore ad angolo interno": "Connettore ad angolo interno",
       "Connettore ciclico corto": "Connettore ciclico corto",
       "Connettore ciclico lungo": "Connettore ciclico lungo",
-      "Tappo senza alimentazione": "Tappo senza alimentazione"
+      "Tappo senza alimentazione": "Tappo senza alimentazione",
+      "Profili": "Profili",
+      "Luci": "Luci",
+      "Connettori superficie": "Connettori superficie",
+      "Connettori incasso": "Connettori incasso",
+      "Accessori superficie": "Accessori superficie"
     }
   }
 }

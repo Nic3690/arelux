@@ -7,6 +7,7 @@
 	import { button } from '$lib';
 	import { fade } from 'svelte/transition';
 	import { cn, flyAndScale } from '$shad/utils';
+	import { _ as fnct } from 'svelte-i18n';
 
 	export type Props = {
 		selected?: FamilyEntry | undefined;
@@ -54,7 +55,7 @@
 </script>
 
 <Dialog.Root bind:open>
-	<Dialog.Trigger class="tracking-wider {button()}">Modifica curvatura</Dialog.Trigger>
+	<Dialog.Trigger class="tracking-wider {button()}">{$fnct("config.modifyCurvature")}</Dialog.Trigger>
 
 	<Dialog.Portal>
 		<Dialog.Overlay
@@ -70,16 +71,16 @@
 			)}
 		>
 			<Dialog.Title class="relative flex w-full items-center text-left text-2xl font-bold">
-				<span>Modifica curvatura:</span>
+				<span>{$fnct("config.modifyCurvature")}</span>
 				
 				{#if selected !== undefined}
 					<div class="absolute right-0 flex gap-4 text-sm font-normal">
 						<div class="flex items-center gap-1">
-							<span class="text-muted-foreground text-lg">Angolo:</span>
+							<span class="text-muted-foreground text-lg">{$fnct("config.angle")}</span>
 							<span class="font-medium text-lg">{selected.deg}°</span>
 						</div>
 						<div class="flex items-center gap-1">
-							<span class="text-muted-foreground text-lg">Raggio:</span>
+							<span class="text-muted-foreground text-lg">{$fnct("config.radius")}</span>
 							<span class="font-medium text-lg">{selected.radius}mm</span>
 						</div>
 					</div>
@@ -158,7 +159,7 @@
 
 			<div class="flex w-full flex-row items-stretch gap-5 pt-6">
 				<Dialog.Close class={button({ color: 'secondary', class: 'w-full' })}>
-					<span class="translate-y-0.5">Annulla</span>
+					<span class="translate-y-0.5">{$fnct("common.cancel")}</span>
 				</Dialog.Close>
 				<Button.Root
 					disabled={selected === undefined}
@@ -169,7 +170,7 @@
 						if (selected !== undefined) open = false;
 					}}
 				>
-					<span class="translate-y-0.5">Conferma</span>
+					<span class="translate-y-0.5">{$fnct("common.confirm")}</span>
 				</Button.Root>
 			</div>
 		</Dialog.Content>

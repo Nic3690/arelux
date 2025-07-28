@@ -6,7 +6,7 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
-    "next": "Next",
+    "next": "NEXT",
     "download": "Download",
     "configure": "Configure",
     "save": "Save",
@@ -40,6 +40,7 @@
     "length": "Length",
     "angle": "Angle",
     "radius": "Radius",
+    "rotate": "Rotate",
     "modifyCurvature": "Modify curvature",
     "hideVirtual": "Hide virtual room",
     "showVirtual": "Show virtual room",
@@ -103,7 +104,7 @@
       "Profili a sospensione": "Suspended profiles",
       "Profili incasso": "Recessed profiles",
       "Profili superficiali": "Surface profiles",
-      "Profili ad incasso verticale": "Vertical recessed profiles",
+      "Profilo ad incasso verticale": "Vertical recessed profiles",
       "Connettore a L": "L-shaped connector",
       "Connettore a T": "T-shaped connector",
       "Connettore a X": "X-shaped connector",
@@ -111,7 +112,12 @@
       "Connettore ad angolo interno": "Internal angle connector",
       "Connettore ciclico corto": "Short cyclic connector",
       "Connettore ciclico lungo": "Long cyclic connector",
-      "Tappo senza alimentazione": "Cap without power supply"
+      "Tappo senza alimentazione": "Cap without power supply",
+      "Profili": "Profiles",
+      "Luci": "Lights",
+      "Connettori superficie": "Surface connectors",
+      "Connettori incasso": "Recessed connectors",
+      "Accessori superficie": "Surface accessories"
     }
   }
 }

@@ -324,7 +324,7 @@
 				<DropdownMenu.Root>
 					<DropdownMenu.Trigger class="flex rounded bg-box p-6 text-left">
 						<span class="overflow-x-hidden text-ellipsis text-nowrap">
-							{mode}
+							<DbText text={mode} />
 						</span>
 						<CaretUpDown class="ml-auto translate-y-1" />
 					</DropdownMenu.Trigger>
@@ -346,7 +346,7 @@
 							}}>
 								<DropdownMenu.Item class="flex w-36 items-center ">
 									<span class="overflow-x-hidden text-ellipsis text-nowrap">
-										{thisMode}
+										<DbText text={thisMode} />
 									</span>
 								</DropdownMenu.Item>
 							</Button.Root>
@@ -609,7 +609,7 @@
 					}}
 				>
 					{#if (chosenFamily !== undefined && (data.families[chosenFamily].needsConfig || hasTemperatureVariants(data.families[chosenFamily]))) || (mode === 'Luci' && selectedPower)}
-						AVANTI
+						{$_("common.next")}
 					{:else}
 						{$_("common.add")}
 					{/if}
@@ -638,7 +638,7 @@
 						}
 					}}
 				>
-					AGGIUNGI
+					{$_("common.add")}
 				</Button.Root>
 			{/if}
 		</div>
@@ -941,7 +941,7 @@
 			{#if enhancedCatalog[page.state.chosenItem]?.juncts?.length > 1 && $objects.length > 0}
 				<button class={button({ class: 'flex items-center' })} onclick={() => temporary?.rotate()}>
 					<ArrowsClockwise class="mr-1 size-7 text-foreground" />
-					Ruota
+					{$_("config.rotate")}
 				</button>
 			{/if}
 		{/if}

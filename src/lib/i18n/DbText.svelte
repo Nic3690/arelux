@@ -16,7 +16,12 @@
     } = $props();
     
     // Store reattivo che si aggiorna automaticamente quando cambia la lingua
-    let translatedText = $derived(text ? translateDatabaseText(text) : fallback);
+    // MODIFICA: Ora è reattivo a $locale
+    let translatedText = $derived.by(() => {
+        // Accesso reattivo a $locale
+        const currentLocale = $locale;
+        return text ? translateDatabaseText(text) : fallback;
+    });
 </script>
 
 {#if element === 'span'}
