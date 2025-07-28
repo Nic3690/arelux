@@ -103,7 +103,9 @@
     "OP": "Proiettori lineari",
     "GB": "Sferiche",
     "SU": "Sospensione", 
-    "SP": "Proiettori orientabili"
+    "SP": "Proiettori orientabili",
+    "SUR": "Sospensione curvi", 
+    "SPR": "Proiettori orientabili curvi"
   },
   "database": {
     "terms": {

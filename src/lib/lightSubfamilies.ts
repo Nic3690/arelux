@@ -14,8 +14,8 @@ export interface LightSubfamily {
 export function extractSubfamilies(family: Family, catalog: Record<string, CatalogEntry>): Map<string, LightSubfamily> {
   const subfamilies = new Map<string, LightSubfamily>();
   
-  // Codici sottofamiglia validi
-  const VALID_SUBFAMILY_CODES = ['OP', 'GB', 'SU', 'SP'];
+  // Codici sottofamiglia validi - aggiunti SUR e SPR per le versioni curve
+  const VALID_SUBFAMILY_CODES = ['OP', 'GB', 'SU', 'SP', 'SUR', 'SPR'];
   
   // Raggruppa per sottofamiglia
   for (const item of family.items) {
@@ -24,10 +24,10 @@ export function extractSubfamilies(family: Family, catalog: Record<string, Catal
     let isCurved = false;
     
     // Controlla se è una luce curva
-    isCurved = item.code.includes('WWR') || item.code.includes('UWWR');
+    isCurved = item.code.includes('WWR') || item.code.includes('UWWR') || item.code.includes('NWR');
     
     // Strategia: cerca i codici sottofamiglia validi nel codice item
-    for (const code of VALID_SUBFAMILY_CODES) {
+    for (const code of ['OP', 'GB', 'SU', 'SP']) { // Prima cerca i codici base
       // Pattern 1: codice sottofamiglia con spazio prima
       let regex = new RegExp(`^([A-Z]+\\d+)(?:[U]?WW[R]?)?\\s+${code}(?:\\s|$|[A-Z])`);
       let match = item.code.match(regex);
@@ -40,7 +40,15 @@ export function extractSubfamilies(family: Family, catalog: Record<string, Catal
       
       if (match) {
         baseModel = match[1];
-        subfamilyCode = code;
+        
+        // Determina il codice sottofamiglia in base a se è curvo o meno
+        if (code === 'SU') {
+          subfamilyCode = isCurved ? 'SUR' : 'SU';
+        } else if (code === 'SP') {
+          subfamilyCode = isCurved ? 'SPR' : 'SP';
+        } else {
+          subfamilyCode = code; // OP e GB rimangono invariati
+        }
         break;
       }
     }
@@ -108,6 +116,8 @@ export function getSubfamilyName(code: string, translateFn?: (key: string) => st
     'GB': 'Sferiche', 
     'SU': 'Sospensione',
     'SP': 'Proiettori orientabili',
+    'SUR': 'Sospensione curvi',
+    'SPR': 'Proiettori orientabili curvi',
   };
   
   return SUBFAMILY_NAMES[code] || code;
@@ -117,7 +127,9 @@ const SUBFAMILY_ORDER: Record<string, number> = {
   'OP': 1,
   'GB': 2,
   'SU': 3,
-  'SP': 4,
+  'SUR': 4, // Sospensione curvi dopo sospensione normale
+  'SP': 5,
+  'SPR': 6, // Proiettori orientabili curvi dopo quelli normali
 };
 
 export function sortSubfamilies(subfamilies: LightSubfamily[]): LightSubfamily[] {

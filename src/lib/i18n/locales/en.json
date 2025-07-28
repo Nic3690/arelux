@@ -103,7 +103,9 @@
     "OP": "Linear projectors",
     "GB": "Sphericals",
     "SU": "Suspended", 
-    "SP": "Adjustable projectors"
+    "SP": "Adjustable projectors",
+    "SUR": "Curved suspended",
+    "SPR": "Curved adjustable projectors"
   },
   "database": {
     "terms": {
