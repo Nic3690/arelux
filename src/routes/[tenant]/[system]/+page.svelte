@@ -70,7 +70,7 @@
 			lights = renderer.getLights();
 			
 			if (lights.length === 0) {
-				toast.info('Non sono state trovate luci. Aggiungi prima una luce al progetto.');
+				toast.info($_("lights.noLightsFound"));
 				lightMoverMode = false;
 			} else {
 				if (systemMoverMode) {
