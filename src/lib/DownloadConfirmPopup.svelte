@@ -77,15 +77,42 @@
 	];
 	const powerSupplies = ['XNRS01PCO.5', 'XNRS01PC2.5'];
 	const boxes = ['SMCKS01SDB', 'SMCKS02SDB', 'SMCKS02TDB', 'SMCKS03TDB'];
+
+	const availableDrivers = $derived.by(() => {
+		const currentSystem = page.data.system.toLowerCase();
+		
+		if (currentSystem === 'XFREE S' || currentSystem === 'xfree s') {
+			// XFREES: solo driver AT48 (REMOTE)
+			return drivers.filter((driver: { code: string; power: number }) => driver.code.startsWith('AT'));
+		} else if (currentSystem === 'XNET' || currentSystem === 'xnet') {
+			// XNET: tutti i driver (sia INTRACK che REMOTE)
+			return drivers;
+		}
+		
+		// Default: tutti i driver
+		return drivers;
+	});
+
+	const intrackDrivers = $derived(availableDrivers.filter((driver: { code: string; power: number }) => !driver.code.startsWith('AT')));
+	const remoteDrivers = $derived(availableDrivers.filter((driver: { code: string; power: number }) => driver.code.startsWith('AT')));
+
+	const showIntrack = $derived(intrackDrivers.length > 0);
+	const showRemote = $derived(remoteDrivers.length > 0);
+
 	const { driver: intrackDriver, url: intrackUrl } = $derived.by(() => {
-		const driver = drivers.filter((driver) => !driver.code.startsWith('AT'))[0];
+		if (!showIntrack || intrackDrivers.length === 0) return { driver: null, url: '' };
+		
+		const driver = intrackDrivers[0];
 		const url = page.data.supabase.storage
 			.from(page.data.tenant)
 			.getPublicUrl(`images/${driver.code}.webp`).data.publicUrl;
 		return { driver, url };
 	});
+
 	const { driver: remoteDriver, url: remoteUrl } = $derived.by(() => {
-		const driver = drivers.filter((driver) => driver.code.startsWith('AT'))[0];
+		if (!showRemote || remoteDrivers.length === 0) return { driver: null, url: '' };
+		
+		const driver = remoteDrivers[0];
 		const url = page.data.supabase.storage
 			.from(page.data.tenant)
 			.getPublicUrl(`images/${driver.code}.webp`).data.publicUrl;
@@ -169,6 +196,15 @@
 	}
 
 	const loaded: Set<string> = new SvelteSet();
+	$effect(() => {
+		const currentSystem = page.data.system.toLowerCase();
+		
+		if (currentSystem === 'xfree_s' || currentSystem === 'xfrees') {
+			if (remoteDrivers.length > 0 && !currentDriver) {
+				currentDriver = remoteDrivers[0].code;
+			}
+		}
+	});
 </script>
 
 <div
@@ -222,91 +258,106 @@
 		<span class="py-6 text-2xl font-light">
 			{$_("config.totalPower")}: {power}W.
 		</span>
-		<div class="grid grid-cols-2 gap-3">
-			<span class="text-center">INTRACK</span>
-			<span class="text-center">REMOTE</span>
-			<div class="flex flex-col gap-3">
-				<button
-					class={cn(
-						'flex w-full items-start gap-6 rounded-md border-2 p-2 text-left transition-colors',
-						currentDriver === intrackDriver.code && 'border-primary',
-					)}
-					onclick={() => (currentDriver = intrackDriver.code)}
-				>
-					<div class="flex h-full flex-col justify-start">
-						<span class="mb-2 mt-3 text-lg font-medium">
-							{intrackDriver.code}
-							({remoteDriver.power}W)
-						</span>
-
-						<span class="text-sm text-muted-foreground">
-							{$_("config.quantity")}: {Math.max(Math.ceil(power / intrackDriver.power), minDrivers)}
-						</span>
-					</div>
-
-					<div class="relative ml-auto">
-						<img
-							src={intrackUrl}
-							width="125"
-							height="125"
-							alt=""
-							onload={() => loaded.add(intrackUrl)}
-							class={cn(
-								'h-[125px] rounded-full border-4 transition-all',
-								loaded.has(intrackUrl) || 'opacity-0',
-							)}
-						/>
-
-						<div
-							class={cn(
-								'absolute right-0 top-0 z-10 h-[125px] w-[125px] animate-pulse rounded-full bg-gray-400',
-								loaded.has(intrackUrl) && 'hidden',
-							)}
-						></div>
-					</div>
-				</button>
-			</div>
-			<div class="flex flex-col gap-3">
-				<button
-					class={cn(
-						'flex w-full items-start gap-6 rounded-md border-2 p-2 text-left transition-colors',
-						currentDriver === remoteDriver.code && 'border-primary',
-					)}
-					onclick={() => (currentDriver = remoteDriver.code)}
-				>
-					<div class="flex h-full flex-col justify-start">
-						<span class="mb-2 mt-3 text-lg font-medium">
-							{remoteDriver.code}
-							({remoteDriver.power}W)
-						</span>
-
-						<span class="text-sm text-muted-foreground">
-							{$_("config.quantity")}: {Math.max(Math.ceil(power / remoteDriver.power), minDrivers)}
-						</span>
-					</div>
-
-					<div class="relative ml-auto">
-						<img
-							src={remoteUrl}
-							width="125"
-							height="125"
-							alt=""
-							onload={() => loaded.add(remoteUrl)}
-							class={cn(
-								'h-[125px] rounded-full border-4 transition-all',
-								loaded.has(remoteUrl) || 'opacity-0',
-							)}
-						/>
-
-						<div
-							class={cn(
-								'absolute right-0 top-0 z-10 h-[125px] w-[125px] animate-pulse rounded-full bg-gray-400',
-								loaded.has(remoteUrl) && 'hidden',
-							)}
-						></div>
-					</div>
-				</button>
-			</div>
+		<div class="grid gap-3" class:grid-cols-2={showIntrack && showRemote} class:grid-cols-1={!(showIntrack && showRemote)}>
+			<!-- Headers dinamici -->
+			{#if showIntrack && showRemote}
+				<span class="text-center">INTRACK</span>
+				<span class="text-center">REMOTE</span>
+			{:else if showIntrack}
+				<span class="text-center">INTRACK</span>
+			{:else if showRemote}
+				<span class="text-center">REMOTE</span>
+			{/if}
+			
+			<!-- Pulsante INTRACK (solo se disponibile) -->
+			{#if showIntrack && intrackDriver}
+				<div class="flex flex-col gap-3">
+					<button
+						class={cn(
+							'flex w-full items-start gap-6 rounded-md border-2 p-2 text-left transition-colors',
+							currentDriver === intrackDriver.code && 'border-primary',
+						)}
+						onclick={() => (currentDriver = intrackDriver.code)}
+					>
+						<div class="flex h-full flex-col justify-start">
+							<span class="mb-2 mt-3 text-lg font-medium">
+								{intrackDriver.code}
+								({intrackDriver.power}W)
+							</span>
+		
+							<span class="text-sm text-muted-foreground">
+								{$_("config.quantity")}: {Math.max(Math.ceil(power / intrackDriver.power), minDrivers)}
+							</span>
+						</div>
+		
+						<div class="relative ml-auto">
+							<img
+								src={intrackUrl}
+								width="125"
+								height="125"
+								alt=""
+								onload={() => loaded.add(intrackUrl)}
+								class={cn(
+									'h-[125px] rounded-full border-4 transition-all',
+									loaded.has(intrackUrl) || 'opacity-0',
+								)}
+							/>
+		
+							<div
+								class={cn(
+									'absolute right-0 top-0 z-10 h-[125px] w-[125px] animate-pulse rounded-full bg-gray-400',
+									loaded.has(intrackUrl) && 'hidden',
+								)}
+							></div>
+						</div>
+					</button>
+				</div>
+			{/if}
+			
+			<!-- Pulsante REMOTE (solo se disponibile) -->
+			{#if showRemote && remoteDriver}
+				<div class="flex flex-col gap-3">
+					<button
+						class={cn(
+							'flex w-full items-start gap-6 rounded-md border-2 p-2 text-left transition-colors',
+							currentDriver === remoteDriver.code && 'border-primary',
+						)}
+						onclick={() => (currentDriver = remoteDriver.code)}
+					>
+						<div class="flex h-full flex-col justify-start">
+							<span class="mb-2 mt-3 text-lg font-medium">
+								{remoteDriver.code}
+								({remoteDriver.power}W)
+							</span>
+		
+							<span class="text-sm text-muted-foreground">
+								{$_("config.quantity")}: {Math.max(Math.ceil(power / remoteDriver.power), minDrivers)}
+							</span>
+						</div>
+		
+						<div class="relative ml-auto">
+							<img
+								src={remoteUrl}
+								width="125"
+								height="125"
+								alt=""
+								onload={() => loaded.add(remoteUrl)}
+								class={cn(
+									'h-[125px] rounded-full border-4 transition-all',
+									loaded.has(remoteUrl) || 'opacity-0',
+								)}
+							/>
+		
+							<div
+								class={cn(
+									'absolute right-0 top-0 z-10 h-[125px] w-[125px] animate-pulse rounded-full bg-gray-400',
+									loaded.has(remoteUrl) && 'hidden',
+								)}
+							></div>
+						</div>
+					</button>
+				</div>
+			{/if}
 		</div>
 
 		<div class="mt-6 flex gap-5">
@@ -322,7 +373,8 @@
 				class={button({ class: 'flex' })}
 				disabled={currentDriver === null}
 				onclick={() => {
-					if (!currentDriver?.startsWith('AT')) pushState('', { currentPage: 4 } as App.PageState);
+					const currentSystem = page.data.system.toLowerCase();
+					if (currentSystem === 'xfree s' || currentSystem === 'xfree_s') pushState('', { currentPage: 4 } as App.PageState);
 					else pushState('', { currentPage: (page.state.currentPage ?? 1) + 1 } as App.PageState);
 				}}
 			>
