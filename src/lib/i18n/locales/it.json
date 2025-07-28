@@ -117,7 +117,16 @@
       "Luci": "Luci",
       "Connettori superficie": "Connettori superficie",
       "Connettori incasso": "Connettori incasso",
-      "Accessori superficie": "Accessori superficie"
+      "Accessori superficie": "Accessori superficie",
+      "Lineare": "Lineare",
+      "Curvo": "Curvo",
+      "Curva": "Curva",
+      "Superficie": "Superficie",
+      "Profilo": "Profilo",
+      "Luce": "Luce",
+      "Luce sospesa": "Luce sospesa",
+      "Luce sferica": "Luce sferica",
+      "Proiettore regolabile": "Proiettore regolabile"
     }
   }
 }

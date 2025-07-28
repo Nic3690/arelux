@@ -45,6 +45,7 @@
 
 	import { sidebarRefs, focusSidebarElement } from '$lib/index';
 	import { TemperatureManager } from '$lib/config/temperatureConfig';
+	import DbText from '$lib/i18n/DbText.svelte';
 
 	function setRef(node: HTMLElement, code: string) {
 		sidebarRefs.set(code, node);
@@ -301,8 +302,8 @@
 								<div class="flex grow items-center justify-start py-4 pr-6">
 									<div class="flex flex-col">
 										<span class="mb-1">{item.code.split('+')[0]}</span>
-										<span class="text-sm">{item.desc1},</span>
-										<span class="text-sm">{item.desc2}</span>
+										<span class="text-sm"><DbText text={item.desc1} />,</span>
+										<span class="text-sm"><DbText text={item.desc2} /></span>
 									</div>
 									<button class="ml-auto" type="button" onclick={() => remove(item)}>
 										<X size={28} />

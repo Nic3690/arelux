@@ -117,7 +117,16 @@
       "Luci": "Lights",
       "Connettori superficie": "Surface connectors",
       "Connettori incasso": "Recessed connectors",
-      "Accessori superficie": "Surface accessories"
+      "Accessori superficie": "Surface accessories",
+      "Lineare": "Linear",
+      "Curvo": "Curved",
+      "Curva": "Curved",
+      "Superficie": "Surface",
+      "Profilo": "Profile",
+      "Luce": "Light",
+      "Luce sospesa": "Suspended light",
+      "Luce sferica": "Spherical light",
+      "Proiettore regolabile": "Adjustable projector"
     }
   }
 }
