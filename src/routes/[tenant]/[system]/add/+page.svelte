@@ -30,7 +30,6 @@
 	import { object } from 'zod';
 
 	function hasTemperatureVariants(family: Family, itemCode?: string): boolean {
-		console.log(itemCode);
 		const enhancedFamily = TemperatureManager.getEnhancedFamily(family, enhancedCatalog);
 		return TemperatureManager.hasTemperatureVariants(enhancedFamily, itemCode);
 	}
@@ -50,10 +49,7 @@
 
 	function findItemByCode(family: Family, code: string) {
 		const enhancedFamily = TemperatureManager.getEnhancedFamily(family, enhancedCatalog);
-		console.log('🔍 Cercando:', code);
-		console.log('📦 Items disponibili:', enhancedFamily.items.map(i => i.code));
 		const found = enhancedFamily.items.find(item => item.code === code);
-		console.log('✅ Trovato:', found ? found.code : 'NESSUNO');
 		return found;
 	}
 
@@ -593,6 +589,7 @@
 								chosenFamily,
 								chosenItem: item.code,
 								reference: undefined,
+								length: item.len > 0 ? item.len : undefined
 							});
 						} else if (family.hasModel) {
 							rend.addObject(item.code).then((object) => {
@@ -601,6 +598,7 @@
 									chosenFamily,
 									chosenItem: item.code,
 									reference: undefined,
+									length: item.len > 0 ? item.len : undefined
 								});
 							});
 						} else {
@@ -725,6 +723,7 @@
 											chosenFamily: familyForItem,
 											chosenItem: item.code,
 											reference,
+											length: item.len > 0 ? item.len : undefined
 										});
 									} else if (family.hasModel) {
 										// Aggiungi l'oggetto direttamente
@@ -739,6 +738,7 @@
 												chosenFamily: familyForItem,
 												chosenItem: item.code,
 												reference,
+												length: item.len > 0 ? item.len : undefined
 											});
 										});
 									}
@@ -832,7 +832,9 @@
 				{#if (family.system === "XNet" || family.system === "XFree S") && !configShape?.angle && !isCurrentItemCurved}
 					<ConfigLength
 						{family}
+						allowCustomLength={family.system !== "XFree S"}
 						onsubmit={(objectCode, length, isCustom) => {
+							console.log('🔍 ConfigLength onsubmit:', { objectCode, length, isCustom });
 							configLength = length;
 							
 							replaceState('', {
