@@ -224,7 +224,16 @@
                 
                 const midPoint = new Vector3().addVectors(point1World, point2World).multiplyScalar(0.5);
                 const distanceFromMid = pointCWorld.distanceTo(midPoint);
-                const isCurved = distanceFromMid > 0.01;
+				let familyAngle = 0;
+				for (const family of Object.values(renderer!.families)) {
+					const familyItem = family.items.find(item => item.code === profile.code);
+					if (familyItem && familyItem.deg !== undefined) {
+						familyAngle = familyItem.deg;
+						break;
+					}
+				}
+                const isCurved = (distanceFromMid > 0.01) && (familyAngle > 0);
+				console.log(isCurved);
 
                 let curveAngle = 0;
                 let curveRadius = 0;
